@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  SDL_VIDEODRIVER: dummy
+  SDL_AUDIODRIVER: dummy
+
+jobs:
+  linux:
+    name: Linux (${{ matrix.cc }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cc: gcc, cxx: g++ }
+          - { cc: clang, cxx: clang++ }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DLIQ_WARNINGS_AS_ERRORS=ON
+          -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+      - name: Build
+        run: cmake --build build
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+      - name: Headless smoke test (renders a real game frame)
+        run: |
+          ./build/liq2048 --version
+          ./build/liq2048 --screenshot build/game.bmp --scene game --frames 600
+          test -s build/game.bmp
+      - name: Upload screenshot
+        if: matrix.cc == 'gcc'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-screenshot
+          path: build/game.bmp
+          retention-days: 7
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: brew install ninja sdl2 sdl2_ttf sdl2_mixer
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIQ_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+      - name: Headless smoke test
+        run: ./build/liq2048 --screenshot build/game.bmp --scene game --frames 600 && test -s build/game.bmp
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache fetched SDL sources
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: win-deps-${{ hashFiles('CMakeLists.txt') }}
+      - name: Configure (SDL is downloaded and built statically)
+        run: cmake -S . -B build -DLIQ_FETCH_DEPS=ON -DLIQ_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --config Release
+      - name: Unit tests
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Headless smoke test
+        shell: bash
+        run: |
+          ./build/Release/liq2048.exe --screenshot build/game.bmp --scene game --frames 600
+          test -s build/game.bmp
+
+  android:
+    name: Android (arm64, experimental)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Configure and build libmain.so
+        run: |
+          cmake -S . -B build-android -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DLIQ_FETCH_DEPS=ON
+          cmake --build build-android

@@ -1,0 +1,6 @@
+# Optional local linting: `clang-tidy -p build src/**/*.cpp`
+Checks: >
+  -*,bugprone-*,performance-*,modernize-use-nullptr,modernize-use-override,
+  modernize-loop-convert,readability-container-size-empty,readability-redundant-*,
+  -bugprone-easily-swappable-parameters,-bugprone-narrowing-conversions
+HeaderFilterRegex: 'src/.*'
