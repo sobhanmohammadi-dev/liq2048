@@ -1,0 +1,45 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve Liq2048! Please check existing issues first.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start Classic mode
+        2. Drop a blob at the far left
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Windows, Linux, macOS, Android, iOS]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `liq2048 --version` or the release tag.
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Game mode (if relevant)
+      options: [Classic, Time Attack, Target, Daily Challenge, Zen, Menus / settings]
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, logs, system info

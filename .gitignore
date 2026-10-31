@@ -1,0 +1,36 @@
+# Build output
+/build/
+/build-*/
+/out/
+cmake-build-*/
+CMakeUserPresets.json
+compile_commands.json
+CMakeCache.txt
+CMakeFiles/
+*.o
+*.obj
+*.a
+*.lib
+*.exe
+
+# Packaging
+/dist/
+*.zip
+*.tar.gz
+
+# Editors / OS
+.vscode/
+.idea/
+.vs/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Dev captures (README images live in docs/images)
+*.bmp
+
+# Personal assets: add your own files under assets/, keep the folders
+# (uncomment to keep licensed fonts/audio out of git)
+# assets/fonts/*.ttf
+# assets/sounds/*.wav
+# assets/music/*.ogg
