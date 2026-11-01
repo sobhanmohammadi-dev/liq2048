@@ -45,7 +45,7 @@ bool writeFile(const std::string& path, const std::string& data) {
 }
 
 std::string prefPath() {
-    char* p = SDL_GetPrefPath("Sobhanmohammadi", "Liq2048");
+    char* p = SDL_GetPrefPath("sobhanmohammadi-dev", "Liq2048");
     std::string s = p ? p : "";
     if (p) SDL_free(p);
     return s;

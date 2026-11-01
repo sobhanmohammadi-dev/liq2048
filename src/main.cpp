@@ -14,7 +14,7 @@ static void usage() {
         "  --help                 show this help\n"
         "  --version              print version\n"
         "  --screenshot <file>    render headlessly and save a BMP (dev tool)\n"
-        "  --scene <name>         menu|modes|progress|settings|game (with --screenshot)\n"
+        "  --scene <name>         menu|modes|progress|settings|game|logo|banner|social (with --screenshot)\n"
         "  --frames <n>           simulated frames before capture (default 60)\n"
         "  --lang <en|fa>         force language (with --screenshot)");
 }

@@ -4,7 +4,9 @@
 #include <string>
 
 #include "audio/Audio.hpp"
+#include "core/Config.hpp"
 #include "core/Themes.hpp"
+#include "gfx/BlobRaster.hpp"
 #include "gfx/Gfx.hpp"
 #include "i18n/Loc.hpp"
 #include "save/Save.hpp"
@@ -13,15 +15,16 @@
 
 namespace liq {
 
-enum class SceneId { Menu, ModeSelect, Progress, Settings, Game };
+enum class SceneId { Menu, ModeSelect, Progress, Settings, Game, Brand };
 
 struct Ctx {
-    Ctx() { ui.bind(this); }
+    Ctx() : raster(cfg::kW, cfg::kH) { ui.bind(this); }
     Ctx(const Ctx&) = delete;
     Ctx& operator=(const Ctx&) = delete;
 
     SDL_Window* window = nullptr;
     Gfx gfx;
+    BlobRaster raster;  // shared droplet layer
     Loc loc;
     Save save;
     Audio audio;
@@ -32,12 +35,14 @@ struct Ctx {
     bool hasNext = false;
     SceneId next = SceneId::Menu;
     ModeId mode = ModeId::Classic;
+    float time = 0.f;           // seconds since start (animation clock)
+    std::string brandVariant;   // dev: which branding image the Brand scene draws
 
     void go(SceneId s) { next = s; hasNext = true; }
     void applySettings();                       // fullscreen + volume
     bool setLanguage(const std::string& code);  // false if Persian font missing
     void setTheme(int i);
-    void cycleTheme();                          // next unlocked theme
+    void cycleTheme(int dir = 1);               // next/previous unlocked theme
     bool themeUnlocked(int i) const;
 };
 

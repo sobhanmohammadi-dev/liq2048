@@ -33,8 +33,11 @@ void Save::load() {
         else if (k == "targetStage") targetStage = iv;
         else if (k == "dailyDay") dailyDay = iv;
         else if (k == "dailyToday") dailyToday = iv;
+        else if (k == "fps") fpsIdx = iv;
+        else if (k == "showFps") showFps = iv != 0;
     }
     if (volume < 0.f || volume > 1.f) volume = 0.8f;
+    if (fpsIdx < 0 || fpsIdx >= kFpsChoiceCount) fpsIdx = 0;
 }
 
 void Save::store() const {
@@ -43,7 +46,7 @@ void Save::store() const {
     o << "volume=" << volume << "\nfullscreen=" << fullscreen << "\nlang=" << lang << "\ntheme=" << theme
       << "\nach=" << ach << "\nstreak=" << streak << "\nlastDay=" << lastDay
       << "\ntutorialDone=" << tutorialDone << "\ntargetStage=" << targetStage << "\ndailyDay=" << dailyDay
-      << "\ndailyToday=" << dailyToday << "\n";
+      << "\ndailyToday=" << dailyToday << "\nfps=" << fpsIdx << "\nshowFps=" << showFps << "\n";
     platform::writeFile(path(), o.str());
 }
 

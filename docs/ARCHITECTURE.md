@@ -22,7 +22,7 @@ Liq2048 is a small, layered C++17 codebase. `liq_core` (a static library) holds 
 
 | Module | Path | Responsibility |
 |--------|------|----------------|
-| App | `src/core/App.*` | SDL init, window, event pump, fixed/variable timestep, scene switching with fades, `--screenshot` capture |
+| App | `src/core/App.*` | SDL init, window, event pump, fixed/variable timestep, frame limiter (VSync / cap / unlimited), blinds scene transitions, `--screenshot` capture |
 | Config | `src/core/Config.hpp` | Every tunable: screen layout, physics, gameplay timings |
 | Platform | `src/core/Platform.*` | Asset lookup (`exe/assets`, `./assets`, Android APK), pref dir, system language, UTC day |
 | Gfx | `src/gfx/Gfx.*` | Renderer at a fixed 360×640 logical size, flat primitives, 5×7 bitmap font, optional SDL_ttf text cache |
@@ -84,3 +84,17 @@ readable inside right-to-left strings (`rtlFix` in `Gfx.cpp`).
 `tests/test_main.cpp` is a dependency-free test runner covering physics (merge, chain, bounds, overflow), RNG
 determinism, every mode's win/lose logic, JSON parsing, localization key parity and save/streak logic.
 It runs in CI on every push.
+
+
+## Rendering and droplets (v1.1)
+
+Everything is drawn on a fixed 270×480 pixel grid scaled by an integer factor with nearest filtering.
+
+- **`BlobRaster`** rasterizes all droplets on the CPU each frame. Each droplet adds a compact kernel to a
+  scalar field; pixels above a threshold are inside the shape, so touching droplets grow a neck and read as
+  one silhouette. The two strongest colour kernels at a pixel are mixed with an 8×8 Bayer dither, giving the
+  pixel-art colour blend. Only the outer silhouette gets a 1px outline; there is no glow or lighting.
+- **Wobble** is a pair of springs per droplet in pure-shear space (volume preserving), kicked by impacts,
+  plus a pop spring on merge and a slow breathing term. Springs run per rendered frame (`World::animate`),
+  independent of the 60 Hz physics, and positions are interpolated between physics steps.
+- **Frame rate:** the setting selects VSync, a sleep+spin cap or unlimited (`Save::fpsLimit`).

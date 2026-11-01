@@ -22,4 +22,13 @@ T clampv(T v, T lo, T hi) {
     return v < lo ? lo : (v > hi ? hi : v);
 }
 
+// Damped spring toward 0 (semi-implicit Euler: stable for k*dt^2 < ~4).
+struct Spring {
+    float x = 0, v = 0;
+    void step(float dt, float k, float c) {
+        v += (-k * x - c * v) * dt;
+        x += v * dt;
+    }
+};
+
 }  // namespace liq

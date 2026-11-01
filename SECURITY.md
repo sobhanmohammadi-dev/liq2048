@@ -7,7 +7,7 @@ Only the latest release receives security fixes.
 ## Reporting a vulnerability
 
 Please **do not** open a public issue. Use GitHub's private reporting:
-<https://github.com/Sobhanmohammadi/Liq2048/security/advisories/new>
+<https://github.com/sobhanmohammadi-dev/Liq2048/security/advisories/new>
 
 Include a description, affected version/platform and reproduction steps. You can expect an acknowledgement
 within a few days and a fix or mitigation plan as soon as it is assessed.

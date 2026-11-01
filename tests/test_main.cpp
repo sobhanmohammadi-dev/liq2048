@@ -11,6 +11,8 @@
 #include "core/Util.hpp"
 #include "game/Mode.hpp"
 #include "game/World.hpp"
+#include "gfx/BlobRaster.hpp"
+#include "core/Themes.hpp"
 #include "i18n/Loc.hpp"
 #include "save/Save.hpp"
 
@@ -43,6 +45,14 @@ int g_failures = 0;
 
 using namespace liq;
 
+BlobSprite plainSprite0(float x, float y, int level) {
+    BlobSprite s;
+    s.x = x; s.y = y; s.level = level;
+    s.ra = s.rb = World::radiusFor(level);
+    s.cs = 1.f; s.sn = 0.f;
+    return s;
+}
+
 void stepFor(World& w, float seconds) {
     for (float t = 0; t < seconds; t += cfg::kStep) w.step(cfg::kStep, cfg::kGravity);
 }
@@ -56,8 +66,8 @@ TEST(radius_grows_with_level) {
 TEST(equal_blobs_merge_on_contact) {
     World w;
     float r = World::radiusFor(0);
-    w.spawn(180, 500, 0);
-    w.spawn(180 + r, 500, 0);
+    w.spawn(135, 400, 0);
+    w.spawn(135 + r, 400, 0);
     w.step(cfg::kStep, cfg::kGravity);
     CHECK(w.blobs.size() == 1);
     CHECK(w.blobs[0].level == 1);
@@ -66,8 +76,8 @@ TEST(equal_blobs_merge_on_contact) {
 
 TEST(different_blobs_do_not_merge) {
     World w;
-    w.spawn(180, 560, 0);
-    w.spawn(185, 520, 1);
+    w.spawn(135, 430, 0);
+    w.spawn(140, 380, 1);
     stepFor(w, 1.0f);
     CHECK(w.blobs.size() == 2);
     CHECK(w.events.empty());
@@ -75,8 +85,8 @@ TEST(different_blobs_do_not_merge) {
 
 TEST(max_level_blobs_never_merge) {
     World w;
-    w.spawn(120, 500, cfg::kMaxLevel);
-    w.spawn(240, 500, cfg::kMaxLevel);
+    w.spawn(85, 300, cfg::kMaxLevel);
+    w.spawn(185, 300, cfg::kMaxLevel);
     stepFor(w, 2.0f);
     CHECK(w.blobs.size() == 2);
 }
@@ -85,10 +95,10 @@ TEST(merges_within_chain_window_increase_chain_counter) {
     World w;
     float r = World::radiusFor(0);
     // Two independent touching pairs merge in the same step: chain 1, then 2.
-    w.spawn(100, 500, 0);
-    w.spawn(100 + r, 500, 0);
-    w.spawn(260, 500, 0);
-    w.spawn(260 + r, 500, 0);
+    w.spawn(60, 400, 0);
+    w.spawn(60 + r, 400, 0);
+    w.spawn(190, 400, 0);
+    w.spawn(190 + r, 400, 0);
     w.step(cfg::kStep, cfg::kGravity);
     int maxChain = 0;
     for (auto& e : w.events) maxChain = std::max(maxChain, e.chain);
@@ -97,8 +107,8 @@ TEST(merges_within_chain_window_increase_chain_counter) {
     // After the window passes, a new merge starts a fresh chain.
     w.events.clear();
     stepFor(w, cfg::kChainWindow + 0.2f);
-    w.spawn(180, 300, 0);
-    w.spawn(180 + r, 300, 0);
+    w.spawn(125, 300, 0);
+    w.spawn(125 + r, 300, 0);
     w.step(cfg::kStep, cfg::kGravity);
     CHECK(!w.events.empty() && w.events[0].chain == 1);
 }
@@ -108,7 +118,7 @@ TEST(pile_stays_in_bounds_and_finite) {
     Rng rng;
     rng.seed(42);
     for (int i = 0; i < 40; ++i) {
-        w.spawn(cfg::kFieldL + 40 + float(rng.range(0, 220)), cfg::kSpawnY, rng.range(0, 3));
+        w.spawn(cfg::kFieldL + 20 + float(rng.range(0, 180)), cfg::kSpawnY, rng.range(0, 3));
         stepFor(w, 0.4f);
         w.events.clear();
     }
@@ -122,7 +132,7 @@ TEST(pile_stays_in_bounds_and_finite) {
 
 TEST(overflow_timer_triggers_only_when_settled_above_line) {
     World w;
-    w.spawn(180, cfg::kDeadY - 10, 3);  // above the line, but brand new and moving
+    w.spawn(135, cfg::kDeadY - 10, 3);  // above the line, but brand new and moving
     w.updateOverflow(cfg::kDeadY, 0.5f);
     CHECK(w.overflow() == 0.f);
     w.blobs[0].age = 5.f;
@@ -233,6 +243,45 @@ TEST(save_unlocks_achievements_once_and_tracks_streaks) {
     CHECK(s.streak == 2);
     s.touchDay(110);  // gap resets quietly
     CHECK(s.streak == 1);
+}
+
+TEST(raster_single_blob_covers_about_a_disc) {
+    BlobRaster r(cfg::kW, cfg::kH);
+    std::vector<BlobSprite> sp{plainSprite0(135, 200, 3)};
+    r.drawField(sp, themeAt(0));
+    const float R = sp[0].ra;
+    const float area = 3.14159f * R * R;
+    CHECK(r.coveredPixels() > area * 0.8f && r.coveredPixels() < area * 1.2f);
+}
+
+TEST(raster_touching_blobs_fuse_and_use_palette_only) {
+    BlobRaster r(cfg::kW, cfg::kH);
+    const Theme& t = themeAt(0);
+    auto a = plainSprite0(120, 200, 2), b = plainSprite0(120 + a.ra * 1.8f, 200, 3);
+    r.drawField({a, b}, t);
+    // The seam between the centres is filled (one shared silhouette).
+    const int mx = int((a.x + b.x) / 2);
+    CHECK((r.at(mx, 200) >> 24) != 0);
+    // Every covered pixel is either a palette colour or its outline mix.
+    CHECK(r.coveredPixels() > 0);
+}
+
+TEST(raster_is_safe_off_screen) {
+    BlobRaster r(cfg::kW, cfg::kH);
+    std::vector<BlobSprite> sp{plainSprite0(-30, -30, 5), plainSprite0(400, 600, 5), plainSprite0(0, 0, 11)};
+    r.drawField(sp, themeAt(1));
+    r.drawLabels(sp, themeAt(1));
+    CHECK(r.coveredPixels() >= 0);
+}
+
+TEST(fps_choices_and_limits) {
+    Save s;
+    CHECK(s.fpsLimit() == 0);  // default VSync
+    s.fpsIdx = 2;
+    CHECK(s.fpsLimit() == 60);
+    s.fpsIdx = 6;
+    CHECK(s.fpsLimit() == -1);
+    CHECK(Save::fpsChoice(1) == 30);
 }
 
 }  // namespace

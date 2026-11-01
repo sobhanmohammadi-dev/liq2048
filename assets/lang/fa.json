@@ -63,7 +63,13 @@
   "ach.score1k": "امتیاز 1000",
   "ach.score5k": "امتیاز 5000",
   "theme.default": "پیش‌فرض",
-  "theme.mono": "تک‌رنگ (128)",
-  "theme.sunset": "غروب (زنجیره 5)",
-  "theme.forest": "جنگل (512)"
+  "theme.mono": "فولادی",
+  "theme.sunset": "غروب",
+  "theme.forest": "جنگل",
+  "settings.fps": "نرخ فریم",
+  "settings.vsync": "خودکار",
+  "settings.unlimited": "نامحدود",
+  "settings.showfps": "نمایش FPS",
+  "hud.new": "جدید",
+  "menu.tagline": "قطره‌ها را ادغام کن و به 2048 برس"
 }

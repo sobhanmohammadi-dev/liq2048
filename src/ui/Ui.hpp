@@ -1,14 +1,16 @@
 #pragma once
-// Immediate-mode widgets drawn in the flat pixel style. Buttons are matched by
-// call order within a frame; keyboard focus (up/down/confirm) walks the
-// focusable ones.
+// Immediate-mode widgets drawn in the pixel-art style. Buttons are matched by call order
+// within a frame; keyboard focus (up/down/confirm) walks the focusable ones.
 #include <string>
 
 #include "core/Types.hpp"
+#include "gfx/Icons.hpp"
 
 namespace liq {
 
 struct Ctx;
+
+enum class BtnStyle { Normal, Primary };
 
 class Ui {
 public:
@@ -16,7 +18,10 @@ public:
     void beginFrame();
     void endFrame();
     bool button(const std::string& label, float x, float y, float w, float h, bool enabled = true,
-                bool focusable = true);
+                bool focusable = true, BtnStyle style = BtnStyle::Normal);
+    bool iconButton(IconId icon, float x, float y, float w, float h, bool enabled = true, bool focusable = false);
+    // [<] value [>] control. Returns -1, 0 or +1.
+    int stepper(float x, float y, float w, float h, const std::string& value, bool bitmapValue = false);
     void panel(float x, float y, float w, float h);
     void paragraph(const std::string& s, float x, float y, float w, int scale, Color col, Align a);
     float mx(float x, float w) const;  // mirrors x for RTL layouts
@@ -24,8 +29,12 @@ public:
     void resetFocus() { focus_ = 0; }
 
 private:
+    struct Hit {
+        bool hover, held, click, focus;
+    };
+    Hit hit(float x, float y, float w, float h, bool enabled, bool focusable);
     Ctx* c_ = nullptr;
-    int nextId_ = 0, fidx_ = 0, fcount_ = 0, focus_ = 0, active_ = -1;
+    int nextId_ = 0, fidx_ = 0, focus_ = 0, active_ = -1;
 };
 
 }  // namespace liq

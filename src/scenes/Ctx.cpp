@@ -5,6 +5,7 @@ namespace liq {
 void Ctx::applySettings() {
     if (window) SDL_SetWindowFullscreen(window, save.fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
     audio.setVolume(save.volume);
+    gfx.setVsync(save.fpsLimit() == 0);
 }
 
 bool Ctx::setLanguage(const std::string& code) {
@@ -16,7 +17,7 @@ bool Ctx::setLanguage(const std::string& code) {
 }
 
 bool Ctx::themeUnlocked(int i) const {
-    int a = themeUnlockAch(i);
+    const int a = themeUnlockAch(i);
     return a < 0 || save.has(a);
 }
 
@@ -24,11 +25,12 @@ void Ctx::setTheme(int i) {
     if (!themeUnlocked(i)) i = 0;
     save.theme = i;
     theme = &themeAt(i);
+    gfx.buildBackdrop(*theme);
 }
 
-void Ctx::cycleTheme() {
+void Ctx::cycleTheme(int dir) {
     for (int k = 1; k <= kThemeCount; ++k) {
-        int i = (save.theme + k) % kThemeCount;
+        const int i = ((save.theme + dir * k) % kThemeCount + kThemeCount) % kThemeCount;
         if (themeUnlocked(i)) {
             setTheme(i);
             return;
