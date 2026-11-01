@@ -31,7 +31,7 @@ comments, commits, code, issues and other contributions that do not align with t
 and may temporarily or permanently ban contributors for behaviour they deem inappropriate.
 
 Report problems privately to the maintainers through GitHub (a
-[private security advisory](https://github.com/Sobhanmohammadi/Liq2048/security/advisories/new) or a direct
+[private security advisory](https://github.com/sobhanmohammadi-dev/Liq2048/security/advisories/new) or a direct
 message to a maintainer). All reports are reviewed promptly and fairly, and the reporter's privacy is respected.
 
 ## Attribution

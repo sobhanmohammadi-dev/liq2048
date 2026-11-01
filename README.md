@@ -3,13 +3,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Sobhanmohammadi/Liq2048/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Sobhanmohammadi/Liq2048/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/Sobhanmohammadi/Liq2048/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/Sobhanmohammadi/Liq2048/actions/workflows/codeql.yml/badge.svg"></a>
+  <a href="https://github.com/sobhanmohammadi-dev/Liq2048/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/sobhanmohammadi-dev/Liq2048/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/sobhanmohammadi-dev/Liq2048/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/sobhanmohammadi-dev/Liq2048/actions/workflows/codeql.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
   <img alt="C++17" src="https://img.shields.io/badge/C%2B%2B-17-00599C.svg">
   <img alt="SDL2" src="https://img.shields.io/badge/SDL-2-orange.svg">
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Android%20%7C%20iOS-lightgrey.svg">
-  <a href="https://github.com/Sobhanmohammadi/Liq2048/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Sobhanmohammadi/Liq2048?include_prereleases"></a>
+  <a href="https://github.com/sobhanmohammadi-dev/Liq2048/releases"><img alt="Release" src="https://img.shields.io/github/v/release/sobhanmohammadi-dev/Liq2048?include_prereleases"></a>
 </p>
 
 **Liq2048** is a physics-based blob-merging puzzle, a Suika-style game with 2048 numbers. Drag, release, and merge
@@ -33,11 +33,12 @@ purchases, no tracking.**
 - **Localization:** English and Persian with true RTL layout and Arabic-script shaping; JSON string tables are easy to extend
 - **Zero required assets:** all visuals are drawn in code with a built-in pixel font; add fonts, sounds and music whenever you like
 - **Portable:** C++17, SDL2, CMake; Windows, Linux, macOS, Android and iOS
+- **Visuals:** fused pixel-art droplets with dithered colour blending, smooth wobble, built-in pixel font, selectable frame rate (VSync to 144/unlimited)
 - **Engineering:** unit tests, CI on three operating systems, CodeQL, tagged releases, headless screenshot tool
 
 ## Play
 
-Download a build from the [Releases](https://github.com/Sobhanmohammadi/Liq2048/releases) page, extract it, and run
+Download a build from the [Releases](https://github.com/sobhanmohammadi-dev/Liq2048/releases) page, extract it, and run
 `liq2048` (keep the `assets/` folder next to the executable). Or build from source:
 
 ```bash

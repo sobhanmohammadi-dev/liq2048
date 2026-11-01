@@ -13,19 +13,22 @@ namespace liq {
 
 namespace {
 
-SceneId sceneFromName(const std::string& n) {
+SceneId sceneFromName(const std::string& n, Ctx& c) {
     if (n == "modes") return SceneId::ModeSelect;
     if (n == "progress") return SceneId::Progress;
     if (n == "settings") return SceneId::Settings;
     if (n == "game") return SceneId::Game;
+    if (n == "logo" || n == "banner" || n == "social") {
+        c.brandVariant = n;
+        return SceneId::Brand;
+    }
     return SceneId::Menu;
 }
 
-// Scripted input for headless captures: a drop roughly every half second at
-// varying x positions, so the "game" screenshot shows a lived-in board.
+// Scripted input for headless captures: a drop every half second at varying x.
 void scriptedInput(Input& in, int frame) {
     if (frame % 30 == 5) {
-        in.mx = 60.f + float((frame / 30) * 83 % 240);
+        in.mx = 60.f + float((frame / 30) * 83 % 150);
         in.my = 300.f;
         in.down = in.pressed = true;
     } else if (frame % 30 == 6) {
@@ -41,6 +44,7 @@ int App::run(const AppOptions& opt) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");  // nearest: crisp pixels
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
+    if (platform::isMobile()) SDL_SetHint(SDL_HINT_ORIENTATIONS, "Portrait");
     if (shot && !SDL_getenv("SDL_VIDEODRIVER")) SDL_setenv("SDL_VIDEODRIVER", "dummy", 0);
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
@@ -48,8 +52,7 @@ int App::run(const AppOptions& opt) {
     }
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
     if (platform::isMobile()) flags |= SDL_WINDOW_FULLSCREEN;
-    // Screenshots use exactly 2x the logical size for pixel-perfect output.
-    const int ww = shot ? cfg::kW * 2 : 405, wh = shot ? cfg::kH * 2 : 720;
+    const int ww = shot ? cfg::kW * 2 : cfg::kW * 3, wh = shot ? cfg::kH * 2 : cfg::kH * 3 / 2 * 2;
     SDL_Window* window = SDL_CreateWindow("Liq2048", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, ww, wh, flags);
     if (!window) {
         SDL_Log("Window failed: %s", SDL_GetError());
@@ -61,7 +64,7 @@ int App::run(const AppOptions& opt) {
     {
         Ctx c;
         c.window = window;
-        if (!c.gfx.init(window)) {
+        if (!c.gfx.init(window, !platform::isMobile())) {
             SDL_Log("Renderer failed: %s", SDL_GetError());
             SDL_DestroyWindow(window);
             SDL_Quit();
@@ -85,12 +88,14 @@ int App::run(const AppOptions& opt) {
             c.save.store();
         }
 
-        SceneId first = shot ? sceneFromName(opt.shotScene) : SceneId::Menu;
+        const SceneId first = shot ? sceneFromName(opt.shotScene, c) : SceneId::Menu;
         std::unique_ptr<Scene> scene = makeScene(first, c);
-        float fade = shot ? 0.f : 1.f;
-        bool fadingOut = false;
+        float cover = shot ? 0.f : 1.f;  // blinds transition: 1 = fully covered
+        bool closing = false;
         int frame = 0;
         Uint64 last = SDL_GetPerformanceCounter();
+        const double freq = double(SDL_GetPerformanceFrequency());
+        constexpr float kBlinds = 0.22f;
 
         while (!c.quit) {
             c.in.beginFrame();
@@ -145,30 +150,37 @@ int App::run(const AppOptions& opt) {
                 dt = 1.f / 60.f;  // deterministic simulated time
                 if (first == SceneId::Game) scriptedInput(c.in, frame);
             } else {
-                Uint64 now = SDL_GetPerformanceCounter();
-                dt = std::min(0.05f, float(double(now - last) / double(SDL_GetPerformanceFrequency())));
+                const Uint64 now = SDL_GetPerformanceCounter();
+                dt = std::min(0.05f, float(double(now - last) / freq));
                 last = now;
             }
+            c.time += dt;
 
             c.ui.beginFrame();
             scene->frame(c, dt);
             c.ui.endFrame();
 
-            // Smooth fade between scenes.
-            if (c.hasNext && !fadingOut) fadingOut = true;
-            if (fadingOut) {
-                fade += dt / 0.15f;
-                if (fade >= 1.f) {
-                    fade = 1.f;
+            // Blinds transition between scenes.
+            if (c.hasNext && !closing) closing = true;
+            if (closing) {
+                cover += dt / kBlinds;
+                if (cover >= 1.f) {
+                    cover = 1.f;
                     c.hasNext = false;
-                    fadingOut = false;
+                    closing = false;
                     c.ui.resetFocus();
                     scene = makeScene(c.next, c);
                 }
-            } else if (fade > 0.f) {
-                fade = std::max(0.f, fade - dt / 0.15f);
+            } else if (cover > 0.f) {
+                cover = std::max(0.f, cover - dt / kBlinds);
             }
-            if (fade > 0.f) c.gfx.rect(0, 0, cfg::kW, cfg::kH, Color{0, 0, 0, Uint8(255 * fade)});
+            if (cover > 0.f) c.gfx.blinds(cover, c.theme->ink);
+
+            // Smoothed FPS counter.
+            static float fpsAvg = 60.f;
+            if (dt > 0.f) fpsAvg += (1.f / dt - fpsAvg) * 0.05f;
+            if (c.save.showFps && !shot)
+                c.gfx.number(std::to_string(int(fpsAvg + 0.5f)), 4, 472, 1, c.theme->accent, Align::Left, TextFx::Outline, c.theme->ink);
 
             ++frame;
             if (shot && frame >= opt.shotFrames) {
@@ -179,6 +191,17 @@ int App::run(const AppOptions& opt) {
                 c.quit = true;
             }
             c.gfx.present();
+
+            // Frame cap (VSync handled by the renderer when the setting is VSync).
+            const int cap = c.save.fpsLimit();
+            if (!shot && cap > 0) {
+                const double target = 1.0 / double(cap);
+                for (;;) {
+                    const double el = double(SDL_GetPerformanceCounter() - last) / freq;
+                    if (el >= target) break;
+                    if (target - el > 0.002) SDL_Delay(1);
+                }
+            }
         }
         if (!shot) c.save.store();
         scene.reset();

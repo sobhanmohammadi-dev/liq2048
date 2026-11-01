@@ -1,40 +1,102 @@
-// Widgets shared by several scenes: settings panel, language switcher, backdrop.
+// Widgets and drawing helpers shared by several scenes.
 #include <cmath>
 #include <string>
 
 #include "core/Config.hpp"
 #include "core/Platform.hpp"
+#include "game/World.hpp"
 #include "scenes/Scenes.hpp"
 
 namespace liq {
 
-void drawStars(Ctx& c) {
+BlobSprite plainSprite(float x, float y, int level, float wobble, float phase) {
+    BlobSprite s;
+    s.x = x;
+    s.y = y;
+    s.level = level;
+    const float r = World::radiusFor(level);
+    if (wobble > 0.f) {
+        const float th = phase;  // orientation of the stretch axis
+        s.cs = std::cos(th);
+        s.sn = std::sin(th);
+        s.ra = r * (1.f + wobble);
+        s.rb = r / (1.f + wobble);
+    } else {
+        s.ra = s.rb = r;
+    }
+    return s;
+}
+
+void drawWordmark(Ctx& c, float cx, float cy, int scale) {
+    Gfx& g = c.gfx;
     const Theme& t = *c.theme;
-    float tm = SDL_GetTicks() / 1000.f;
-    for (int i = 0; i < 40; ++i) {
-        int sx = (i * 97 + 13) % cfg::kW, sy = (i * 181 + 29) % cfg::kH;
-        bool tw = std::sin(tm * 2.f + float(i)) > 0.6f;
-        c.gfx.rect(float(sx), float(sy), tw ? 2.f : 1.f, tw ? 2.f : 1.f, withAlpha(t.dim, tw ? 200 : 110));
+    const std::string w = "LIQ2048";
+    // Chunky extrusion: stack darker copies below, outline the lowest and the top copy.
+    g.number(w, cx, cy + float(scale), scale, t.accentDark, Align::Center, TextFx::Outline, t.ink);
+    for (int i = scale - 1; i >= 1; --i) g.number(w, cx, cy + float(i), scale, t.accentDark, Align::Center);
+    g.number(w, cx, cy, scale, t.accent, Align::Center, TextFx::Outline, t.ink);
+}
+
+void drawTankFrame(Ctx& c) {
+    Gfx& g = c.gfx;
+    const Theme& t = *c.theme;
+    const int L = int(cfg::kFieldL), R = int(cfg::kFieldR), top = cfg::kTankTop, fl = int(cfg::kFloor), bot = fl + 10;
+
+    // Floor: ink edge, light top row, brick joints, dark bottom row.
+    const int fx = L - 6, fw = R - L + 12;
+    g.rect(float(fx), float(fl), float(fw), 10.f, t.frame);
+    g.rect(float(fx), float(fl), float(fw), 1.f, t.ink);
+    g.rect(float(fx + 1), float(fl + 1), float(fw - 2), 1.f, t.frameHi);
+    g.rect(float(fx + 1), float(fl + 5), float(fw - 2), 1.f, t.frameLo);
+    g.rect(float(fx + 1), float(fl + 8), float(fw - 2), 1.f, t.frameLo);
+    g.rect(float(fx), float(fl + 9), float(fw), 1.f, t.ink);
+    for (int x = fx + 10; x < fx + fw - 2; x += 24) g.rect(float(x), float(fl + 2), 1.f, 3.f, t.frameLo);
+    for (int x = fx + 22; x < fx + fw - 2; x += 24) g.rect(float(x), float(fl + 6), 1.f, 2.f, t.frameLo);
+
+    // Walls: ink | light | frame frame | dark | ink.
+    auto wall = [&](int x) {
+        g.rect(float(x), float(top), 1.f, float(bot - top), t.ink);
+        g.rect(float(x + 1), float(top), 1.f, float(bot - top - 1), t.frameHi);
+        g.rect(float(x + 2), float(top), 2.f, float(bot - top - 1), t.frame);
+        g.rect(float(x + 4), float(top), 1.f, float(bot - top - 1), t.frameLo);
+        g.rect(float(x + 5), float(top), 1.f, float(bot - top), t.ink);
+    };
+    wall(L - 6);
+    wall(R);
+    for (int y = top + 16; y < fl - 6; y += 34) {  // rivets
+        g.rect(float(L - 4), float(y), 2.f, 2.f, t.frameLo);
+        g.rect(float(R + 2), float(y), 2.f, 2.f, t.frameLo);
+    }
+    for (int x : {L - 8, R - 2}) {  // wall caps
+        g.rect(float(x - 1), float(top - 5), 12.f, 6.f, t.ink);
+        g.rect(float(x), float(top - 4), 10.f, 4.f, t.frame);
+        g.rect(float(x), float(top - 4), 10.f, 1.f, t.frameHi);
+    }
+}
+
+void drawDeadLine(Ctx& c, bool warn) {
+    Gfx& g = c.gfx;
+    const Theme& t = *c.theme;
+    const int y = int(cfg::kDeadY);
+    const int shift = warn ? int(c.time * 24.f) % 8 : 0;  // marching dashes while in danger
+    const Color col = warn ? ((int(c.time * 8.f) & 1) ? t.danger : mix(t.danger, t.ink, 0.35f)) : mix(t.dim, t.tank, 0.35f);
+    for (int x = int(cfg::kFieldL) - shift; x < int(cfg::kFieldR); x += 8) {
+        const int x0 = std::max(x, int(cfg::kFieldL)), x1 = std::min(x + 5, int(cfg::kFieldR));
+        if (x1 > x0) g.rect(float(x0), float(y), float(x1 - x0), 1.f, col);
     }
 }
 
 void langToggle(Ctx& c, float x, float y) {
-    const bool fa = c.loc.code() == "fa";
-    // Label is the language you would switch TO, drawn with the bitmap font.
-    const std::string label = fa ? "EN" : "FA";
-    bool can = fa || c.gfx.hasPersianFont();
-    float w = 40, h = 22;
-    float bx = c.ui.mx(x, w);
     const Theme& t = *c.theme;
-    bool hover = c.in.mx >= bx && c.in.mx < bx + w && c.in.my >= y && c.in.my < y + h;
-    c.gfx.rect(bx, y, w, h, hover && can ? mix(t.panel, t.text, 0.12f) : t.panel);
-    c.gfx.border(bx, y, w, h, 2, can ? t.dim : mix(t.dim, t.bg, 0.6f));
-    c.gfx.bitmap(label, bx + w / 2.f, y + h / 2.f, 2, can ? t.text : t.dim, Align::Center);
-    if (can && hover && c.in.released) {
-        c.audio.play(Sfx::Click);
+    const bool fa = c.loc.code() == "fa";
+    const bool can = fa || c.gfx.hasPersianFont();
+    const float w = 24, h = 14;
+    const float bx = c.ui.mx(x, w);
+    if (c.ui.button("", bx, y, w, h, can, false)) {
         c.setLanguage(fa ? "en" : "fa");
         c.save.store();
     }
+    c.gfx.number(fa ? "EN" : "FA", bx + w / 2.f, y + h / 2.f, 1, can ? t.text : t.dim, Align::Center);
 }
 
 bool drawSettings(Ctx& c, float y0) {
@@ -42,45 +104,62 @@ bool drawSettings(Ctx& c, float y0) {
     Ui& ui = c.ui;
     const Theme& t = *c.theme;
     Loc& L = c.loc;
-    g.text(L.tr("settings.title"), 180, y0, 3, t.accent, Align::Center);
+    const bool desktop = !platform::isMobile();
+    const int rows = desktop ? 6 : 5;
+    const float rowH = 32.f;
+    const float panelH = 40.f + rows * rowH + 40.f;
+    ui.panel(14, y0, 242, panelH);
+    g.text(L.tr("settings.title"), 135, y0 + 20, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
 
-    const float rowH = 54.f;
-    float y = y0 + 40.f;
     const bool rtl = L.rtl();
-    const float lx = rtl ? 330.f : 30.f;
+    const float lx = rtl ? 244.f : 26.f;
     const Align la = rtl ? Align::Right : Align::Left;
-    auto label = [&](const char* key, float yy) { g.text(L.tr(key), lx, yy + 20.f, 2, t.text, la); };
+    float y = y0 + 40.f;
+    auto label = [&](const char* key) { g.text(L.tr(key), lx, y + 10.f, 1, t.text, la); };
+    const float cw = 112.f, cx = ui.mx(132.f, cw);  // control column
 
     // Language
-    label("settings.language", y);
-    {
-        const bool fa = L.code() == "fa";
-        if (ui.button(fa ? "FA" : "EN", ui.mx(200, 130), y, 130, 40)) {
-            if (c.setLanguage(fa ? "en" : "fa")) c.save.store();
-        }
+    label("settings.language");
+    if (ui.stepper(cx, y, cw, 20, rtl ? "FA" : "EN", true) != 0) {
+        if (c.setLanguage(rtl ? "en" : "fa")) c.save.store();
     }
     y += rowH;
 
     // Volume
-    label("settings.volume", y);
-    if (ui.button("-", ui.mx(200, 34), y, 34, 40)) {
-        c.save.volume = std::fmax(0.f, std::round((c.save.volume - 0.1f) * 10.f) / 10.f);
+    label("settings.volume");
+    if (const int d = ui.stepper(cx, y, cw, 20, std::to_string(int(std::lround(c.save.volume * 100.f))) + "%", true)) {
+        c.save.volume = std::fmin(1.f, std::fmax(0.f, std::round((c.save.volume + 0.1f * float(d)) * 10.f) / 10.f));
         c.applySettings();
         c.save.store();
     }
-    g.bitmap(std::to_string(int(std::lround(c.save.volume * 100.f))), ui.mx(234, 62) + 31, y + 20, 2, t.text,
-             Align::Center);
-    if (ui.button("+", ui.mx(296, 34), y, 34, 40)) {
-        c.save.volume = std::fmin(1.f, std::round((c.save.volume + 0.1f) * 10.f) / 10.f);
-        c.applySettings();
+    y += rowH;
+
+    // Frame rate
+    label("settings.fps");
+    {
+        const int lim = c.save.fpsLimit();
+        const bool numeric = lim > 0;
+        const std::string v = numeric ? std::to_string(lim) : L.tr(lim == 0 ? "settings.vsync" : "settings.unlimited");
+        if (const int d = ui.stepper(cx, y, cw, 20, v, numeric)) {
+            c.save.fpsIdx = (c.save.fpsIdx + d + Save::kFpsChoiceCount) % Save::kFpsChoiceCount;
+            c.applySettings();
+            c.save.store();
+        }
+    }
+    y += rowH;
+
+    // FPS counter
+    label("settings.showfps");
+    if (ui.button(L.tr(c.save.showFps ? "settings.on" : "settings.off"), cx, y, cw, 20)) {
+        c.save.showFps = !c.save.showFps;
         c.save.store();
     }
     y += rowH;
 
     // Fullscreen (desktop only)
-    if (!platform::isMobile()) {
-        label("settings.fullscreen", y);
-        if (ui.button(L.tr(c.save.fullscreen ? "settings.on" : "settings.off"), ui.mx(200, 130), y, 130, 40)) {
+    if (desktop) {
+        label("settings.fullscreen");
+        if (ui.button(L.tr(c.save.fullscreen ? "settings.on" : "settings.off"), cx, y, cw, 20)) {
             c.save.fullscreen = !c.save.fullscreen;
             c.applySettings();
             c.save.store();
@@ -89,21 +168,16 @@ bool drawSettings(Ctx& c, float y0) {
     }
 
     // Theme (unlock by playing)
-    label("settings.theme", y);
-    {
-        bool next = c.save.theme;
-        (void)next;
-        if (ui.button(L.tr(themeAt(c.save.theme).key), ui.mx(170, 160), y, 160, 40)) {
-            c.cycleTheme();
-            c.save.store();
-        }
+    label("settings.theme");
+    if (const int d = ui.stepper(cx, y, cw, 20, L.tr(themeAt(c.save.theme).key))) {
+        c.cycleTheme(d);
+        c.save.store();
     }
     y += rowH;
 
-    if (!g.hasPersianFont() && L.code() != "fa")
-        g.text(L.tr("settings.nofont"), 180, y - 4, 1, t.dim, Align::Center);
+    if (!g.hasPersianFont() && !rtl) g.text(L.tr("settings.nofont"), 135, y - 4, 1, t.dim, Align::Center);
 
-    return ui.button(L.tr("common.back"), 80, y + 12, 200, 40);
+    return ui.button(L.tr("common.back"), 60, y0 + panelH - 34, 150, 24);
 }
 
 }  // namespace liq

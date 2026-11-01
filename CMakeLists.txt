@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 project(Liq2048 VERSION 1.0.0 LANGUAGES CXX
         DESCRIPTION "Physics-based blob merging puzzle in C++17 and SDL2"
-        HOMEPAGE_URL "https://github.com/Sobhanmohammadi/Liq2048")
+        HOMEPAGE_URL "https://github.com/sobhanmohammadi-dev/Liq2048")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

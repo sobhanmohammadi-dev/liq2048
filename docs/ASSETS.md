@@ -17,10 +17,10 @@ assets/
 
 | File | Used for |
 |------|----------|
-| `fonts/pixel.ttf` | Optional Latin pixel font. Without it the built-in 5×7 bitmap font is used. Pixel fonts look best at multiples of 8 px, which is how sizes are chosen (`8 × scale`). |
+| `fonts/pixel.ttf` | Optional Latin pixel font. Without it the built-in 5×7 bitmap font is used. Pixel fonts look best at multiples of 8 px. |
 | `fonts/fa.ttf` | Persian text. System-font fallbacks are tried if absent. |
 
-Only UI text uses TTF; scores and blob numbers always use the bitmap font.
+Latin text, scores and droplet numerals use the built-in pixel font family (5×7 text, 3×5 digits) defined in `src/gfx/PixelFont.cpp`. Only Persian (and an optional `pixel.ttf`) uses TTF, thresholded to hard edges.
 
 ## Sound effects (SDL_mixer)
 
