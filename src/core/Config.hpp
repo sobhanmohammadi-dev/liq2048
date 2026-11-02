@@ -18,16 +18,23 @@ inline constexpr float kSpawnY = 114.f;   // where the held blob hovers
 
 // ---- Blobs: value = 2^level, level 0..kMaxLevel (1 .. 2048) -----------------
 inline constexpr int kMaxLevel = 11;
-inline constexpr float kBaseRadius = 8.f;
-inline constexpr float kRadiusGrowth = 1.17f;
+inline constexpr float kBaseRadius = 17.f;
+inline constexpr float kRadiusGrowth = 1.15f;
 
-// ---- Physics (position based dynamics, fixed step) --------------------------
+// ---- Liquid (particle fluid, fixed step) -------------------------------------
 inline constexpr float kStep = 1.f / 60.f;
-inline constexpr int kSubsteps = 4;
-inline constexpr int kIterations = 8;
-inline constexpr float kGravity = 1050.f;
-inline constexpr float kDamping = 0.995f;
-inline constexpr float kMaxSpeed = 1125.f;
+inline constexpr int kSubsteps = 2;
+inline constexpr float kGravity = 600.f;
+inline constexpr float kMaxSpeed = 300.f;
+inline constexpr float kSpacing = 4.4f;       // rest distance between particles (px)
+inline constexpr float kInteract = 9.6f;      // interaction radius (px)
+inline constexpr float kStiff = 8000.f;       // pressure stiffness
+inline constexpr float kStiffNear = 9000.f;   // near-pressure (anti-clumping)
+inline constexpr float kViscSigma = 300.f;     // linear viscosity
+inline constexpr float kViscBeta = 0.f;       // quadratic viscosity
+inline constexpr float kCohesion = 1.2f;     // pull toward same-drop neighbours
+inline constexpr float kHold = 0.06f;        // weak pull toward drop centroid (shape while falling)
+inline constexpr float kWallDrag = 0.5f;     // velocity kept per step while touching floor/walls
 
 // ---- Gameplay ---------------------------------------------------------------
 inline constexpr float kDropCooldown = 0.40f;

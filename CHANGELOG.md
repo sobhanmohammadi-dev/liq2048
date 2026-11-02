@@ -8,10 +8,11 @@ All notable changes are documented here. The format follows
 
 ### Changed
 - Complete visual overhaul to a polished pixel-art style on a fixed 270x480 grid with integer scaling.
-- Droplets are now a metaball-style field: touching droplets fuse into one silhouette and their colours
-  blend with an ordered dither. No glow, no lighting, flat fills with a 1px outline and flat numerals.
-- Smooth, spring-driven wobble and squash decoupled from the physics step; render interpolation keeps
-  motion smooth at any frame rate.
+- Droplets are now real liquid: a particle fluid simulation. Drops fall as droplets, splash on impact, spread
+  and level out in the pot, and same-level drops merge. Colours blend where liquids touch using an ordered
+  dither. No glow, no lighting, flat fills with a 1px outline and flat numerals.
+- Droplets are larger (base radius 17) and the fall is gentler; render interpolation keeps motion smooth at
+  any frame rate.
 - New built-in pixel font family (5x7 text, 3x5 digits), icon set, bevelled UI, dithered backdrop and
   blinds scene transitions. Persian text keeps RTL layout.
 - Pastel droplet palettes for all four themes.

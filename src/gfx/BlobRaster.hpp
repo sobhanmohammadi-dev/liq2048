@@ -27,7 +27,10 @@ public:
     void clear();  // fully transparent
     // Adds droplets. May be called several times per frame for independent groups
     // (each call has its own field, so groups never fuse with each other).
-    void drawField(const std::vector<BlobSprite>& sprites, const Theme& theme);
+    // Fast path for particle liquids: every sprite is one fluid particle (x, y, level; radii ignored),
+    // snapped to the pixel grid. fieldR / colorR are kernel radii in pixels.
+    void drawLiquid(const std::vector<BlobSprite>& particles, const Theme& theme, int fieldR, int colorR, float iso);
+    void drawField(const std::vector<BlobSprite>& sprites, const Theme& theme, float iso = -1.f);
     void drawLabels(const std::vector<BlobSprite>& sprites, const Theme& theme);
 
     int width() const { return w_; }

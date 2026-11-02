@@ -35,11 +35,11 @@ int BlobRaster::coveredPixels() const {
     return n;
 }
 
-void BlobRaster::drawField(const std::vector<BlobSprite>& sprites, const Theme& theme) {
+void BlobRaster::drawField(const std::vector<BlobSprite>& sprites, const Theme& theme, float iso) {
     if (sprites.empty()) return;
     const float S = vis::kShapeSupport, S2 = S * S;
     const float C = vis::kColorSupport, C2 = C * C;
-    const float T = std::pow(1.f - 1.f / S2, 3.f);  // field value on a lone blob's edge
+    const float T = iso > 0.f ? iso : std::pow(1.f - 1.f / S2, 3.f);  // field value on a lone blob's edge
 
     std::fill(f_.begin(), f_.end(), 0.f);
     std::fill(w1_.begin(), w1_.end(), 0.f);
@@ -97,7 +97,10 @@ void BlobRaster::drawField(const std::vector<BlobSprite>& sprites, const Theme& 
     for (int y = minY; y <= maxY; ++y) {
         for (int x = minX; x <= maxX; ++x) {
             const size_t i = size_t(y) * size_t(w_) + size_t(x);
-            if (f_[i] < T) continue;
+            if (f_[i] < T) {
+                // Fill single-pixel holes where two liquids meet.
+                if (!(w1_[i] > 0.f && inside(x - 1, y) && inside(x + 1, y) && inside(x, y - 1) && inside(x, y + 1))) continue;
+            }
             uint32_t col = c1_[i];
             const float total = w1_[i] + w2_[i];
             if (total > 0.f && w2_[i] > 0.f) {
@@ -113,6 +116,94 @@ void BlobRaster::drawField(const std::vector<BlobSprite>& sprites, const Theme& 
             px_[i] = edge ? mixPacked(col, ink, vis::kOutlineMix) : col;
         }
     }
+}
+
+void BlobRaster::drawLiquid(const std::vector<BlobSprite>& parts, const Theme& theme, int fieldR, int colorR, float iso) {
+    if (parts.empty()) return;
+    // Kernel tables (cached): field (1-q)^3 and colour weight (1-q)^2, q = d^2 / R^2.
+    static int cachedF = -1, cachedC = -1;
+    static std::vector<float> kf, kc;
+    if (cachedF != fieldR || cachedC != colorR) {
+        cachedF = fieldR;
+        cachedC = colorR;
+        const int nf = 2 * fieldR + 1, nc = 2 * colorR + 1;
+        kf.assign(size_t(nf) * size_t(nf), 0.f);
+        kc.assign(size_t(nc) * size_t(nc), 0.f);
+        for (int y = -fieldR; y <= fieldR; ++y)
+            for (int x = -fieldR; x <= fieldR; ++x) {
+                const float q = float(x * x + y * y) / float((fieldR + 0.5f) * (fieldR + 0.5f));
+                if (q < 1.f) kf[size_t(y + fieldR) * size_t(nf) + size_t(x + fieldR)] = (1.f - q) * (1.f - q) * (1.f - q);
+            }
+        for (int y = -colorR; y <= colorR; ++y)
+            for (int x = -colorR; x <= colorR; ++x) {
+                const float q = float(x * x + y * y) / float((colorR + 0.5f) * (colorR + 0.5f));
+                if (q < 1.f) kc[size_t(y + colorR) * size_t(nc) + size_t(x + colorR)] = (1.f - q) * (1.f - q);
+            }
+    }
+    std::fill(f_.begin(), f_.end(), 0.f);
+    std::fill(w1_.begin(), w1_.end(), 0.f);
+    std::fill(w2_.begin(), w2_.end(), 0.f);
+    const int nf = 2 * fieldR + 1, nc = 2 * colorR + 1;
+    int minY = h_, maxY = -1, minX = w_, maxX = -1;
+    for (const BlobSprite& s : parts) {
+        const int cx = int(std::floor(s.x)), cy = int(std::floor(s.y));
+        const uint32_t col = pack(theme.blob[std::min(std::max(s.level, 0), 11)]);
+        const int x0 = std::max(0, cx - fieldR), x1 = std::min(w_ - 1, cx + fieldR);
+        const int y0 = std::max(0, cy - fieldR), y1 = std::min(h_ - 1, cy + fieldR);
+        if (x0 > x1 || y0 > y1) continue;
+        minX = std::min(minX, x0);
+        maxX = std::max(maxX, x1);
+        minY = std::min(minY, y0);
+        maxY = std::max(maxY, y1);
+        for (int y = y0; y <= y1; ++y) {
+            const float* row = &kf[size_t(y - cy + fieldR) * size_t(nf) + size_t(x0 - cx + fieldR)];
+            float* dst = &f_[size_t(y) * size_t(w_) + size_t(x0)];
+            for (int x = 0; x <= x1 - x0; ++x) dst[x] += row[x];
+        }
+        const int cx0 = std::max(0, cx - colorR), cx1 = std::min(w_ - 1, cx + colorR);
+        const int cy0 = std::max(0, cy - colorR), cy1 = std::min(h_ - 1, cy + colorR);
+        for (int y = cy0; y <= cy1; ++y) {
+            const float* row = &kc[size_t(y - cy + colorR) * size_t(nc) + size_t(cx0 - cx + colorR)];
+            const size_t base = size_t(y) * size_t(w_) + size_t(cx0);
+            for (int x = 0; x <= cx1 - cx0; ++x) {
+                const float wt = row[x];
+                if (wt <= 0.f) continue;
+                const size_t i = base + size_t(x);
+                if (wt > w1_[i]) {
+                    if (c1_[i] != col) {
+                        w2_[i] = w1_[i];
+                        c2_[i] = c1_[i];
+                    }
+                    w1_[i] = wt;
+                    c1_[i] = col;
+                } else if (c1_[i] != col && wt > w2_[i]) {
+                    w2_[i] = wt;
+                    c2_[i] = col;
+                }
+            }
+        }
+    }
+    if (maxY < 0) return;
+    const uint32_t ink = pack(theme.ink);
+    const float T = iso;
+    auto inside = [&](int x, int y) {
+        return x >= 0 && y >= 0 && x < w_ && y < h_ && f_[size_t(y) * size_t(w_) + size_t(x)] >= T;
+    };
+    for (int y = minY; y <= maxY; ++y)
+        for (int x = minX; x <= maxX; ++x) {
+            const size_t i = size_t(y) * size_t(w_) + size_t(x);
+            if (f_[i] < T) {
+                if (!(w1_[i] > 0.f && inside(x - 1, y) && inside(x + 1, y) && inside(x, y - 1) && inside(x, y + 1))) continue;
+            }
+            if (w1_[i] <= 0.f) continue;
+            uint32_t col = c1_[i];
+            if (w2_[i] > 0.f) {
+                const float t = w2_[i] / (w1_[i] + w2_[i]);
+                if (t > bayer(x, y)) col = c2_[i];
+            }
+            const bool edge = !inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1);
+            px_[i] = edge ? mixPacked(col, ink, vis::kOutlineMix) : col;
+        }
 }
 
 void BlobRaster::drawLabels(const std::vector<BlobSprite>& sprites, const Theme& theme) {

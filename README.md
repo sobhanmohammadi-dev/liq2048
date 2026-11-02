@@ -33,7 +33,7 @@ purchases, no tracking.**
 - **Localization:** English and Persian with true RTL layout and Arabic-script shaping; JSON string tables are easy to extend
 - **Zero required assets:** all visuals are drawn in code with a built-in pixel font; add fonts, sounds and music whenever you like
 - **Portable:** C++17, SDL2, CMake; Windows, Linux, macOS, Android and iOS
-- **Visuals:** fused pixel-art droplets with dithered colour blending, smooth wobble, built-in pixel font, selectable frame rate (VSync to 144/unlimited)
+- **Visuals:** a real liquid simulation (drops splash, spread and merge) with dithered pixel-art colour blending, built-in pixel font, selectable frame rate (VSync to 144/unlimited)
 - **Engineering:** unit tests, CI on three operating systems, CodeQL, tagged releases, headless screenshot tool
 
 ## Play
