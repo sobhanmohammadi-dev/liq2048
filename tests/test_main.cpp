@@ -59,84 +59,92 @@ void stepFor(World& w, float seconds) {
 
 TEST(radius_grows_with_level) {
     for (int i = 0; i < cfg::kMaxLevel; ++i) CHECK(World::radiusFor(i + 1) > World::radiusFor(i));
-    // The biggest blob must fit in the container.
+    // The biggest drop must fit in the pot.
     CHECK(World::radiusFor(cfg::kMaxLevel) * 2 < cfg::kFieldR - cfg::kFieldL);
+    for (int i = 0; i < cfg::kMaxLevel; ++i) CHECK(World::particlesFor(i + 1) > World::particlesFor(i));
 }
 
-TEST(equal_blobs_merge_on_contact) {
+TEST(equal_drops_merge_on_contact) {
     World w;
-    float r = World::radiusFor(0);
-    w.spawn(135, 400, 0);
-    w.spawn(135 + r, 400, 0);
-    w.step(cfg::kStep, cfg::kGravity);
-    CHECK(w.blobs.size() == 1);
-    CHECK(w.blobs[0].level == 1);
-    CHECK(w.events.size() == 1 && w.events[0].level == 1 && w.events[0].chain == 1);
+    const float r = World::radiusFor(0);
+    w.spawn(100, 400, 0);
+    w.spawn(100 + r * 1.75f, 400, 0);
+    for (int i = 0; i < 40 && w.drops.size() > 1; ++i) w.step(cfg::kStep, cfg::kGravity);
+    CHECK(w.drops.size() == 1);
+    CHECK(w.drops[0].level == 1);
+    CHECK(!w.events.empty() && w.events[0].level == 1 && w.events[0].chain == 1);
+    // Volume is constant per level: the merged drop has the particle count of level 1.
+    CHECK(std::abs(int(w.parts.size()) - World::particlesFor(1)) < World::particlesFor(1) / 5);
 }
 
-TEST(different_blobs_do_not_merge) {
+TEST(different_drops_do_not_merge) {
     World w;
-    w.spawn(135, 430, 0);
-    w.spawn(140, 380, 1);
-    stepFor(w, 1.0f);
-    CHECK(w.blobs.size() == 2);
+    w.spawn(100, 400, 0);
+    w.spawn(100 + World::radiusFor(0) + World::radiusFor(1), 400, 1);
+    for (int i = 0; i < 90; ++i) w.step(cfg::kStep, cfg::kGravity);
+    CHECK(w.drops.size() == 2);
     CHECK(w.events.empty());
 }
 
-TEST(max_level_blobs_never_merge) {
+TEST(max_level_drops_never_merge) {
     World w;
-    w.spawn(85, 300, cfg::kMaxLevel);
-    w.spawn(185, 300, cfg::kMaxLevel);
-    stepFor(w, 2.0f);
-    CHECK(w.blobs.size() == 2);
+    w.spawn(110, 300, cfg::kMaxLevel);
+    w.spawn(110 + World::radiusFor(cfg::kMaxLevel) * 1.95f, 300, cfg::kMaxLevel);
+    for (int i = 0; i < 90; ++i) w.step(cfg::kStep, cfg::kGravity);
+    CHECK(w.drops.size() == 2);
 }
 
-TEST(merges_within_chain_window_increase_chain_counter) {
+TEST(independent_merges_chain) {
     World w;
-    float r = World::radiusFor(0);
-    // Two independent touching pairs merge in the same step: chain 1, then 2.
-    w.spawn(60, 400, 0);
-    w.spawn(60 + r, 400, 0);
-    w.spawn(190, 400, 0);
-    w.spawn(190 + r, 400, 0);
-    w.step(cfg::kStep, cfg::kGravity);
+    const float r = World::radiusFor(0);
+    w.spawn(50, 400, 0);
+    w.spawn(50 + r * 1.75f, 400, 0);
+    w.spawn(170, 400, 0);
+    w.spawn(170 + r * 1.75f, 400, 0);
     int maxChain = 0;
-    for (auto& e : w.events) maxChain = std::max(maxChain, e.chain);
-    CHECK(w.events.size() == 2);
+    for (int i = 0; i < 3; ++i) {
+        w.step(cfg::kStep, cfg::kGravity);
+        for (auto& e : w.events) maxChain = std::max(maxChain, e.chain);
+    }
+    CHECK(w.drops.size() == 2);
     CHECK(maxChain == 2);
-    // After the window passes, a new merge starts a fresh chain.
-    w.events.clear();
-    stepFor(w, cfg::kChainWindow + 0.2f);
-    w.spawn(125, 300, 0);
-    w.spawn(125 + r, 300, 0);
-    w.step(cfg::kStep, cfg::kGravity);
-    CHECK(!w.events.empty() && w.events[0].chain == 1);
 }
 
-TEST(pile_stays_in_bounds_and_finite) {
+TEST(liquid_spreads_and_stays_in_bounds) {
     World w;
     Rng rng;
     rng.seed(42);
-    for (int i = 0; i < 40; ++i) {
-        w.spawn(cfg::kFieldL + 20 + float(rng.range(0, 180)), cfg::kSpawnY, rng.range(0, 3));
-        stepFor(w, 0.4f);
+    for (int i = 0; i < 14; ++i) {
+        w.spawn(cfg::kFieldL + 40 + float(rng.range(0, 140)), cfg::kSpawnY, rng.range(0, 3));
+        for (int k = 0; k < 20; ++k) w.step(cfg::kStep, cfg::kGravity);
         w.events.clear();
     }
-    stepFor(w, 3.0f);
-    for (const auto& b : w.blobs) {
-        CHECK(std::isfinite(b.x) && std::isfinite(b.y));
-        CHECK(b.x >= cfg::kFieldL + b.r - 0.5f && b.x <= cfg::kFieldR - b.r + 0.5f);
-        CHECK(b.y <= cfg::kFloor - b.r + 0.5f);
+    for (int k = 0; k < 120; ++k) w.step(cfg::kStep, cfg::kGravity);
+    for (const auto& p : w.parts) {
+        CHECK(std::isfinite(p.x) && std::isfinite(p.y));
+        CHECK(p.x >= cfg::kFieldL && p.x <= cfg::kFieldR);
+        CHECK(p.y <= cfg::kFloor);
     }
+    // A single settled level-0 drop flattens: wider than tall (it is liquid, not a ball).
+    World f;
+    f.spawn(135, 380, 0);
+    for (int k = 0; k < 150; ++k) f.step(cfg::kStep, cfg::kGravity);
+    float minx = 1e9f, maxx = -1e9f, miny = 1e9f, maxy = -1e9f;
+    for (const auto& p : f.parts) {
+        minx = std::min(minx, p.x);
+        maxx = std::max(maxx, p.x);
+        miny = std::min(miny, p.y);
+        maxy = std::max(maxy, p.y);
+    }
+    CHECK((maxx - minx) > (maxy - miny) * 1.3f);
 }
 
 TEST(overflow_timer_triggers_only_when_settled_above_line) {
     World w;
-    w.spawn(135, cfg::kDeadY - 10, 3);  // above the line, but brand new and moving
+    w.spawn(135, cfg::kDeadY - 10, 3);  // above the line, but brand new
     w.updateOverflow(cfg::kDeadY, 0.5f);
     CHECK(w.overflow() == 0.f);
-    w.blobs[0].age = 5.f;
-    w.blobs[0].vx = w.blobs[0].vy = 0.f;
+    w.drops[0].age = 5.f;
     w.updateOverflow(cfg::kDeadY, 0.5f);
     CHECK(w.overflow() > 0.f);
 }

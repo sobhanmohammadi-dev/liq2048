@@ -31,6 +31,10 @@ struct PopRing {
     Color c;
 };
 
+constexpr float kParticleDraw = 0.f;    // unused by the table rasterizer
+constexpr int kFieldR = 9, kColorR = 6;  // kernel radii (px) of one liquid particle
+constexpr float kParticleIso = 1.1f;    // surface level of the summed particle field
+
 class GameScene final : public Scene {
 public:
     explicit GameScene(Ctx& c) : mid_(c.mode) {
@@ -247,19 +251,15 @@ private:
         if (o != Outcome::Running) finish(c, o);
     }
 
-    // Zen has no fail state: blobs stuck above the line pop harmlessly.
+    // Zen has no fail state: liquid that settles above the line drains away harmlessly.
     void popOverflow(Ctx& c) {
         const Theme& t = *c.theme;
-        for (auto& b : world_.blobs)
-            if (b.y - b.r < cfg::kDeadY && b.age > 1.2f) {
-                b.dead = true;
-                for (int i = 0; i < 10; ++i)
-                    parts_.push_back({b.x, b.y, rngFx_.uni(-90.f, 90.f), rngFx_.uni(-90.f, 90.f), 0.5f, 0.5f,
-                                      t.blob[std::min(b.level, 11)], 2});
-                rings_.push_back({b.x, b.y, 0.f, b.r, t.blob[std::min(b.level, 11)]});
-            }
-        world_.blobs.erase(std::remove_if(world_.blobs.begin(), world_.blobs.end(), [](const Blob& b) { return b.dead; }),
-                           world_.blobs.end());
+        for (const Drop& d : world_.popAbove(cfg::kDeadY)) {
+            const Color col = t.blob[std::min(d.level, 11)];
+            for (int i = 0; i < 14; ++i)
+                parts_.push_back({d.x, d.y, rngFx_.uni(-90.f, 90.f), rngFx_.uni(-90.f, 90.f), 0.5f, 0.5f, col, 2});
+            rings_.push_back({d.x, d.y, 0.f, World::radiusFor(d.level), col});
+        }
         world_.resetOverflow();
     }
 
@@ -326,12 +326,7 @@ private:
     // ----- drawing -----
     float landingY(float x, int level) const {
         const float r = World::radiusFor(level);
-        float best = cfg::kFloor - r;
-        for (const auto& b : world_.blobs) {
-            const float dx = std::fabs(b.x - x), m = r + b.r;
-            if (dx < m) best = std::min(best, b.y - std::sqrt(m * m - dx * dx));
-        }
-        return best;
+        return std::min(float(cfg::kFloor), world_.surfaceY(x, r * 0.7f)) - r * 0.55f;
     }
 
     // Slow rising bubbles inside the tank for liquid ambience.
@@ -367,23 +362,32 @@ private:
 
     void drawBlobs(Ctx& c, int sx, int sy) {
         const float alpha = clampv(acc_ / cfg::kStep, 0.f, 1.f);
-        std::vector<BlobSprite> pile;
-        pile.reserve(world_.blobs.size());
-        for (const auto& b : world_.blobs) {
-            BlobSprite s = world_.sprite(b, st_ == St::Playing ? alpha : 1.f);
+        std::vector<BlobSprite> pile, labels;
+        world_.particleSprites(st_ == St::Playing ? alpha : 1.f, kParticleDraw, pile);
+        world_.labelSprites(labels);
+        for (auto& s : pile) {
             s.x += float(sx);
             s.y += float(sy);
-            pile.push_back(s);
+        }
+        for (auto& s : labels) {
+            s.x += float(sx);
+            s.y += float(sy);
         }
         c.raster.clear();
-        c.raster.drawField(pile, *c.theme);
-        c.raster.drawLabels(pile, *c.theme);
+        c.raster.drawLiquid(pile, *c.theme, kFieldR, kColorR, kParticleIso);
+        c.raster.drawLabels(labels, *c.theme);
 
         // The blob you are about to drop (its own group, so it never fuses with the pile).
         const int lim = mode_->dropLimit();
         if (st_ != St::Over && (lim < 0 || drops_ < lim)) {
             const float br = 1.f + vis::kBreath * std::sin(c.time * 6.2831853f * vis::kBreathHz);
+            // After a release the next drop swells up from nothing while the cooldown runs out.
+            const float fill = clampv(1.f - std::max(0.f, cooldown_) / cfg::kDropCooldown, 0.f, 1.f);
+            const float grow = fill * fill * (3.f - 2.f * fill);
             std::vector<BlobSprite> held{popped(plainSprite(holdX_ + float(sx), cfg::kSpawnY + float(sy), cur_), holdPop_.x + br - 1.f)};
+            held[0].ra *= grow;
+            held[0].rb *= grow;
+            if (held[0].ra < 2.f) held.clear();
             c.raster.drawField(held, *c.theme);
             c.raster.drawLabels(held, *c.theme);
         }

@@ -86,15 +86,20 @@ determinism, every mode's win/lose logic, JSON parsing, localization key parity 
 It runs in CI on every push.
 
 
-## Rendering and droplets (v1.1)
+## Liquid simulation and rendering (v1.1)
 
 Everything is drawn on a fixed 270×480 pixel grid scaled by an integer factor with nearest filtering.
 
-- **`BlobRaster`** rasterizes all droplets on the CPU each frame. Each droplet adds a compact kernel to a
-  scalar field; pixels above a threshold are inside the shape, so touching droplets grow a neck and read as
-  one silhouette. The two strongest colour kernels at a pixel are mixed with an 8×8 Bayer dither, giving the
-  pixel-art colour blend. Only the outer silhouette gets a 1px outline; there is no glow or lighting.
-- **Wobble** is a pair of springs per droplet in pure-shear space (volume preserving), kicked by impacts,
-  plus a pop spring on merge and a slow breathing term. Springs run per rendered frame (`World::animate`),
-  independent of the 60 Hz physics, and positions are interpolated between physics steps.
-- **Frame rate:** the setting selects VSync, a sleep+spin cap or unlimited (`Save::fpsLimit`).
+- **`World`** is a particle fluid. Each drop is a cluster of particles (count fixed per level, so volume is
+  constant). Double-density relaxation keeps the liquid incompressible, viscosity makes it thick like paint,
+  and same-drop cohesion keeps each colour in its own body. A drop therefore falls as a droplet, splashes,
+  spreads over the floor and levels out in the pot. Two touching drops of the same level merge: their particles
+  are joined, trimmed to the next level's volume and given a small splash impulse. Neighbour search uses a
+  spatial hash built once per fixed step. Numbers are anchored at the deepest part of each body (`World::anchors`).
+- **`BlobRaster::drawLiquid`** rasterizes the particles with table kernels: summed field above an iso level is
+  liquid, the two strongest colours at a pixel are mixed with an 8×8 Bayer dither (pixel-art blending), and
+  only the outer silhouette gets a 1px outline. No glow or lighting. `drawField` (ellipse metaballs) is used for
+  the held drop, previews, menus and branding.
+- **Frame rate:** the setting selects VSync, a sleep+spin cap or unlimited (`Save::fpsLimit`); particles are
+  interpolated between 60 Hz physics steps.
+- Tunables live in `src/core/Config.hpp` (`cfg::kStiff`, `kViscSigma`, `kCohesion`, ...).
