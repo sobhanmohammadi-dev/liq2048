@@ -34,3 +34,11 @@ Thumbs.db
 # assets/fonts/*.ttf
 # assets/sounds/*.wav
 # assets/music/*.ogg
+
+# Android / iOS builds
+/android/SDL/
+/android/.gradle/
+/android/app/build/
+/android/build/
+/android/local.properties
+/build-ios/

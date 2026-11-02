@@ -16,4 +16,4 @@ within a few days and a fix or mitigation plan as soon as it is assessed.
 
 Liq2048 is an offline game: it makes no network connections and collects no data. The realistic attack
 surface is local file parsing (the `save.txt` progress file and `assets/lang/*.json`, `assets/fonts`,
-`assets/sounds`, `assets/music`) and the third-party libraries it links (SDL2, SDL2_ttf, SDL2_mixer).
+`assets/lang`) and the third-party libraries it links (SDL2, SDL2_ttf).

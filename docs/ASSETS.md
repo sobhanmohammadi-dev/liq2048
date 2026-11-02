@@ -22,23 +22,16 @@ assets/
 
 Latin text, scores and droplet numerals use the built-in pixel font family (5×7 text, 3×5 digits) defined in `src/gfx/PixelFont.cpp`. Only Persian (and an optional `pixel.ttf`) uses TTF, thresholded to hard edges.
 
-## Sound effects (SDL_mixer)
+## Sound
 
-| File | Played when |
-|------|-------------|
-| `merge` | Two blobs merge |
-| `chain` | A merge continues a chain (chain ≥ 2) |
-| `drop` | A blob is dropped |
-| `click` | A button is pressed |
-| `success` | Win, run finished, or an achievement unlocks |
-| `fail` | Overflow / loss |
+There are no sound files. Every sound effect and the background music are synthesized in code
+(`src/audio/Synth.cpp`), so the game sounds identical on every platform. Preview the soundtrack without playing:
 
-Use short (< 1 s) 44.1 kHz WAV or OGG files. Volume is controlled in Settings and saved. Without SDL_mixer or
-files, audio calls are silent no-ops.
+```bash
+./build/liq2048 --render-audio preview.wav 60 game     # or: menu
+```
 
-## Music
-
-`music/theme.ogg` (or `.mp3`) loops automatically at the saved volume.
+Music and sound-effect volumes are separate settings and are saved.
 
 ## Licensing your assets
 

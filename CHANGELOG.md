@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-02
+
 ### Changed
 - Complete visual overhaul to a polished pixel-art style on a fixed 270x480 grid with integer scaling.
 - Droplets are now real liquid: a particle fluid simulation. Drops fall as droplets, splash on impact, spread
@@ -18,6 +20,11 @@ All notable changes are documented here. The format follows
 - Pastel droplet palettes for all four themes.
 
 ### Added
+- Procedural sound: every effect and a generative ambient soundtrack are synthesized in code (no audio files, no
+  SDL_mixer). Merge pitch follows the droplet level, splashes follow impact strength, and the music gets busier
+  as the pot fills. Separate Music and Sound volume settings; `--render-audio` dev tool.
+- Android (APK + AAB) and iOS (unsigned IPA) builds in the release workflow; Android Gradle project under
+  `android/`, iOS bundle configuration in CMake. macOS and Linux packages are now self-contained.
 - Frame rate setting (VSync, 30, 60, 90, 120, 144, unlimited) and an optional FPS counter.
 - Raster and FPS unit tests.
 
@@ -37,5 +44,6 @@ All notable changes are documented here. The format follows
 - Unit test suite (`ctest`), headless `--screenshot` developer tool, GitHub Actions CI, CodeQL and release workflows.
 - Project documentation under `docs/`.
 
-[Unreleased]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/sobhanmohammadi-dev/Liq2048/releases/tag/v1.0.0

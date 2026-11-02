@@ -32,7 +32,7 @@ Liq2048 is a small, layered C++17 codebase. `liq_core` (a static library) holds 
 | Scenes | `src/scenes/*` | `Scene::frame(Ctx&, dt)` updates and draws one screen |
 | Loc | `src/i18n/Loc.*` | JSON string tables with English fallback |
 | Save | `src/save/*` | `key=value` progress file, achievements, streaks |
-| Audio | `src/audio/Audio.*` | SDL_mixer wrapper; every call is a safe no-op without files |
+| Audio | `src/audio/Synth.*`, `Audio.*` | Procedural synth (SFX + generative music) behind an SDL audio callback; no-op without a device |
 
 ## Design decisions
 

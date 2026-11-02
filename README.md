@@ -34,12 +34,14 @@ purchases, no tracking.**
 - **Zero required assets:** all visuals are drawn in code with a built-in pixel font; add fonts, sounds and music whenever you like
 - **Portable:** C++17, SDL2, CMake; Windows, Linux, macOS, Android and iOS
 - **Visuals:** a real liquid simulation (drops splash, spread and merge) with dithered pixel-art colour blending, built-in pixel font, selectable frame rate (VSync to 144/unlimited)
+- **Sound:** synthesized in code: bubbly pentatonic SFX and a generative ambient soundtrack that reacts to the game, no audio files
 - **Engineering:** unit tests, CI on three operating systems, CodeQL, tagged releases, headless screenshot tool
 
 ## Play
 
-Download a build from the [Releases](https://github.com/sobhanmohammadi-dev/Liq2048/releases) page, extract it, and run
-`liq2048` (keep the `assets/` folder next to the executable). Or build from source:
+Download a build from the [Releases](https://github.com/sobhanmohammadi-dev/Liq2048/releases) page: Windows, macOS
+(universal) and Linux archives (extract and run `liq2048`, keep `assets/` next to it), an Android APK/AAB, and an
+unsigned iOS IPA for sideloading. Or build from source:
 
 ```bash
 # Linux (Debian/Ubuntu); see docs/BUILDING.md for other platforms
