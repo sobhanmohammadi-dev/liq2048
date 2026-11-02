@@ -53,7 +53,6 @@ public:
         if (st_ == St::Playing) simulate(c, std::min(dt, 0.05f));
         updateAudio(c, dt);
         if (!paused) {
-            world_.animate(dt);
             updateFx(dt);
             holdX_ += (aimX_ - holdX_) * std::min(1.f, dt * 24.f);
             holdPop_.step(dt, vis::kPopSpring, vis::kPopDamp);
