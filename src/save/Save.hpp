@@ -32,6 +32,14 @@ public:
     int dailyToday = 0;         // best score on dailyDay
     int fpsIdx = 0;             // index into fpsChoice(); default VSync
     bool showFps = false;
+    // Game feel (v1.1.0)
+    bool haptics = true;        // vibration on phones
+    bool guide = true;          // dotted aim line + landing ring
+    bool shake = true;          // screen shake
+    bool slowmo = true;         // brief slow motion on big merges
+    bool calm = false;          // calm mode: no shake, slow motion, blinking or flashes
+    bool effShake() const { return shake && !calm; }
+    bool effSlowmo() const { return slowmo && !calm; }
 
     int fpsLimit() const { return fpsChoice(fpsIdx); }
     void load();

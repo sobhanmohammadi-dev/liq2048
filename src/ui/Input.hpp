@@ -8,9 +8,10 @@ struct Input {
     bool down = false;                       // held
     bool pressed = false, released = false;  // edges this frame
     bool left = false, right = false;        // held keys
-    bool confirm = false, esc = false, up = false, dn = false, drop = false;  // key edges
+    bool focusLost = false;                  // window lost focus (sticky: the consumer clears it)
+    bool confirm = false, esc = false, up = false, dn = false, drop = false, undo = false;  // key edges
 
-    void beginFrame() { pressed = released = confirm = esc = up = dn = drop = false; }
+    void beginFrame() { pressed = released = confirm = esc = up = dn = drop = undo = false; }
 };
 
 }  // namespace liq

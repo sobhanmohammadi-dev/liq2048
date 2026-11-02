@@ -60,6 +60,16 @@ int App::run(const AppOptions& opt) {
         return 1;
     }
 
+    if (!platform::isMobile()) {  // window/taskbar icon from assets/icon.bmp
+        const auto icon = platform::readAsset("icon.bmp");
+        if (!icon.empty()) {
+            if (SDL_Surface* s = SDL_LoadBMP_RW(SDL_RWFromConstMem(icon.data(), int(icon.size())), 1)) {
+                SDL_SetWindowIcon(window, s);
+                SDL_FreeSurface(s);
+            }
+        }
+    }
+
     int exitCode = 0;
     {
         Ctx c;
@@ -92,7 +102,7 @@ int App::run(const AppOptions& opt) {
         std::unique_ptr<Scene> scene = makeScene(first, c);
         c.audio.setMood(first == SceneId::Game ? MusicMood::Game : MusicMood::Menu);
         float cover = shot ? 0.f : 1.f;  // blinds transition: 1 = fully covered
-        bool closing = false;
+        bool closing = false, hadFocus = false;
         int frame = 0;
         Uint64 last = SDL_GetPerformanceCounter();
         const double freq = double(SDL_GetPerformanceFrequency());
@@ -118,6 +128,11 @@ int App::run(const AppOptions& opt) {
                             c.in.released = true;
                         }
                         break;
+                    case SDL_WINDOWEVENT:
+                        if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) hadFocus = true;
+                        if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST && hadFocus && !shot) c.in.focusLost = true;
+                        if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) hadFocus = false;
+                        break;
                     case SDL_KEYDOWN:
                         if (e.key.repeat) break;
                         switch (e.key.keysym.scancode) {
@@ -126,6 +141,8 @@ int App::run(const AppOptions& opt) {
                             case SDL_SCANCODE_RETURN:
                             case SDL_SCANCODE_KP_ENTER: c.in.confirm = true; break;
                             case SDL_SCANCODE_SPACE: c.in.confirm = c.in.drop = true; break;
+                            case SDL_SCANCODE_U:
+                            case SDL_SCANCODE_Z: c.in.undo = true; break;
                             case SDL_SCANCODE_UP:
                             case SDL_SCANCODE_W: c.in.up = true; break;
                             case SDL_SCANCODE_DOWN:
@@ -138,6 +155,7 @@ int App::run(const AppOptions& opt) {
                         }
                         break;
                     case SDL_APP_WILLENTERBACKGROUND:
+                        c.in.focusLost = true;
                         if (!shot) c.save.store();
                         c.audio.pause(true);
                         break;

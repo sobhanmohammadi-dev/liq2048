@@ -2,7 +2,7 @@
 // Tiny pixel icons drawn from string art (see Gfx::icon).
 namespace liq {
 
-enum class IconId { Pause, Play, Left, Right, Check, Cross, Crown, Lock, Marker, Count };
+enum class IconId { Pause, Play, Left, Right, Check, Cross, Crown, Lock, Marker, Undo, Count };
 
 struct IconDef {
     int w, h;
@@ -20,6 +20,7 @@ inline const IconDef& iconDef(IconId id) {
         {9, 6, {"#...#...#", "##..#..##", "###.#.###", "#########", "#########", ".#######.", nullptr, nullptr, nullptr, nullptr}},
         {7, 8, {"..###..", ".#...#.", ".#...#.", "#######", "#######", "###.###", "#######", "#######", nullptr, nullptr}},
         {5, 3, {"#####", ".###.", "..#..", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}},
+        {8, 6, {"..#.....", ".##.###.", "###....#", ".##....#", "..#...#.", "....##..", nullptr, nullptr, nullptr, nullptr}},
     };
     return defs[int(id)];
 }

@@ -8,6 +8,24 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.1.0] - 2026-11-02
+
+Station "Feel".
+
+### Added
+- Undo in Classic and Zen: one step back per drop; start with 1 charge, earn +1 per chain of 3 or more (max 3).
+  Button on the HUD, keys `U` or `Z`.
+- Haptic feedback on phones for drops, merges (stronger with level and chain), heavy impacts and game over.
+- Settings page "Game feel": aim guide, vibration (phones), screen shake, slow motion, Calm mode.
+- Calm mode: no screen shake, slow motion, blinking or flashes, and fewer particles.
+- Slow motion on very large merges and long chains.
+- Auto-pause when the window loses focus or the app goes to the background.
+- Window and taskbar icon on desktop.
+- Larger accent-coloured pop-ups for chains of 3 or more.
+
+### Changed
+- Settings are split over two pages (General, Game feel); the Android app now declares the vibration permission.
+
 ## [1.0.0] - 2026-11-02
 
 First stable release. Every earlier development station is tagged in git (`v0.1.0` to `v0.5.0`, listed below).
@@ -42,5 +60,6 @@ First stable release. Every earlier development station is tagged in git (`v0.1.
 | v0.4.0 | Sound engine and settling/splash physics |
 | v0.5.0 | Android and iOS builds, self-contained desktop packages |
 
-[Unreleased]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/sobhanmohammadi-dev/Liq2048/releases/tag/v1.0.0

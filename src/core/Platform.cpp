@@ -68,4 +68,21 @@ bool isMobile() {
 
 int dayNumber() { return int(std::time(nullptr) / 86400); }
 
+void vibrate(float strength, int ms) {
+    if (!isMobile()) return;
+    static SDL_Haptic* haptic = nullptr;
+    static bool tried = false;
+    if (!tried) {
+        tried = true;
+        if (SDL_InitSubSystem(SDL_INIT_HAPTIC) == 0 && SDL_NumHaptics() > 0) {
+            haptic = SDL_HapticOpen(0);
+            if (haptic && SDL_HapticRumbleInit(haptic) != 0) {
+                SDL_HapticClose(haptic);
+                haptic = nullptr;
+            }
+        }
+    }
+    if (haptic) SDL_HapticRumblePlay(haptic, strength < 0.f ? 0.f : (strength > 1.f ? 1.f : strength), Uint32(ms));
+}
+
 }  // namespace liq::platform

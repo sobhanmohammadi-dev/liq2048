@@ -294,6 +294,26 @@ TEST(fps_choices_and_limits) {
     CHECK(Save::fpsChoice(1) == 30);
 }
 
+TEST(save_game_feel_defaults) {
+    Save s;
+    CHECK(s.haptics && s.guide && s.shake && s.slowmo && !s.calm);
+    CHECK(s.effShake() && s.effSlowmo());
+    s.calm = true;  // calm mode overrides shake and slow motion
+    CHECK(!s.effShake() && !s.effSlowmo());
+}
+
+TEST(world_copy_restores_state) {
+    // Undo relies on World being a plain value: a copy taken earlier must be independent of later steps.
+    World w;
+    w.spawn(135.f, 100.f, 2);
+    World snap = w;
+    for (int i = 0; i < 60; ++i) w.step(cfg::kStep, cfg::kGravity);
+    CHECK(snap.parts.size() == w.parts.size());
+    CHECK(snap.parts[0].y < w.parts[0].y - 5.f);
+    World back = snap;
+    CHECK(back.parts[0].y == snap.parts[0].y);
+}
+
 TEST(audio_assets_decode) {
     // Every shipped OGG must decode to audible, finite, 44.1 kHz stereo audio (tests run from the repo root).
     const char* names[] = {"sounds/drop_0", "sounds/splash_2", "sounds/merge_00", "sounds/merge_11", "sounds/chain_6",
