@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(Liq2048 VERSION 1.1.0 LANGUAGES CXX
+project(Liq2048 VERSION 1.1.0 LANGUAGES C CXX
         DESCRIPTION "Physics-based blob merging puzzle in C++17 and SDL2"
         HOMEPAGE_URL "https://github.com/sobhanmohammadi-dev/Liq2048")
 
@@ -17,6 +17,7 @@ endif()
 # ---------------------------------------------------------------------------
 option(LIQ_FETCH_DEPS "Download and build SDL2 and SDL2_ttf from source" OFF)
 option(LIQ_BUILD_TESTS "Build the unit tests" ON)
+option(LIQ_BUILD_TOOLS "Build developer tools (liq_audiogen: regenerates the OGG audio)" OFF)
 option(LIQ_WARNINGS_AS_ERRORS "Treat compiler warnings as errors (used by CI)" OFF)
 
 # ---------------------------------------------------------------------------
@@ -60,8 +61,19 @@ endif()
 file(GLOB_RECURSE LIQ_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 list(FILTER LIQ_SOURCES EXCLUDE REGEX ".*/src/main\\.cpp$")
 
+# stb_vorbis (public domain OGG Vorbis decoder), compiled as plain C without warnings.
+add_library(stb_vorbis STATIC third_party/stb_vorbis/stb_vorbis.c)
+target_include_directories(stb_vorbis PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb_vorbis)
+if(NOT MSVC)
+  target_compile_options(stb_vorbis PRIVATE -w)
+endif()
+if(UNIX AND NOT APPLE AND NOT ANDROID)
+  target_link_libraries(stb_vorbis PUBLIC m)
+endif()
+
 add_library(liq_core STATIC ${LIQ_SOURCES})
 target_include_directories(liq_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(liq_core PUBLIC stb_vorbis)
 target_link_libraries(liq_core PUBLIC ${LIQ_SDL_TARGET} SDL2_ttf::SDL2_ttf)
 target_compile_definitions(liq_core PUBLIC LIQ_VERSION="${PROJECT_VERSION}")
 if(MSVC)
@@ -124,6 +136,13 @@ if(NOT ANDROID AND NOT IOS)
   add_custom_command(TARGET liq2048 POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/assets $<TARGET_FILE_DIR:liq2048>/assets)
+endif()
+
+# ---------------------------------------------------------------------------
+# Developer tools (not shipped): audio generator, see tools/audiogen/build_audio.py
+# ---------------------------------------------------------------------------
+if(LIQ_BUILD_TOOLS AND NOT ANDROID AND NOT IOS)
+  add_executable(liq_audiogen tools/audiogen/main.cpp tools/audiogen/Synth.cpp)
 endif()
 
 # ---------------------------------------------------------------------------

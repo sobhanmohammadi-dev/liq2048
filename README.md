@@ -34,7 +34,7 @@ purchases, no tracking.**
 - **Zero required assets:** all visuals are drawn in code with a built-in pixel font; add fonts, sounds and music whenever you like
 - **Portable:** C++17, SDL2, CMake; Windows, Linux, macOS, Android and iOS
 - **Visuals:** a real liquid simulation (drops splash, spread and merge) with dithered pixel-art colour blending, built-in pixel font, selectable frame rate (VSync to 144/unlimited)
-- **Sound:** synthesized in code: bubbly pentatonic SFX and a generative ambient soundtrack that reacts to the game, no audio files
+- **Sound:** bubbly pentatonic SFX and an ambient soundtrack that adapts to the pile, shipped as OGG files in `assets/` (regenerate with `tools/audiogen`)
 - **Engineering:** unit tests, CI on three operating systems, CodeQL, tagged releases, headless screenshot tool
 
 ## Play
@@ -90,7 +90,7 @@ src/        core (app loop, platform), gfx, ui, game (physics + modes), scenes, 
 assets/     lang/*.json (shipped); fonts/, sounds/, music/, ui/ (drop your own files here)
 tests/      dependency-free unit tests (ctest)
 docs/       documentation, screenshots, generated branding
-tools/      branding generator
+tools/      audiogen (builds the OGG audio), branding generator
 .github/    CI, CodeQL, release workflows, issue/PR templates
 ```
 

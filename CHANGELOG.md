@@ -6,6 +6,10 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Audio is now shipped as OGG files in `assets/sounds` and `assets/music` instead of being synthesized at runtime; the synthesizer moved to `tools/audiogen` (dev tool, `LIQ_BUILD_TOOLS`). Removed `--render-audio`.
+- Repository cleanup: unused assets, constants, presets and screenshots removed.
+
 ## [1.1.0] - 2026-11-02
 
 ### Changed

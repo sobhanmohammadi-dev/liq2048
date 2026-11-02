@@ -1,6 +1,6 @@
 # Assets
 
-The repository ships **no audio, music or font files**. All graphics are drawn in code, and the game is fully
+The repository ships **no font files** (audio is shipped as OGG, see Sound). All graphics are drawn in code, and the game is fully
 playable without any asset. Drop files in and they are picked up on the next launch. Files are searched in
 `<executable dir>/assets/`, then `./assets/` (and on Android, inside the APK).
 
@@ -24,12 +24,17 @@ Latin text, scores and droplet numerals use the built-in pixel font family (5×7
 
 ## Sound
 
-There are no sound files. Every sound effect and the background music are synthesized in code
-(`src/audio/Synth.cpp`), so the game sounds identical on every platform. Preview the soundtrack without playing:
+Audio lives in `assets/sounds/*.ogg` (27 effects: drops, splashes, 12 merge pitches, chains, UI, fail/success/unlock)
+and `assets/music/*.ogg` (`menu`, `game_calm`, `game_intense`, seamless loops; the game cross-fades calm and intense
+as the pot fills). The files are generated, not recorded: `tools/audiogen` synthesizes them and ffmpeg encodes OGG:
 
 ```bash
-./build/liq2048 --render-audio preview.wav 60 game     # or: menu
+cmake -S . -B build -DLIQ_BUILD_TOOLS=ON && cmake --build build --target liq_audiogen
+python3 tools/audiogen/build_audio.py        # needs ffmpeg with libvorbis; rewrites assets/sounds and assets/music
 ```
+
+To use your own audio, drop OGG Vorbis files (44.1 kHz stereo or mono) with the same names into those folders.
+Missing files are simply silent.
 
 Music and sound-effect volumes are separate settings and are saved.
 

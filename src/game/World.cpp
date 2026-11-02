@@ -242,11 +242,6 @@ void World::anchors() {
         }
 }
 
-void World::animate(float dt) {
-    clock_ += dt;
-    (void)dt;
-}
-
 void World::substep(float h, float g, bool last) {
     static float restNear = 0.f;
     static const float rho0 = restDensity(restNear);

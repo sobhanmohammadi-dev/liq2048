@@ -68,11 +68,6 @@ inline constexpr bool kDitherBlend = true;
 inline constexpr float kOutlineMix = 0.62f;
 
 // Jelly wobble (visual only; physics circles stay rigid).
-inline constexpr float kShearSpring = 700.f;   // stiffness  (about 4 Hz)
-inline constexpr float kShearDamp = 13.f;
-inline constexpr float kImpactKick = 0.0065f;  // shear velocity per px/s of impact
-inline constexpr float kMaxShear = 0.30f;
-inline constexpr float kSpeedStretch = 0.00020f;  // stretch along motion per px/s
 inline constexpr float kPopSpring = 950.f;
 inline constexpr float kPopDamp = 12.f;
 inline constexpr float kBreath = 0.014f;       // idle breathing amplitude

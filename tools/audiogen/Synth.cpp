@@ -1,9 +1,9 @@
-#include "audio/Synth.hpp"
+#include "Synth.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-namespace liq {
+namespace liq::audiogen {
 
 namespace {
 
@@ -38,6 +38,7 @@ struct Rng {
 enum class Kind : uint8_t { Sine, Tri, Noise };
 
 struct Voice {
+    uint32_t ns = 1;  // private noise state (keeps music periodic regardless of what else is sounding)
     bool on = false;
     bool music = false;
     Kind kind = Kind::Sine;
@@ -158,6 +159,7 @@ struct Synth::Impl {
         Voice* v = alloc();
         *v = Voice();
         v->on = true;
+        v->ns = rng.next() | 1u;
         v->music = d.music;
         v->kind = d.kind;
         v->f = d.f0;
@@ -215,6 +217,10 @@ struct Synth::Impl {
     }
 
     void onStep() {
+        if (step % 128 == 0) {  // every cycle replays exactly: the rendered file loops seamlessly
+            rng.s = 0x9E3779B9u + (mood == MusicMood::Game ? 17u : 5u);
+            arpIdx = 2;
+        }
         const Chord& c = kChords[chordIdx];
         const bool game = mood == MusicMood::Game;
         const float it = intensity;
@@ -353,7 +359,8 @@ struct Synth::Impl {
                 float s;
                 if (v.kind == Kind::Noise) {
                     v.lp = std::min(0.98f, v.lp * v.lpMult);
-                    v.z += (rng.bi() - v.z) * v.lp;
+                    v.ns ^= v.ns << 13; v.ns ^= v.ns >> 17; v.ns ^= v.ns << 5;
+                    v.z += (float(v.ns >> 8) * (2.f / 16777216.f) - 1.f - v.z) * v.lp;
                     s = v.z * 2.f;
                 } else {
                     v.f *= v.mult;
@@ -415,12 +422,13 @@ struct Synth::Impl {
     }
 
     // ---------- sound effects ----------
-    void play(Sfx s, float amount, int level, int chain) {
+    void play(Sound s, float amount, int level, int chain) {
         amount = std::clamp(amount, 0.f, 1.f);
         switch (s) {
-            case Sfx::Drop: {  // release: a soft "plop"
+            case Sound::Drop: {  // release: a soft "plop"
                 P a;
-                a.f0 = 780.f; a.f1 = 330.f; a.amp = 0.20f; a.dur = 0.15f; a.decayK = 5.f; a.send = 0.25f;
+                const float pv = 1.f + 0.10f * (amount - 0.5f);
+                a.f0 = 780.f * pv; a.f1 = 330.f * pv; a.amp = 0.20f; a.dur = 0.15f; a.decayK = 5.f; a.send = 0.25f;
                 add(a);
                 P b = a;
                 b.f0 = 520.f; b.f1 = 780.f; b.amp = 0.07f; b.delay = 0.05f; b.dur = 0.09f;
@@ -430,7 +438,7 @@ struct Synth::Impl {
                 add(t);
                 break;
             }
-            case Sfx::Splash: {  // liquid hits liquid: slosh + thump + bubbles
+            case Sound::Splash: {  // liquid hits liquid: slosh + thump + bubbles
                 P n;
                 n.kind = Kind::Noise; n.amp = 0.16f + 0.26f * amount; n.dur = 0.12f + 0.22f * amount;
                 n.lp0 = 0.10f + 0.2f * amount; n.lp1 = 0.02f; n.decayK = 4.5f; n.send = 0.3f; n.pan = rng.bi() * 0.3f;
@@ -448,7 +456,7 @@ struct Synth::Impl {
                 }
                 break;
             }
-            case Sfx::Merge: {
+            case Sound::Merge: {
                 const float f = levelHz(level);
                 P body;
                 body.f0 = f * 0.7f; body.f1 = f * 1.35f; body.amp = 0.28f; body.dur = 0.16f; body.decayK = 4.f; body.send = 0.3f;
@@ -478,20 +486,20 @@ struct Synth::Impl {
                         add(c);
                     }
                 }
-                if (chain >= 2) {  // chain: a rising arpeggio, one more note per link
-                    const int notes = std::min(chain, 6);
-                    for (int k = 0; k < notes; ++k) {
-                        P a;
-                        a.kind = Kind::Sine; a.f0 = a.f1 = levelHz(level + 2 + k * 2); a.amp = 0.10f; a.dur = 0.35f;
-                        a.delay = 0.07f * float(k + 1); a.atk = 0.004f; a.p2 = 0.4f; a.decayK = 6.f; a.send = 0.5f;
-                        a.pan = (k & 1) ? 0.5f : -0.5f; a.echo = 0.2f;
-                        add(a);
-                    }
+                break;
+            }
+            case Sound::Chain: {  // rising arpeggio layered on top of a merge, one more note per link
+                const int notes = std::min(std::max(chain, 2), 6);
+                for (int k = 0; k < notes; ++k) {
+                    P a;
+                    a.kind = Kind::Sine; a.f0 = a.f1 = levelHz(level + 2 + k * 2); a.amp = 0.10f; a.dur = 0.35f;
+                    a.delay = 0.07f * float(k); a.atk = 0.004f; a.p2 = 0.4f; a.decayK = 6.f; a.send = 0.5f;
+                    a.pan = (k & 1) ? 0.5f : -0.5f; a.echo = 0.2f;
+                    add(a);
                 }
                 break;
             }
-            case Sfx::Chain: play(Sfx::Merge, amount, level, std::max(chain, 2)); break;
-            case Sfx::Click: {
+            case Sound::Click: {
                 P a;
                 a.f0 = 1100.f; a.f1 = 800.f; a.amp = 0.10f; a.dur = 0.04f; a.decayK = 5.f; a.send = 0.1f;
                 add(a);
@@ -500,7 +508,7 @@ struct Synth::Impl {
                 add(t);
                 break;
             }
-            case Sfx::Swipe: {
+            case Sound::Swipe: {
                 P n;
                 n.kind = Kind::Noise; n.amp = 0.10f; n.dur = 0.22f; n.lp0 = 0.04f; n.lp1 = 0.55f; n.decayK = 2.5f; n.atk = 0.05f;
                 n.send = 0.25f;
@@ -510,7 +518,7 @@ struct Synth::Impl {
                 add(a);
                 break;
             }
-            case Sfx::Fail: {
+            case Sound::Fail: {
                 P a;
                 a.kind = Kind::Tri; a.f0 = 330.f; a.f1 = 88.f; a.amp = 0.22f; a.dur = 1.1f; a.decayK = 3.5f; a.p2 = 0.3f; a.send = 0.4f;
                 add(a);
@@ -522,7 +530,7 @@ struct Synth::Impl {
                 add(n);
                 break;
             }
-            case Sfx::Success: {
+            case Sound::Success: {
                 static const int notes[5] = {69, 72, 76, 81, 84};
                 for (int k = 0; k < 5; ++k) {
                     P a;
@@ -532,7 +540,7 @@ struct Synth::Impl {
                 }
                 break;
             }
-            case Sfx::Unlock: {
+            case Sound::Unlock: {
                 for (int k = 0; k < 4; ++k) {
                     P a;
                     a.f0 = a.f1 = midiHz(float(84 + (k % 2 ? 7 : 0) + k)); a.amp = 0.09f; a.dur = 0.4f; a.delay = 0.06f * float(k);
@@ -551,11 +559,11 @@ struct Synth::Impl {
 
 Synth::Synth(int sampleRate) : p_(new Impl(sampleRate)), sr_(sampleRate) {}
 Synth::~Synth() { delete p_; }
-void Synth::sfx(Sfx s, float amount, int level, int chain) { p_->play(s, amount, level, chain); }
+void Synth::sfx(Sound s, float amount, int level, int chain) { p_->play(s, amount, level, chain); }
 void Synth::setMood(MusicMood m) { p_->mood = m; }
 void Synth::setIntensity(float v) { p_->intensityT = std::clamp(v, 0.f, 1.f); }
 void Synth::setMusicVolume(float v) { p_->musicVolT = std::clamp(v, 0.f, 1.f); }
 void Synth::setSfxVolume(float v) { p_->sfxVolT = std::clamp(v, 0.f, 1.f); }
 void Synth::render(float* out, int frames) { p_->process(out, frames); }
 
-}  // namespace liq
+}  // namespace liq::audiogen

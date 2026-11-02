@@ -56,7 +56,6 @@ public:
     void clear();
     void spawn(float x, float y, int level);
     void step(float dt, float gravity);      // one fixed frame (substeps inside)
-    void animate(float dt);                  // visual springs; call every rendered frame
     void updateOverflow(float deadY, float dt);
     float overflow() const { return overflow_; }
     void resetOverflow() { overflow_ = 0; }
@@ -69,7 +68,6 @@ public:
     // Rendering helpers. alpha in [0,1] interpolates between the last two fixed steps.
     void particleSprites(float alpha, float radius, std::vector<BlobSprite>& out) const;
     void labelSprites(std::vector<BlobSprite>& out) const;
-    float clock() const { return clock_; }
 
     std::vector<Particle> parts;
     std::vector<Drop> drops;
@@ -85,7 +83,6 @@ private:
     int chain_ = 0;
     float sinceMerge_ = 99.f;
     float overflow_ = 0.f;
-    float clock_ = 0.f;
     uint32_t seed_ = 1;
     // Spatial hash scratch.
     std::vector<int> head_, next_;
