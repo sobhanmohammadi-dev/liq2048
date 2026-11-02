@@ -116,7 +116,9 @@ void Gfx::loadFonts() {
               "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
               "/usr/share/fonts/TTF/DejaVuSans.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
               "/System/Library/Fonts/Supplemental/Arial.ttf", "/system/fonts/NotoNaskhArabic-Regular.ttf",
-              "/system/fonts/DroidSansArabic.ttf"});
+              "/system/fonts/DroidSansArabic.ttf", "/system/fonts/NotoNaskhArabicUI-Regular.ttf",
+              "/system/fonts/NotoSansArabic-Regular.ttf", "/system/fonts/NotoSansArabicUI-Regular.ttf",
+              "/System/Library/Fonts/Core/GeezaPro.ttc", "/System/Library/Fonts/GeezaPro.ttc"});
 }
 
 TTF_Font* Gfx::font(Face& f, int pt) {

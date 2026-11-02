@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(Liq2048 VERSION 1.0.0 LANGUAGES CXX
+project(Liq2048 VERSION 1.1.0 LANGUAGES CXX
         DESCRIPTION "Physics-based blob merging puzzle in C++17 and SDL2"
         HOMEPAGE_URL "https://github.com/sobhanmohammadi-dev/Liq2048")
 
@@ -93,7 +93,30 @@ if(WIN32)
   set_target_properties(liq2048 PROPERTIES WIN32_EXECUTABLE ON)
 endif()
 if(IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
-  set_target_properties(liq2048 PROPERTIES MACOSX_BUNDLE ON)
+  # iOS app bundle: Info.plist, app icon and the assets/ folder copied into the bundle.
+  file(GLOB_RECURSE LIQ_IOS_ASSETS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/assets/*)
+  list(FILTER LIQ_IOS_ASSETS EXCLUDE REGEX "\\.gitkeep$")
+  foreach(f ${LIQ_IOS_ASSETS})
+    file(RELATIVE_PATH rel ${CMAKE_CURRENT_SOURCE_DIR} ${f})
+    get_filename_component(dir ${rel} DIRECTORY)
+    set_source_files_properties(${f} PROPERTIES MACOSX_PACKAGE_LOCATION ${dir})
+  endforeach()
+  set(LIQ_ICONS ${CMAKE_CURRENT_SOURCE_DIR}/ios/Assets.xcassets)
+  set_source_files_properties(${LIQ_ICONS} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+  target_sources(liq2048 PRIVATE ${LIQ_IOS_ASSETS} ${LIQ_ICONS})
+  set_target_properties(liq2048 PROPERTIES
+    MACOSX_BUNDLE ON
+    OUTPUT_NAME "Liq2048"
+    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/ios/Info.plist.in
+    MACOSX_BUNDLE_GUI_IDENTIFIER "dev.sobhanmohammadi.liq2048"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+    XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "dev.sobhanmohammadi.liq2048"
+    XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
+    XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
+    XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO"
+    XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO"
+    XCODE_ATTRIBUTE_ENABLE_BITCODE "NO")
 endif()
 
 # Make assets/ available next to the binary on desktop builds.

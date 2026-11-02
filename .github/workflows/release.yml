@@ -23,18 +23,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies (Linux)
+      - name: Add Persian font to the package (SIL OFL, not stored in the repo)
+        shell: bash
+        run: |
+          curl -sL -o vz.zip https://github.com/rastikerdar/vazirmatn/releases/download/v33.003/vazirmatn-v33.003.zip
+          unzip -j -o vz.zip fonts/ttf/Vazirmatn-Regular.ttf OFL.txt -d vz
+          mkdir -p assets/fonts
+          cp vz/Vazirmatn-Regular.ttf assets/fonts/fa.ttf
+          cp vz/OFL.txt assets/fonts/LICENSE-vazirmatn.txt
+
+      - name: Install dependencies (Linux; SDL is built from source and linked statically)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libsdl2-dev libsdl2-ttf-dev
+          sudo apt-get install -y ninja-build libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev \
+            libxkbcommon-dev libwayland-dev wayland-protocols libdecor-0-dev libdrm-dev libgbm-dev libegl1-mesa-dev \
+            libgl1-mesa-dev libasound2-dev libpulse-dev libudev-dev
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install ninja sdl2 sdl2_ttf
+        run: brew install ninja
 
-      - name: "Configure (Linux/macOS, system SDL)"
-        if: runner.os != 'Windows'
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Configure (Linux, static SDL)
+        if: runner.os == 'Linux'
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIQ_FETCH_DEPS=ON
+      - name: Configure (macOS, universal arm64 + x86_64, static SDL)
+        if: runner.os == 'macOS'
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIQ_FETCH_DEPS=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
       - name: "Configure (Windows, static SDL)"
         if: runner.os == 'Windows'
         run: cmake -S . -B build -DLIQ_FETCH_DEPS=ON
@@ -54,8 +68,15 @@ jobs:
             dist/*.zip
             dist/*.tar.gz
 
+  mobile:
+    name: Mobile
+    uses: ./.github/workflows/mobile.yml
+    secrets: inherit
+    with:
+      version: ${{ github.ref_name }}
+
   publish:
-    needs: package
+    needs: [package, mobile]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
