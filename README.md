@@ -78,6 +78,7 @@ More in [docs/GAMEPLAY.md](docs/GAMEPLAY.md).
 |----------|----------|
 | [Building](docs/BUILDING.md) | All platforms, CMake options, packaging, troubleshooting |
 | [Architecture](docs/ARCHITECTURE.md) | Modules, physics, rendering, design decisions |
+| [Roadmap](docs/ROADMAP.md) | Planned stations after 1.0.0 and the tagging plan |
 | [Gameplay](docs/GAMEPLAY.md) | Rules, scoring, modes, progression; adding modes and themes |
 | [Localization](docs/LOCALIZATION.md) | String tables, adding languages, RTL details |
 | [Assets](docs/ASSETS.md) | Fonts, sounds and music: where files go and what they are called |
