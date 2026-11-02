@@ -18,7 +18,8 @@ public:
     }
 
     int best[kModeCount] = {0, 0, 0, 0, 0};
-    float volume = 0.8f;
+    float musicVol = 0.6f;      // 0..1
+    float sfxVol = 0.9f;        // 0..1
     bool fullscreen = false;
     std::string lang;           // "", "en", "fa"
     int theme = 0;

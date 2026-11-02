@@ -184,6 +184,21 @@ void BlobRaster::drawLiquid(const std::vector<BlobSprite>& parts, const Theme& t
         }
     }
     if (maxY < 0) return;
+    // Smooth the field a little ([1 2 1] twice) so the silhouette has clean, rounded contours.
+    {
+        if (tmp_.size() != f_.size()) tmp_.assign(f_.size(), 0.f);
+        const int y0 = std::max(0, minY - 1), y1 = std::min(h_ - 1, maxY + 1), x0 = std::max(1, minX - 1), x1 = std::min(w_ - 2, maxX + 1);
+        for (int y = y0; y <= y1; ++y)
+            for (int x = x0; x <= x1; ++x) {
+                const size_t i = size_t(y) * size_t(w_) + size_t(x);
+                tmp_[i] = (f_[i - 1] + 2.f * f_[i] + f_[i + 1]) * 0.25f;
+            }
+        for (int y = std::max(1, y0); y <= std::min(h_ - 2, y1); ++y)
+            for (int x = x0; x <= x1; ++x) {
+                const size_t i = size_t(y) * size_t(w_) + size_t(x);
+                f_[i] = (tmp_[i - size_t(w_)] + 2.f * tmp_[i] + tmp_[i + size_t(w_)]) * 0.25f;
+            }
+    }
     const uint32_t ink = pack(theme.ink);
     const float T = iso;
     auto inside = [&](int x, int y) {

@@ -14,7 +14,7 @@ Thanks for your interest! Bug reports, translations, new themes, modes and fixes
 See [docs/BUILDING.md](docs/BUILDING.md). The quick version on Linux:
 
 ```bash
-sudo apt install cmake ninja-build libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev
+sudo apt install cmake ninja-build libsdl2-dev libsdl2-ttf-dev
 cmake -S . -B build -G Ninja -DLIQ_WARNINGS_AS_ERRORS=ON
 cmake --build build
 ctest --test-dir build --output-on-failure

@@ -27,10 +27,10 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev
+          sudo apt-get install -y ninja-build libsdl2-dev libsdl2-ttf-dev
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install ninja sdl2 sdl2_ttf sdl2_mixer
+        run: brew install ninja sdl2 sdl2_ttf
 
       - name: "Configure (Linux/macOS, system SDL)"
         if: runner.os != 'Windows'

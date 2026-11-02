@@ -32,8 +32,12 @@ inline constexpr float kStiff = 8000.f;       // pressure stiffness
 inline constexpr float kStiffNear = 9000.f;   // near-pressure (anti-clumping)
 inline constexpr float kViscSigma = 300.f;     // linear viscosity
 inline constexpr float kViscBeta = 0.f;       // quadratic viscosity
-inline constexpr float kCohesion = 1.2f;     // pull toward same-drop neighbours
+inline constexpr float kCohesion = 0.8f;     // pull toward same-drop neighbours
 inline constexpr float kHold = 0.06f;        // weak pull toward drop centroid (shape while falling)
+inline constexpr float kDamp = 0.995f;          // velocity kept per substep (settles the liquid)
+inline constexpr float kCohRange = 1.0f;       // cohesion acts beyond this multiple of the spacing
+inline constexpr float kSleepV = 50.f;          // below this speed (px/s) extra damping applies
+inline constexpr float kSleepF = 0.9f;          // ... by this factor per substep
 inline constexpr float kWallDrag = 0.5f;     // velocity kept per step while touching floor/walls
 
 // ---- Gameplay ---------------------------------------------------------------

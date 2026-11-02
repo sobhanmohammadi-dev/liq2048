@@ -9,6 +9,7 @@
 
 #include "core/Json.hpp"
 #include "core/Util.hpp"
+#include "audio/Synth.hpp"
 #include "game/Mode.hpp"
 #include "game/World.hpp"
 #include "gfx/BlobRaster.hpp"
@@ -290,6 +291,35 @@ TEST(fps_choices_and_limits) {
     s.fpsIdx = 6;
     CHECK(s.fpsLimit() == -1);
     CHECK(Save::fpsChoice(1) == 30);
+}
+
+TEST(synth_renders_clean_audio) {
+    Synth sy(44100);
+    sy.setMood(MusicMood::Game);
+    sy.setIntensity(0.8f);
+    std::vector<float> buf(2 * 44100 * 6);
+    for (int i = 0; i < 44100 * 6; i += 512) {
+        if (i == 44100) sy.sfx(Sfx::Merge, 0.5f, 5, 3);
+        if (i == 2 * 44100) sy.sfx(Sfx::Splash, 1.f, 8);
+        if (i == 3 * 44100) sy.sfx(Sfx::Merge, 1.f, 11, 1);
+        sy.render(&buf[size_t(i) * 2], std::min(512, 44100 * 6 - i));
+    }
+    double peak = 0, rms = 0;
+    for (float v : buf) {
+        CHECK(std::isfinite(v));
+        peak = std::max(peak, double(std::fabs(v)));
+        rms += double(v) * double(v);
+    }
+    rms = std::sqrt(rms / double(buf.size()));
+    CHECK(peak < 1.0);   // limiter keeps it inside the range
+    CHECK(rms > 0.01);   // and it is actually audible
+    // Silent when off.
+    Synth q(44100);
+    std::vector<float> z(2 * 4096);
+    q.render(z.data(), 4096);
+    double e = 0;
+    for (float v : z) e += double(std::fabs(v));
+    CHECK(e == 0.0);
 }
 
 }  // namespace

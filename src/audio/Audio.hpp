@@ -1,26 +1,27 @@
 #pragma once
-// Audio manager. No audio is shipped: drop files into assets/sounds/ and
-// assets/music/ (see README) and they are picked up automatically. Without
-// files, or without SDL2_mixer, every call is a silent no-op.
+// Audio device wrapper around the procedural Synth (see Synth.hpp). No audio files are needed.
+// Without an audio device (headless CI, dummy driver) every call is a harmless no-op.
 #include <memory>
 
-namespace liq {
+#include "audio/Synth.hpp"
 
-enum class Sfx { Merge, Drop, Chain, Click, Fail, Success, Count };
+namespace liq {
 
 class Audio {
 public:
     Audio();
     ~Audio();
     void init();
-    void play(Sfx s);
-    void setVolume(float v);  // 0..1
-    float volume() const { return volume_; }
+    void play(Sfx s, float amount = 0.5f, int level = 0, int chain = 1);
+    void setMood(MusicMood m);
+    void setIntensity(float v);
+    void setMusicVolume(float v);
+    void setSfxVolume(float v);
+    void pause(bool paused);  // app in background
 
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
-    float volume_ = 0.8f;
 };
 
 }  // namespace liq

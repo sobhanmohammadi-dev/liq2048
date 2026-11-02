@@ -90,6 +90,7 @@ int App::run(const AppOptions& opt) {
 
         const SceneId first = shot ? sceneFromName(opt.shotScene, c) : SceneId::Menu;
         std::unique_ptr<Scene> scene = makeScene(first, c);
+        c.audio.setMood(first == SceneId::Game ? MusicMood::Game : MusicMood::Menu);
         float cover = shot ? 0.f : 1.f;  // blinds transition: 1 = fully covered
         bool closing = false;
         int frame = 0;
@@ -137,6 +138,10 @@ int App::run(const AppOptions& opt) {
                         }
                         break;
                     case SDL_APP_WILLENTERBACKGROUND:
+                        if (!shot) c.save.store();
+                        c.audio.pause(true);
+                        break;
+                    case SDL_APP_DIDENTERFOREGROUND: c.audio.pause(false); break;
                     case SDL_APP_TERMINATING: if (!shot) c.save.store(); break;
                     default: break;
                 }
@@ -161,7 +166,10 @@ int App::run(const AppOptions& opt) {
             c.ui.endFrame();
 
             // Blinds transition between scenes.
-            if (c.hasNext && !closing) closing = true;
+            if (c.hasNext && !closing) {
+                closing = true;
+                c.audio.play(Sfx::Swipe);
+            }
             if (closing) {
                 cover += dt / kBlinds;
                 if (cover >= 1.f) {
@@ -170,6 +178,8 @@ int App::run(const AppOptions& opt) {
                     closing = false;
                     c.ui.resetFocus();
                     scene = makeScene(c.next, c);
+                    c.audio.setIntensity(0.f);
+                    c.audio.setMood(c.next == SceneId::Game ? MusicMood::Game : MusicMood::Menu);
                 }
             } else if (cover > 0.f) {
                 cover = std::max(0.f, cover - dt / kBlinds);

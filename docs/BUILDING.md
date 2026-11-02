@@ -1,21 +1,21 @@
 # Building
 
-Requirements: CMake ≥ 3.21, a C++17 compiler, SDL2, SDL2_ttf and (optionally) SDL2_mixer.
+Requirements: CMake ≥ 3.21, a C++17 compiler, SDL2 and SDL2_ttf.
 Presets are defined in [`CMakePresets.json`](../CMakePresets.json).
 
 ## CMake options
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `LIQ_FETCH_DEPS` | `OFF` (forced `ON` for Android/iOS) | Download and build SDL2, SDL2_ttf, SDL2_mixer with FetchContent instead of `find_package` |
+| `LIQ_FETCH_DEPS` | `OFF` (forced `ON` for Android/iOS) | Download and build SDL2 and SDL2_ttf with FetchContent instead of `find_package` |
 | `LIQ_BUILD_TESTS` | `ON` | Build `liq_tests` and register it with CTest |
 | `LIQ_WARNINGS_AS_ERRORS` | `OFF` (ON in CI) | Treat warnings as errors in `liq_core` |
 
 ## Linux
 
 ```bash
-sudo apt install cmake ninja-build libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev   # Debian/Ubuntu
-sudo dnf install cmake ninja-build SDL2-devel SDL2_ttf-devel SDL2_mixer-devel      # Fedora
+sudo apt install cmake ninja-build libsdl2-dev libsdl2-ttf-dev   # Debian/Ubuntu
+sudo dnf install cmake ninja-build SDL2-devel SDL2_ttf-devel      # Fedora
 cmake --preset linux
 cmake --build --preset linux
 ./build/linux/liq2048
@@ -24,7 +24,7 @@ cmake --build --preset linux
 ## macOS
 
 ```bash
-brew install cmake ninja sdl2 sdl2_ttf sdl2_mixer
+brew install cmake ninja sdl2 sdl2_ttf
 cmake --preset macos && cmake --build --preset macos
 ./build/macos/liq2048
 ```
@@ -34,7 +34,7 @@ cmake --preset macos && cmake --build --preset macos
 Option A, vcpkg:
 
 ```powershell
-vcpkg install sdl2 sdl2-ttf sdl2-mixer --triplet x64-windows
+vcpkg install sdl2 sdl2-ttf --triplet x64-windows
 $env:VCPKG_ROOT = "C:\path\to\vcpkg"
 cmake --preset windows-vcpkg
 cmake --build --preset windows-vcpkg
