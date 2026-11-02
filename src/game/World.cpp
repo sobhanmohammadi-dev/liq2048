@@ -39,6 +39,7 @@ void World::clear() {
     parts.clear();
     drops.clear();
     events.clear();
+    impacts.clear();
     chain_ = 0;
     sinceMerge_ = 99.f;
     overflow_ = 0.f;
@@ -192,6 +193,14 @@ void World::step(float dt, float gravity) {
     for (int s = 0; s < cfg::kSubsteps; ++s) substep(h, gravity, s == cfg::kSubsteps - 1);
     for (auto& d : drops) d.age += dt;
     refresh();
+    for (auto& d : drops) {
+        // A fast-falling drop that suddenly stops has hit the floor or the pile.
+        if (d.pvy > 110.f && d.vy < d.pvy * 0.5f && d.age > 0.05f) {
+            const float size = 0.35f + 0.65f * std::min(1.f, float(d.level) / 8.f);
+            impacts.push_back({d.x, d.y, std::min(1.f, d.pvy / 300.f) * size, d.level, 0u});
+        }
+        d.pvy = d.vy;
+    }
     sinceMerge_ += dt;
     if ((++stepCount_ & 1) == 0) anchors();
 }
@@ -304,7 +313,10 @@ void World::substep(float h, float g, bool last) {
         Particle &a = parts[size_t(pr.i)], &b = parts[size_t(pr.j)];
         if (a.g != b.g) continue;
         const float d = pr.q * cfg::kInteract;
-        if (d <= cfg::kSpacing * 0.95f) continue;
+        // Strong surface tension while a drop is falling or splashing; relaxed once it rests (no shimmer).
+        const Drop& dr = drops[size_t(a.g)];
+        const bool moving = dr.age < 1.2f || std::hypot(dr.vx, dr.vy) > 35.f;
+        if (d <= cfg::kSpacing * (moving ? 1.0f : cfg::kCohRange)) continue;
         const float pull = cfg::kCohesion * (1.f - pr.q) * 0.5f;
         a.x += pull * pr.nx;
         a.y += pull * pr.ny;
@@ -333,9 +345,11 @@ void World::substep(float h, float g, bool last) {
             p.vx *= cfg::kWallDrag;
             p.vy *= 0.9f;
         }
-        if (p.vx * p.vx + p.vy * p.vy < 900.f) {  // slow liquid settles instead of jittering
-            p.vx *= 0.9f;
-            p.vy *= 0.9f;
+        p.vx *= cfg::kDamp;
+        p.vy *= cfg::kDamp;
+        if (p.vx * p.vx + p.vy * p.vy < cfg::kSleepV * cfg::kSleepV) {  // slow liquid settles instead of jittering
+            p.vx *= cfg::kSleepF;
+            p.vy *= cfg::kSleepF;
         }
     }
 

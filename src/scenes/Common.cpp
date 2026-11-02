@@ -105,7 +105,7 @@ bool drawSettings(Ctx& c, float y0) {
     const Theme& t = *c.theme;
     Loc& L = c.loc;
     const bool desktop = !platform::isMobile();
-    const int rows = desktop ? 6 : 5;
+    const int rows = desktop ? 7 : 6;
     const float rowH = 32.f;
     const float panelH = 40.f + rows * rowH + 40.f;
     ui.panel(14, y0, 242, panelH);
@@ -125,14 +125,18 @@ bool drawSettings(Ctx& c, float y0) {
     }
     y += rowH;
 
-    // Volume
-    label("settings.volume");
-    if (const int d = ui.stepper(cx, y, cw, 20, std::to_string(int(std::lround(c.save.volume * 100.f))) + "%", true)) {
-        c.save.volume = std::fmin(1.f, std::fmax(0.f, std::round((c.save.volume + 0.1f * float(d)) * 10.f) / 10.f));
-        c.applySettings();
-        c.save.store();
-    }
-    y += rowH;
+    // Music and sound effects volume
+    auto volumeRow = [&](const char* key, float& v) {
+        label(key);
+        if (const int d = ui.stepper(cx, y, cw, 20, std::to_string(int(std::lround(v * 100.f))) + "%", true)) {
+            v = std::fmin(1.f, std::fmax(0.f, std::round((v + 0.1f * float(d)) * 10.f) / 10.f));
+            c.applySettings();
+            c.save.store();
+        }
+        y += rowH;
+    };
+    volumeRow("settings.music", c.save.musicVol);
+    volumeRow("settings.sfx", c.save.sfxVol);
 
     // Frame rate
     label("settings.fps");

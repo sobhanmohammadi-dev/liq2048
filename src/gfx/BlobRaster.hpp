@@ -42,7 +42,7 @@ public:
 private:
     int w_, h_;
     std::vector<uint32_t> px_;
-    std::vector<float> f_, w1_, w2_;
+    std::vector<float> f_, w1_, w2_, tmp_;
     std::vector<uint32_t> c1_, c2_;
 };
 

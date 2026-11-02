@@ -22,7 +22,8 @@ void Save::load() {
         if (k.rfind("best", 0) == 0) {
             int m = std::atoi(k.c_str() + 4);
             if (m >= 0 && m < kModeCount) best[m] = iv;
-        } else if (k == "volume") volume = float(std::atof(v.c_str()));
+        } else if (k == "music") musicVol = float(std::atof(v.c_str()));
+        else if (k == "sfx") sfxVol = float(std::atof(v.c_str()));
         else if (k == "fullscreen") fullscreen = iv != 0;
         else if (k == "lang") lang = v;
         else if (k == "theme") theme = iv;
@@ -36,14 +37,15 @@ void Save::load() {
         else if (k == "fps") fpsIdx = iv;
         else if (k == "showFps") showFps = iv != 0;
     }
-    if (volume < 0.f || volume > 1.f) volume = 0.8f;
+    if (musicVol < 0.f || musicVol > 1.f) musicVol = 0.6f;
+    if (sfxVol < 0.f || sfxVol > 1.f) sfxVol = 0.9f;
     if (fpsIdx < 0 || fpsIdx >= kFpsChoiceCount) fpsIdx = 0;
 }
 
 void Save::store() const {
     std::ostringstream o;
     for (int i = 0; i < kModeCount; ++i) o << "best" << i << "=" << best[i] << "\n";
-    o << "volume=" << volume << "\nfullscreen=" << fullscreen << "\nlang=" << lang << "\ntheme=" << theme
+    o << "music=" << musicVol << "\nsfx=" << sfxVol << "\nfullscreen=" << fullscreen << "\nlang=" << lang << "\ntheme=" << theme
       << "\nach=" << ach << "\nstreak=" << streak << "\nlastDay=" << lastDay
       << "\ntutorialDone=" << tutorialDone << "\ntargetStage=" << targetStage << "\ndailyDay=" << dailyDay
       << "\ndailyToday=" << dailyToday << "\nfps=" << fpsIdx << "\nshowFps=" << showFps << "\n";

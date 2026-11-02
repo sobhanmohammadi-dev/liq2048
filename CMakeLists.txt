@@ -15,13 +15,13 @@ endif()
 # ---------------------------------------------------------------------------
 # Options
 # ---------------------------------------------------------------------------
-option(LIQ_FETCH_DEPS "Download and build SDL2, SDL2_ttf, SDL2_mixer from source" OFF)
+option(LIQ_FETCH_DEPS "Download and build SDL2 and SDL2_ttf from source" OFF)
 option(LIQ_BUILD_TESTS "Build the unit tests" ON)
 option(LIQ_WARNINGS_AS_ERRORS "Treat compiler warnings as errors (used by CI)" OFF)
 
 # ---------------------------------------------------------------------------
 # Dependencies
-#   Desktop : installed SDL2 / SDL2_ttf (/ SDL2_mixer optional) via find_package
+#   Desktop : installed SDL2 / SDL2_ttf via find_package
 #   Mobile  : downloaded + built from source with FetchContent (forced ON)
 # ---------------------------------------------------------------------------
 if(ANDROID OR IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
@@ -39,22 +39,13 @@ if(LIQ_FETCH_DEPS)
   endif()
   set(SDL2_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
   set(SDL2TTF_INSTALL OFF CACHE BOOL "" FORCE)
-  set(SDL2MIXER_INSTALL OFF CACHE BOOL "" FORCE)
   set(SDL2TTF_VENDORED ON CACHE BOOL "" FORCE)
-  set(SDL2MIXER_VENDORED ON CACHE BOOL "" FORCE)
-  set(SDL2MIXER_DEPS_SHARED OFF CACHE BOOL "" FORCE)
   FetchContent_Declare(SDL2 GIT_REPOSITORY https://github.com/libsdl-org/SDL.git GIT_TAG release-2.30.9)
   FetchContent_Declare(SDL2_ttf GIT_REPOSITORY https://github.com/libsdl-org/SDL_ttf.git GIT_TAG release-2.22.0)
-  FetchContent_Declare(SDL2_mixer GIT_REPOSITORY https://github.com/libsdl-org/SDL_mixer.git GIT_TAG release-2.8.0)
-  FetchContent_MakeAvailable(SDL2 SDL2_ttf SDL2_mixer)
-  set(LIQ_HAVE_MIXER ON)
+  FetchContent_MakeAvailable(SDL2 SDL2_ttf)
 else()
   find_package(SDL2 REQUIRED)
   find_package(SDL2_ttf REQUIRED)
-  find_package(SDL2_mixer QUIET)
-  if(TARGET SDL2_mixer::SDL2_mixer)
-    set(LIQ_HAVE_MIXER ON)
-  endif()
 endif()
 
 if(TARGET SDL2::SDL2)
@@ -73,10 +64,6 @@ add_library(liq_core STATIC ${LIQ_SOURCES})
 target_include_directories(liq_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(liq_core PUBLIC ${LIQ_SDL_TARGET} SDL2_ttf::SDL2_ttf)
 target_compile_definitions(liq_core PUBLIC LIQ_VERSION="${PROJECT_VERSION}")
-if(LIQ_HAVE_MIXER)
-  target_link_libraries(liq_core PUBLIC SDL2_mixer::SDL2_mixer)
-  target_compile_definitions(liq_core PUBLIC LIQ_HAS_MIXER=1)
-endif()
 if(MSVC)
   target_compile_options(liq_core PRIVATE /W4 /utf-8)
   if(LIQ_WARNINGS_AS_ERRORS)

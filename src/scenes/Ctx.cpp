@@ -4,7 +4,8 @@ namespace liq {
 
 void Ctx::applySettings() {
     if (window) SDL_SetWindowFullscreen(window, save.fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-    audio.setVolume(save.volume);
+    audio.setMusicVolume(save.musicVol);
+    audio.setSfxVolume(save.sfxVol);
     gfx.setVsync(save.fpsLimit() == 0);
 }
 

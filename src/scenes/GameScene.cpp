@@ -51,6 +51,7 @@ public:
         Gfx& g = c.gfx;
         const bool paused = st_ == St::Paused || st_ == St::Settings;
         if (st_ == St::Playing) simulate(c, std::min(dt, 0.05f));
+        updateAudio(c, dt);
         if (!paused) {
             world_.animate(dt);
             updateFx(dt);
@@ -108,6 +109,7 @@ private:
     int today_ = 0;
     int score_ = 0, drops_ = 0, cur_ = 0, next_ = 0, maxLevel_ = 0, tutPage_ = 0;
     float dispScore_ = 0, aimX_ = (cfg::kFieldL + cfg::kFieldR) / 2, holdX_ = aimX_;
+    float tension_ = 0.f;
     float cooldown_ = 0, quiet_ = 0, elapsed_ = 0, acc_ = 0, shake_ = 0, overT_ = 0, toastT_ = 0, chainT_ = 0;
     int chainShown_ = 0;
     bool aiming_ = false, committed_ = false, newBest_ = false;
@@ -177,7 +179,7 @@ private:
         if (c.save.unlock(id)) {
             toast_ = c.loc.tr(achKey(id));
             toastT_ = 3.0f;
-            c.audio.play(Sfx::Success);
+            c.audio.play(Sfx::Unlock);
         }
     }
 
@@ -187,7 +189,7 @@ private:
         score_ += value * e.chain;
         quiet_ = 0;
         maxLevel_ = std::max(maxLevel_, e.level);
-        c.audio.play(e.chain >= 2 ? Sfx::Chain : Sfx::Merge);
+        c.audio.play(Sfx::Merge, 0.5f, e.level, e.chain);
         const Color col = t.blob[std::min(e.level, 11)];
         const int n = 8 + e.level * 2;
         for (int i = 0; i < n; ++i) {
@@ -208,6 +210,29 @@ private:
         if (e.chain >= 5) grant(c, kChain5);
         if (score_ >= 1000) grant(c, kScore1k);
         if (score_ >= 5000) grant(c, kScore5k);
+    }
+
+    void onImpact(Ctx& c, const Impact& im) {
+        c.audio.play(Sfx::Splash, im.strength, im.level);
+        const Color col = c.theme->blob[std::min(im.level, 11)];
+        const int n = 4 + int(im.strength * 10.f);
+        for (int i = 0; i < n; ++i) {  // spray: tiny pixels flung up and sideways
+            const float a = -1.57f + rngFx_.uni(-1.2f, 1.2f), sp = rngFx_.uni(40.f, 70.f + 90.f * im.strength);
+            parts_.push_back({im.x + rngFx_.uni(-8.f, 8.f), im.y, std::cos(a) * sp, std::sin(a) * sp, 0.45f, 0.45f, col, 1 + rngFx_.range(0, 1)});
+        }
+        shake_ = std::max(shake_, im.strength * 1.6f);
+    }
+
+    // Music tension follows the pot: the fuller it gets, the busier the soundtrack.
+    void updateAudio(Ctx& c, float dt) {
+        float top = float(cfg::kFloor);
+        for (const auto& d : world_.drops)
+            if (d.age > 1.f) top = std::min(top, d.top);
+        float target = clampv((float(cfg::kFloor) - top) / (float(cfg::kFloor) - float(cfg::kDeadY)), 0.f, 1.f);
+        if (chainT_ > 0.f) target = std::min(1.f, target + 0.25f);
+        if (st_ != St::Playing) target *= 0.3f;
+        tension_ += (target - tension_) * std::min(1.f, dt * 1.5f);
+        c.audio.setIntensity(tension_);
     }
 
     void simulate(Ctx& c, float dt) {
@@ -242,6 +267,8 @@ private:
             acc_ -= cfg::kStep;
             for (const auto& e : world_.events) onMerge(c, e);
             world_.events.clear();
+            for (const auto& im : world_.impacts) onImpact(c, im);
+            world_.impacts.clear();
         }
         world_.updateOverflow(cfg::kDeadY, dt);
 

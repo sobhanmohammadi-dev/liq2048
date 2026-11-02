@@ -30,9 +30,17 @@ struct Drop {
     float top = 0;                   // highest point (smallest y)
     float sxx = 0, sxy = 0, syy = 0; // position covariance
     float lx = 0, ly = 0, lr = 0;    // where the number is drawn (inside the liquid body) and its size
+    float pvy = 0;                   // mean vertical speed last step (impact detection)
     float age = 0;
     float pop = 0, popv = 0;         // label/size pop spring after a merge or spawn
     bool dead = false;
+};
+
+struct Impact {
+    float x, y;
+    float strength;  // 0..1 (speed x size)
+    int level;
+    uint32_t color;  // unused placeholder for future effects
 };
 
 struct MergeEvent {
@@ -66,6 +74,7 @@ public:
     std::vector<Particle> parts;
     std::vector<Drop> drops;
     std::vector<MergeEvent> events;  // drained by the game each step
+    std::vector<Impact> impacts;     // liquid landing events, drained by the game each step
 
 private:
     void substep(float h, float g, bool last);

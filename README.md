@@ -43,7 +43,7 @@ Download a build from the [Releases](https://github.com/sobhanmohammadi-dev/Liq2
 
 ```bash
 # Linux (Debian/Ubuntu); see docs/BUILDING.md for other platforms
-sudo apt install cmake ninja-build libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev
+sudo apt install cmake ninja-build libsdl2-dev libsdl2-ttf-dev
 cmake --preset linux && cmake --build --preset linux
 ./build/linux/liq2048
 ```
@@ -100,5 +100,5 @@ Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE) © 2026 Sobhan Mohammadi. Built with [SDL2](https://www.libsdl.org/), SDL2_ttf and SDL2_mixer
+[MIT](LICENSE) © 2026 Sobhan Mohammadi. Built with [SDL2](https://www.libsdl.org/) and SDL2_ttf
 (zlib license). The game concept is inspired by Suika-style merge puzzles; all code and art here are original.
