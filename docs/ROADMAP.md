@@ -34,21 +34,23 @@ Goal: prove that everything 1.0.0 claims actually works on real devices, and fix
 
 Exit: all five artifacts install and run; no known crash; tag `v1.0.1` (or later patch).
 
-## v1.1.0: Feel (game feel and UX polish)
+## v1.1.0: Feel (game feel and UX polish) ☑ released
 
 Goal: make every touch and merge feel great.
 
-- ☐ Haptics on Android/iOS: light tick on drop, stronger on merge and chain (setting to disable).
-- ☐ Aim assist options: guide line on/off, snap-to-column off by default, drop-preview opacity.
-- ☐ Undo (limited charges per run, earned by chains) in Classic and Zen.
-- ☐ Pause-on-focus-loss and graceful audio ducking when the phone rings or another app plays sound.
-- ☐ Better first-run flow: language picked from the system, 20-second interactive tutorial with the real pot.
-- ☐ Screen-shake and slow-motion toggles; "calm mode" disabling all flashes.
-- ☐ Score pop-ups and combo meter redesign, readable at arm's length on a phone.
-- ☐ Safe-area handling for notches, rounded corners and gesture bars on phones.
-- ☐ Window/app icon on desktop from the branding logo.
+- ☑ Haptics on Android (vibration permission only) with a setting; iOS uses SDL's haptic support where available.
+- ☑ Aim guide on/off (dotted line and landing ring).
+- ☑ Undo (one step back; 1 charge per run, +1 per chain of 3 or more, max 3) in Classic and Zen.
+- ☑ Auto-pause when the window loses focus or the app goes to the background.
+- ☑ Screen shake toggle, slow motion on big merges toggle, and **Calm mode** (no shake, slow motion, blinking or
+  flashes, half the particles).
+- ☑ Larger accent-coloured score pop-ups for chains of 3 or more.
+- ☑ Window and taskbar icon on desktop from the logo (`assets/icon.bmp`).
+- ☑ Settings split into two pages (General / Game feel).
+- ➜ Moved to v1.2.0: interactive 20-second tutorial with the real pot, safe-area handling for notches, audio
+  ducking for phone calls, aim snapping and preview-opacity options.
 
-Exit: usability test with 5 new players; no one needs help to start a game. Tag `v1.1.0`.
+Exit: tag `v1.1.0`.
 
 ## v1.2.0: Reach (accessibility and languages)
 
@@ -65,6 +67,8 @@ Goal: playable by as many people as possible.
   a script checks that every language has every key.
 - ☐ Correct number shaping and plural rules per language; font coverage per script (bundled OFL fonts).
 - ☐ Right-to-left audit extended to Arabic and Hebrew-ready layout code.
+- ☐ From v1.1.0: interactive tutorial with the real pot, notch/safe-area handling, audio ducking for calls,
+  aim snapping and preview-opacity options.
 
 Exit: accessibility checklist in `docs/ACCESSIBILITY.md` fully ticked; at least 6 languages complete. Tag `v1.2.0`.
 
@@ -216,7 +220,7 @@ saves, replays or mods (with a migration path).
 | v0.5.0 | Mobile builds and packages | ☑ |
 | **v1.0.0** | **Stable release** | ☑ |
 | v1.0.x | Verification and hotfixes | ☐ |
-| v1.1.0 | Feel | ☐ |
+| v1.1.0 | Feel | ☑ |
 | v1.2.0 | Reach | ☐ |
 | v1.3.0 | Modes | ☐ |
 | v1.4.0 | Liquid, second pass | ☐ |

@@ -44,13 +44,23 @@ public:
             c.save.dailyToday = 0;
         }
         st_ = c.save.tutorialDone ? St::Playing : St::Tutorial;
+        c.in.focusLost = false;
         start(c);
     }
 
     void frame(Ctx& c, float dt) override {
         Gfx& g = c.gfx;
         const bool paused = st_ == St::Paused || st_ == St::Settings;
-        if (st_ == St::Playing) simulate(c, std::min(dt, 0.05f));
+        if (c.in.focusLost) {  // window lost focus / app went to background: never lose a run
+            c.in.focusLost = false;
+            if (st_ == St::Playing) {
+                st_ = St::Paused;
+                c.ui.resetFocus();
+            }
+        }
+        if (slowT_ > 0.f) slowT_ = std::max(0.f, slowT_ - dt);
+        const float slow = c.save.effSlowmo() && slowT_ > 0.f ? 1.f - 0.6f * std::min(1.f, slowT_ * 4.f) : 1.f;
+        if (st_ == St::Playing) simulate(c, std::min(dt, 0.05f) * slow);
         updateAudio(c, dt);
         if (!paused) {
             updateFx(dt);
@@ -66,7 +76,7 @@ public:
         g.drawBackdrop(*c.theme, c.time);
         drawNextPanel(c);
         int sx = 0, sy = 0;
-        if (shake_ > 0.05f && !paused) {
+        if (shake_ > 0.05f && !paused && c.save.effShake()) {
             sx = int(std::lround(rngFx_.uni(-shake_, shake_)));
             sy = int(std::lround(rngFx_.uni(-shake_, shake_)));
         }
@@ -109,8 +119,60 @@ private:
     int score_ = 0, drops_ = 0, cur_ = 0, next_ = 0, maxLevel_ = 0, tutPage_ = 0;
     float dispScore_ = 0, aimX_ = (cfg::kFieldL + cfg::kFieldR) / 2, holdX_ = aimX_;
     float tension_ = 0.f;
-    float cooldown_ = 0, quiet_ = 0, elapsed_ = 0, acc_ = 0, shake_ = 0, overT_ = 0, toastT_ = 0, chainT_ = 0;
+    float slowT_ = 0, cooldown_ = 0, quiet_ = 0, elapsed_ = 0, acc_ = 0, shake_ = 0, overT_ = 0, toastT_ = 0, chainT_ = 0;
     int chainShown_ = 0;
+    // Undo (Classic and Zen): one step back, charges are earned by chains.
+    struct Snap {
+        World world;
+        Rng rng;
+        int score = 0, drops = 0, cur = 0, next = 0, maxLevel = 0;
+        float elapsed = 0, quiet = 0;
+        bool valid = false;
+    } snap_;
+    int undos_ = 1;
+    bool undoAllowed() const { return mid_ == ModeId::Classic || mid_ == ModeId::Zen; }
+
+    void buzz(Ctx& c, float strength, int ms) const {
+        if (c.save.haptics) platform::vibrate(strength, ms);
+    }
+
+    void saveSnap() {
+        snap_.world = world_;
+        snap_.rng = rng_;
+        snap_.score = score_;
+        snap_.drops = drops_;
+        snap_.cur = cur_;
+        snap_.next = next_;
+        snap_.maxLevel = maxLevel_;
+        snap_.elapsed = elapsed_;
+        snap_.quiet = quiet_;
+        snap_.valid = true;
+    }
+
+    void doUndo(Ctx& c) {
+        if (!undoAllowed() || !snap_.valid || undos_ <= 0 || st_ != St::Playing) return;
+        world_ = snap_.world;
+        rng_ = snap_.rng;
+        score_ = snap_.score;
+        drops_ = snap_.drops;
+        cur_ = snap_.cur;
+        next_ = snap_.next;
+        maxLevel_ = snap_.maxLevel;
+        elapsed_ = snap_.elapsed;
+        quiet_ = snap_.quiet;
+        snap_.valid = false;
+        --undos_;
+        parts_.clear();
+        texts_.clear();
+        rings_.clear();
+        chainT_ = 0;
+        cooldown_ = 0.2f;
+        acc_ = 0;
+        world_.resetOverflow();
+        holdPop_ = Spring{-0.3f, 6.f};
+        c.audio.play(Sfx::Swipe);
+        buzz(c, 0.3f, 15);
+    }
     bool aiming_ = false, committed_ = false, newBest_ = false;
     Spring holdPop_, nextPop_;
     std::string toast_;
@@ -134,7 +196,9 @@ private:
         rngFx_.seed(99u);
         score_ = drops_ = maxLevel_ = 0;
         dispScore_ = 0;
-        cooldown_ = quiet_ = elapsed_ = acc_ = shake_ = overT_ = toastT_ = chainT_ = 0;
+        cooldown_ = quiet_ = elapsed_ = acc_ = shake_ = overT_ = toastT_ = chainT_ = slowT_ = 0;
+        snap_.valid = false;
+        undos_ = 1;
         aiming_ = committed_ = newBest_ = false;
         outcome_ = Outcome::Running;
         cur_ = roll();
@@ -163,6 +227,7 @@ private:
     void tryDrop(Ctx& c) {
         const int lim = mode_->dropLimit();
         if (cooldown_ > 0 || (lim >= 0 && drops_ >= lim)) return;
+        if (undoAllowed()) saveSnap();
         world_.spawn(aimX_, cfg::kSpawnY, cur_);
         ++drops_;
         cur_ = next_;
@@ -172,6 +237,7 @@ private:
         holdPop_ = Spring{-0.5f, 8.f};
         nextPop_ = Spring{-0.45f, 7.f};
         c.audio.play(Sfx::Drop);
+        buzz(c, 0.25f, 12);
     }
 
     void grant(Ctx& c, int id) {
@@ -190,15 +256,21 @@ private:
         maxLevel_ = std::max(maxLevel_, e.level);
         c.audio.play(Sfx::Merge, 0.5f, e.level, e.chain);
         const Color col = t.blob[std::min(e.level, 11)];
-        const int n = 8 + e.level * 2;
+        const int n = (8 + e.level * 2) / (c.save.calm ? 2 : 1);
         for (int i = 0; i < n; ++i) {
             const float a = rngFx_.uni(0.f, 6.2832f), sp = rngFx_.uni(30.f, 120.f);
             parts_.push_back({e.x, e.y, std::cos(a) * sp, std::sin(a) * sp - 30.f, 0.55f, 0.55f,
                               rngFx_.range(0, 2) ? col : mix(col, rgb(0xffffff), 0.6f), 1 + rngFx_.range(0, 1)});
         }
         rings_.push_back({e.x, e.y, 0.f, World::radiusFor(e.level) * 0.8f, col});
-        texts_.push_back({e.x, e.y - World::radiusFor(e.level) - 4.f, 0.9f, "+" + std::to_string(value * e.chain),
-                          t.text, 1});
+        texts_.push_back({e.x, e.y - World::radiusFor(e.level) - 4.f, e.chain >= 3 ? 1.3f : 0.9f,
+                          "+" + std::to_string(value * e.chain), e.chain >= 3 ? t.accent : t.text, e.chain >= 3 ? 2 : 1});
+        buzz(c, 0.35f + 0.05f * float(std::min(e.level, 8)) + 0.1f * float(std::min(e.chain, 4)), 18 + 6 * std::min(e.level, 8) + 15 * std::min(e.chain - 1, 3));
+        if (e.level >= 8 || e.chain >= 4) slowT_ = 0.45f;
+        if (e.chain >= 3 && undoAllowed() && undos_ < 3) {
+            ++undos_;
+            texts_.push_back({e.x, e.y + 8.f, 1.2f, "+" + c.loc.tr("hud.undo"), t.accent, 1});
+        }
         if (e.level >= 5 || e.chain >= 3) shake_ = std::max(shake_, 1.2f + 0.25f * float(e.level) + 0.8f * float(e.chain >= 3));
         if (e.chain >= 2) {
             chainShown_ = e.chain;
@@ -213,6 +285,7 @@ private:
 
     void onImpact(Ctx& c, const Impact& im) {
         c.audio.play(Sfx::Splash, im.strength, im.level);
+        if (im.strength > 0.5f) buzz(c, 0.2f * im.strength, 10);
         const Color col = c.theme->blob[std::min(im.level, 11)];
         const int n = 4 + int(im.strength * 10.f);
         for (int i = 0; i < n; ++i) {  // spray: tiny pixels flung up and sideways
@@ -241,6 +314,7 @@ private:
             c.ui.resetFocus();
             return;
         }
+        if (in.undo) doUndo(c);
         // Aiming: drag with mouse/finger, release to drop. Keys: arrows + space/down.
         const float rad = World::radiusFor(cur_);
         if (in.pressed && in.my > 64) aiming_ = true;
@@ -306,6 +380,7 @@ private:
         if (o == Outcome::Won && mid_ == ModeId::Target) c.save.targetStage = std::min(c.save.targetStage + 1, 2);
         commit(c);
         c.audio.play(o == Outcome::Lost ? Sfx::Fail : Sfx::Success);
+        buzz(c, o == Outcome::Lost ? 0.7f : 0.5f, o == Outcome::Lost ? 140 : 60);
     }
 
     // ----- effects -----
@@ -330,19 +405,20 @@ private:
 
     void drawFx(Ctx& c) {
         Gfx& g = c.gfx;
+        const bool blink = !c.save.calm;
         for (const auto& r : rings_) {
             const float p = r.age / 0.38f;
-            if (p > 0.7f && (int(r.age * 60.f) & 1)) continue;  // blink out instead of alpha fading
+            if (blink && p > 0.7f && (int(r.age * 60.f) & 1)) continue;  // blink out instead of alpha fading
             g.ring(r.x, r.y, int(r.r0 + p * 12.f), mix(r.c, rgb(0xffffff), 0.5f * (1.f - p)));
         }
         for (const auto& p : parts_) {
-            if (p.life < 0.15f && (int(p.life * 90.f) & 1)) continue;
+            if (blink && p.life < 0.15f && (int(p.life * 90.f) & 1)) continue;
             g.rect(std::floor(p.x), std::floor(p.y), float(p.size), float(p.size), p.c);
         }
         for (const auto& f : texts_)
-            if (f.life > 0.25f || (int(f.life * 40.f) & 1))
-                g.number(f.s, std::floor(f.x), std::floor(f.y), 1, f.c, Align::Center, TextFx::Outline, c.theme->ink);
-        if (chainT_ > 0.f && chainShown_ >= 2 && (chainT_ > 0.3f || (int(chainT_ * 30.f) & 1))) {
+            if (f.life > 0.25f || !blink || (int(f.life * 40.f) & 1))
+                g.number(f.s, std::floor(f.x), std::floor(f.y), f.scale, f.c, Align::Center, TextFx::Outline, c.theme->ink);
+        if (chainT_ > 0.f && chainShown_ >= 2 && (chainT_ > 0.3f || !blink || (int(chainT_ * 30.f) & 1))) {
             const float bob = std::floor(std::sin((1.1f - chainT_) * 14.f) * 2.f * chainT_);
             g.text(c.loc.tr("hud.chain") + " x" + std::to_string(chainShown_), cfg::kW / 2.f, 170.f + bob, 2,
                    c.theme->accent, Align::Center, TextFx::Outline, c.theme->ink);
@@ -370,7 +446,7 @@ private:
     }
 
     void drawGuide(Ctx& c) {
-        if (st_ == St::Over) return;
+        if (st_ == St::Over || !c.save.guide) return;
         const int lim = mode_->dropLimit();
         if (lim >= 0 && drops_ >= lim) return;
         Gfx& g = c.gfx;
@@ -453,6 +529,15 @@ private:
             ui.resetFocus();
         }
         if (play) langToggle(c, 238, 36);
+
+        // Undo (Classic and Zen): icon plus remaining charges.
+        if (undoAllowed()) {
+            const float ux = ui.mx(8, 44);
+            const bool can = play && snap_.valid && undos_ > 0;
+            if (ui.button("", ux, 56, 44, 22, can, can)) doUndo(c);
+            g.icon(IconId::Undo, ux + 8, 64.f, can ? t.text : t.dim);
+            g.number(std::to_string(undos_), ux + 32.f, 67, 1, can ? t.text : t.dim, Align::Center);
+        }
 
         // Mode, status, segmented progress bar.
         const Stats s = stats();

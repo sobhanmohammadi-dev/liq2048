@@ -29,7 +29,7 @@ purchases, no tracking.**
 - **Satisfying physics:** stable position-based circle dynamics, merge-on-contact, squash and pop feedback, particles, chain multipliers
 - **Five modes:** Classic · Time Attack · Target (256 → 512 → 1024) · Daily Challenge (same seed for everyone) · Zen
 - **Healthy progression:** per-mode best scores, 9 achievements, a non-punitive daily streak, themes you earn by playing
-- **Polished UX:** skippable tutorial, landing prediction guide, pause menu, smooth transitions, touch + mouse + keyboard
+- **Polished UX:** skippable tutorial, aim guide, undo (Classic and Zen), haptics on phones, Calm mode, auto-pause, pause menu, smooth transitions, touch + mouse + keyboard
 - **Localization:** English and Persian with true RTL layout and Arabic-script shaping; JSON string tables are easy to extend
 - **Zero required assets:** all visuals are drawn in code with a built-in pixel font; add fonts, sounds and music whenever you like
 - **Portable:** C++17, SDL2, CMake; Windows, Linux, macOS, Android and iOS

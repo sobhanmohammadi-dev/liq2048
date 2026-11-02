@@ -36,6 +36,11 @@ void Save::load() {
         else if (k == "dailyToday") dailyToday = iv;
         else if (k == "fps") fpsIdx = iv;
         else if (k == "showFps") showFps = iv != 0;
+        else if (k == "haptics") haptics = iv != 0;
+        else if (k == "guide") guide = iv != 0;
+        else if (k == "shake") shake = iv != 0;
+        else if (k == "slowmo") slowmo = iv != 0;
+        else if (k == "calm") calm = iv != 0;
     }
     if (musicVol < 0.f || musicVol > 1.f) musicVol = 0.6f;
     if (sfxVol < 0.f || sfxVol > 1.f) sfxVol = 0.9f;
@@ -48,7 +53,8 @@ void Save::store() const {
     o << "music=" << musicVol << "\nsfx=" << sfxVol << "\nfullscreen=" << fullscreen << "\nlang=" << lang << "\ntheme=" << theme
       << "\nach=" << ach << "\nstreak=" << streak << "\nlastDay=" << lastDay
       << "\ntutorialDone=" << tutorialDone << "\ntargetStage=" << targetStage << "\ndailyDay=" << dailyDay
-      << "\ndailyToday=" << dailyToday << "\nfps=" << fpsIdx << "\nshowFps=" << showFps << "\n";
+      << "\ndailyToday=" << dailyToday << "\nfps=" << fpsIdx << "\nshowFps=" << showFps << "\nhaptics=" << haptics
+      << "\nguide=" << guide << "\nshake=" << shake << "\nslowmo=" << slowmo << "\ncalm=" << calm << "\n";
     platform::writeFile(path(), o.str());
 }
 

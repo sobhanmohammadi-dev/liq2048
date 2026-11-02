@@ -72,5 +72,13 @@
   "settings.unlimited": "نامحدود",
   "settings.showfps": "نمایش FPS",
   "hud.new": "جدید",
-  "menu.tagline": "قطره‌ها را ادغام کن و به 2048 برس"
+  "menu.tagline": "قطره‌ها را ادغام کن و به 2048 برس",
+  "settings.more": "بیشتر",
+  "settings.general": "عمومی",
+  "settings.guide": "خط راهنما",
+  "settings.haptics": "لرزش",
+  "settings.shake": "تکان صفحه",
+  "settings.slowmo": "حرکت آهسته",
+  "settings.calm": "حالت آرام",
+  "hud.undo": "واگرد"
 }

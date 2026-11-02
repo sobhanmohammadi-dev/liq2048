@@ -100,12 +100,13 @@ void langToggle(Ctx& c, float x, float y) {
 }
 
 bool drawSettings(Ctx& c, float y0) {
+    static int page = 0;  // 0 = general, 1 = game feel
     Gfx& g = c.gfx;
     Ui& ui = c.ui;
     const Theme& t = *c.theme;
     Loc& L = c.loc;
     const bool desktop = !platform::isMobile();
-    const int rows = desktop ? 7 : 6;
+    const int rows = 7;
     const float rowH = 32.f;
     const float panelH = 40.f + rows * rowH + 40.f;
     ui.panel(14, y0, 242, panelH);
@@ -117,6 +118,30 @@ bool drawSettings(Ctx& c, float y0) {
     float y = y0 + 40.f;
     auto label = [&](const char* key) { g.text(L.tr(key), lx, y + 10.f, 1, t.text, la); };
     const float cw = 112.f, cx = ui.mx(132.f, cw);  // control column
+
+    auto toggle = [&](const char* key, bool& v) {
+        label(key);
+        if (ui.button(L.tr(v ? "settings.on" : "settings.off"), cx, y, cw, 20)) {
+            v = !v;
+            c.save.store();
+        }
+        y += rowH;
+    };
+
+    if (page == 1) {
+        toggle("settings.guide", c.save.guide);
+        if (platform::isMobile()) toggle("settings.haptics", c.save.haptics);
+        toggle("settings.shake", c.save.shake);
+        toggle("settings.slowmo", c.save.slowmo);
+        toggle("settings.calm", c.save.calm);
+        const float pw = 100.f;
+        if (ui.button(L.tr("common.back"), 20, y0 + panelH - 34, pw, 24)) {
+            page = 0;
+            return true;
+        }
+        if (ui.button(L.tr("settings.general"), 150, y0 + panelH - 34, pw, 24)) page = 0;
+        return false;
+    }
 
     // Language
     label("settings.language");
@@ -181,7 +206,9 @@ bool drawSettings(Ctx& c, float y0) {
 
     if (!g.hasPersianFont() && !rtl) g.text(L.tr("settings.nofont"), 135, y - 4, 1, t.dim, Align::Center);
 
-    return ui.button(L.tr("common.back"), 60, y0 + panelH - 34, 150, 24);
+    if (ui.button(L.tr("common.back"), 20, y0 + panelH - 34, 100, 24)) return true;
+    if (ui.button(L.tr("settings.more"), 150, y0 + panelH - 34, 100, 24)) page = 1;
+    return false;
 }
 
 }  // namespace liq

@@ -3,7 +3,8 @@
 
     <uses-feature android:glEsVersion="0x00020000" android:required="true" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-    <!-- No network, storage or other permissions: the game is fully offline. -->
+    <!-- Only the vibration permission (haptics); no network or storage access: the game is fully offline. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:allowBackup="true"

@@ -72,5 +72,13 @@
   "settings.unlimited": "Unlimited",
   "settings.showfps": "FPS counter",
   "hud.new": "NEW",
-  "menu.tagline": "Merge the liquid. Reach 2048."
+  "menu.tagline": "Merge the liquid. Reach 2048.",
+  "settings.more": "More",
+  "settings.general": "General",
+  "settings.guide": "Aim guide",
+  "settings.haptics": "Vibration",
+  "settings.shake": "Screen shake",
+  "settings.slowmo": "Slow motion",
+  "settings.calm": "Calm mode",
+  "hud.undo": "Undo"
 }

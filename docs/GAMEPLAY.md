@@ -56,3 +56,11 @@ Add an entry to `themeAt` in `src/core/Themes.hpp` (increase `kThemeCount`), an 
 
 All physics and timing constants live in `src/core/Config.hpp`: gravity, damping, solver iterations, blob radius
 growth, chain window, drop cooldown. Change a value, rebuild, and play: no other code needs touching.
+
+## Undo, feel and comfort options (1.1.0)
+
+- **Undo** (Classic and Zen): the arrow button on the left of the HUD, or `U` / `Z`, takes back your last drop.
+  You start each run with 1 charge and earn another for every chain of 3 or more (up to 3).
+- **Settings → More** has: aim guide, vibration (phones), screen shake, slow motion and **Calm mode**
+  (no shake, slow motion, blinking or flashes; fewer particles).
+- The game pauses by itself when the window loses focus or the app goes to the background.
