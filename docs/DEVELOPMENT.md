@@ -34,10 +34,14 @@ and require CODEOWNERS review.
 2. Bump the version in `CMakeLists.txt` (`project(... VERSION x.y.z)`); `LIQ_VERSION` follows automatically.
 3. Commit, then tag and push:
    ```bash
-   git tag -a v1.1.0 -m "Liq2048 1.1.0"
-   git push origin main v1.1.0
+   git tag -a vX.Y.Z -m "Liq2048 X.Y.Z"
+   git push origin main vX.Y.Z
    ```
 4. The Release workflow publishes archives; edit the release notes if needed.
+
+Tag **every finished station** (each roadmap milestone, see [ROADMAP.md](ROADMAP.md)) with an annotated
+`vX.Y.Z` tag on the commit that closes it, after CI is green. Pre-releases use `vX.Y.Z-beta.N`. Never move or
+reuse a tag.
 
 ## Regenerating screenshots and branding
 
@@ -58,10 +62,6 @@ Upload `docs/branding/social-preview.png` in *Settings → General → Social pr
 - Topics: `game`, `cpp`, `cpp17`, `sdl2`, `cmake`, `puzzle`, `physics`, `2048`, `suika`, `pixel-art`, `android`, `ios`, `persian`, `rtl`, `open-source-game`
 - Enable Discussions, Dependabot alerts and private vulnerability reporting.
 
-## Roadmap ideas
+## Roadmap
 
-- Window/app icon from the logo; in-game language list for more languages
-- On-screen replay of the best run; share-card export of the daily result
-- Gamepad support
-- Audio pack (CC0) and Persian font bundled with license files
-- Android/iOS CI packaging
+See [ROADMAP.md](ROADMAP.md).
