@@ -50,6 +50,7 @@ public:
 
     void frame(Ctx& c, float dt) override {
         Gfx& g = c.gfx;
+        c.ui.setMirror(c.save.leftHand);
         const bool paused = st_ == St::Paused || st_ == St::Settings;
         if (c.in.focusLost) {  // window lost focus / app went to background: never lose a run
             c.in.focusLost = false;
@@ -73,7 +74,7 @@ public:
             if (st_ == St::Over) overT_ += dt;
         }
 
-        g.drawBackdrop(*c.theme, c.time);
+        g.drawBackdrop(*c.theme, c.save.reduceMotion ? 0.f : c.time);
         drawNextPanel(c);
         int sx = 0, sy = 0;
         if (shake_ > 0.05f && !paused && c.save.effShake()) {
@@ -256,13 +257,13 @@ private:
         maxLevel_ = std::max(maxLevel_, e.level);
         c.audio.play(Sfx::Merge, 0.5f, e.level, e.chain);
         const Color col = t.blob[std::min(e.level, 11)];
-        const int n = (8 + e.level * 2) / (c.save.calm ? 2 : 1);
+        const int n = c.save.reduceMotion ? 0 : (8 + e.level * 2) / (c.save.calm ? 2 : 1);
         for (int i = 0; i < n; ++i) {
             const float a = rngFx_.uni(0.f, 6.2832f), sp = rngFx_.uni(30.f, 120.f);
             parts_.push_back({e.x, e.y, std::cos(a) * sp, std::sin(a) * sp - 30.f, 0.55f, 0.55f,
                               rngFx_.range(0, 2) ? col : mix(col, rgb(0xffffff), 0.6f), 1 + rngFx_.range(0, 1)});
         }
-        rings_.push_back({e.x, e.y, 0.f, World::radiusFor(e.level) * 0.8f, col});
+        if (!c.save.reduceMotion) rings_.push_back({e.x, e.y, 0.f, World::radiusFor(e.level) * 0.8f, col});
         texts_.push_back({e.x, e.y - World::radiusFor(e.level) - 4.f, e.chain >= 3 ? 1.3f : 0.9f,
                           "+" + std::to_string(value * e.chain), e.chain >= 3 ? t.accent : t.text, e.chain >= 3 ? 2 : 1});
         buzz(c, 0.35f + 0.05f * float(std::min(e.level, 8)) + 0.1f * float(std::min(e.chain, 4)), 18 + 6 * std::min(e.level, 8) + 15 * std::min(e.chain - 1, 3));
@@ -287,7 +288,7 @@ private:
         c.audio.play(Sfx::Splash, im.strength, im.level);
         if (im.strength > 0.5f) buzz(c, 0.2f * im.strength, 10);
         const Color col = c.theme->blob[std::min(im.level, 11)];
-        const int n = 4 + int(im.strength * 10.f);
+        const int n = c.save.reduceMotion ? 0 : 4 + int(im.strength * 10.f);
         for (int i = 0; i < n; ++i) {  // spray: tiny pixels flung up and sideways
             const float a = -1.57f + rngFx_.uni(-1.2f, 1.2f), sp = rngFx_.uni(40.f, 70.f + 90.f * im.strength);
             parts_.push_back({im.x + rngFx_.uni(-8.f, 8.f), im.y, std::cos(a) * sp, std::sin(a) * sp, 0.45f, 0.45f, col, 1 + rngFx_.range(0, 1)});
@@ -433,6 +434,7 @@ private:
 
     // Slow rising bubbles inside the tank for liquid ambience.
     void drawBubbles(Ctx& c) {
+        if (c.save.reduceMotion) return;
         const Theme& t = *c.theme;
         for (int i = 0; i < 9; ++i) {
             const float sp = 7.f + float((i * 5) % 7), ph = float(i) * 37.1f;

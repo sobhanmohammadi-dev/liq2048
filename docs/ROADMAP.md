@@ -47,30 +47,32 @@ Goal: make every touch and merge feel great.
 - ☑ Larger accent-coloured score pop-ups for chains of 3 or more.
 - ☑ Window and taskbar icon on desktop from the logo (`assets/icon.bmp`).
 - ☑ Settings split into two pages (General / Game feel).
-- ➜ Moved to v1.2.0: interactive 20-second tutorial with the real pot, safe-area handling for notches, audio
-  ducking for phone calls, aim snapping and preview-opacity options.
+- ➜ Moved: interactive tutorial to v1.3.0; safe-area handling, audio ducking for calls, aim snapping and
+  preview opacity to v1.6.0 (see those stations).
 
 Exit: tag `v1.1.0`.
 
-## v1.2.0: Reach (accessibility and languages)
+## v1.2.0: Reach (accessibility and languages) ☑ released
 
 Goal: playable by as many people as possible.
 
-- ☐ Colour-blind-safe droplet palettes (deuteranopia, protanopia, tritanopia) plus optional shape/pattern marks
-  per level, so level never depends on colour alone.
-- ☐ Large-text and high-contrast UI options; minimum touch target 48 dp audit.
-- ☐ One-handed mode (mirrored controls, lowered HUD) and left/right-handed layouts.
-- ☐ Screen-reader labels for menus on Android (TalkBack) and iOS (VoiceOver) through platform glue.
-- ☐ Reduced-motion mode that removes transitions and particle sprays.
-- ☐ In-game language picker with more languages: Arabic, Turkish, Spanish, French, German, Portuguese, Russian,
-  Chinese (Simplified), Japanese, Hindi. Translation workflow documented in `docs/LOCALIZATION.md`;
-  a script checks that every language has every key.
-- ☐ Correct number shaping and plural rules per language; font coverage per script (bundled OFL fonts).
-- ☐ Right-to-left audit extended to Arabic and Hebrew-ready layout code.
-- ☐ From v1.1.0: interactive tutorial with the real pot, notch/safe-area handling, audio ducking for calls,
-  aim snapping and preview-opacity options.
+- ☑ Colour-blind-safe droplet palettes (Red/Green for protan/deutan, Blue/Yellow for tritan), found by a
+  distinguishability search under colour-blindness simulation (min distance about 22 vs 3 to 8 standard).
+  Droplets already carry numerals, so level never depends on colour alone; extra pattern marks were not needed.
+- ☑ High-contrast UI option; invisible touch margins on phones plus a "Big touch areas" option.
+- ☑ Left-hand HUD (mirrored layout).
+- ☑ Reduced-motion mode (instant scene changes, no particles, rings, bubbles, shake or drifting backdrop).
+- ☑ In-game language picker with 8 languages: English, Persian, Spanish, French, German, Turkish, Portuguese,
+  Arabic. A test checks that every language has every key; workflow in `docs/LOCALIZATION.md`.
+- ☑ Right-to-left audit extended to Arabic (screenshots checked with the Vazirmatn font).
+- ☑ `docs/ACCESSIBILITY.md` with the option table and a checklist for new features.
+- ➜ Moved to v1.3.0: interactive tutorial with the real pot.
+- ➜ Moved to v1.6.0: screen-reader labels (TalkBack, VoiceOver), large-text option, notch/safe-area handling,
+  audio ducking for calls, aim snapping and preview-opacity options, lowered one-handed HUD.
+- ➜ Moved to v1.8.0: Russian, Chinese, Japanese, Hindi and other scripts (need bundled fonts and a TTF face
+  for non-Arabic scripts), per-language plural rules; best done with community translators.
 
-Exit: accessibility checklist in `docs/ACCESSIBILITY.md` fully ticked; at least 6 languages complete. Tag `v1.2.0`.
+Exit: tag `v1.2.0`.
 
 ## v1.3.0: Modes (more ways to play)
 
@@ -85,6 +87,7 @@ Goal: more reasons to come back, still without any network.
 - ☐ Modifiers for any mode: low gravity, thick (viscous) liquid, tiny pot, bonus drops.
 - ☐ Statistics page: drops, merges, longest chain, time played, per-mode history charts.
 - ☐ Ten more achievements and a medal for each mode.
+- ☐ Interactive 20-second tutorial with the real pot (carried over from v1.1.0).
 
 Exit: every mode has a tutorial card, a best-score record and tests for its rules. Tag `v1.3.0`.
 
@@ -130,6 +133,9 @@ Goal: a solid, pleasant foundation.
   sanitizer builds (ASan/UBSan) in CI.
 - ☐ Reproducible builds and checksums (`SHA256SUMS`) attached to every release; signed tags.
 - ☐ Profiling overlay (frame time graph, particle count) behind a developer flag.
+- ☐ Carried over from v1.1.0/v1.2.0: screen-reader labels (TalkBack, VoiceOver), large-text option,
+  notch/safe-area handling, audio ducking for calls, aim snapping and preview-opacity options, lowered
+  one-handed HUD.
 - ☐ Source documentation pass: every header has a one-paragraph purpose comment; `docs/ARCHITECTURE.md` diagrams.
 
 Exit: CI includes sanitizers and fuzz smoke tests, all green. Tag `v1.6.0`.
@@ -162,6 +168,8 @@ Goal: let players and artists extend the game with no code.
 - ☐ Community docs: `docs/MODDING.md`, contribution guide, "good first issue" labels, translation guide,
   issue and PR templates refreshed, Discussions enabled.
 - ☐ Showcase page listing community packs (links only, no hosting).
+- ☐ More languages and scripts (Russian, Chinese, Japanese, Hindi, ...) with bundled OFL fonts and a TTF face
+  for non-Arabic scripts; per-language plural rules (carried over from v1.2.0).
 
 Exit: three example mods shipped in the repo and loaded by tests. Tag `v1.8.0`.
 
@@ -221,7 +229,7 @@ saves, replays or mods (with a migration path).
 | **v1.0.0** | **Stable release** | ☑ |
 | v1.0.x | Verification and hotfixes | ☐ |
 | v1.1.0 | Feel | ☑ |
-| v1.2.0 | Reach | ☐ |
+| v1.2.0 | Reach | ☑ |
 | v1.3.0 | Modes | ☐ |
 | v1.4.0 | Liquid, second pass | ☐ |
 | v1.5.0 | Social without a server | ☐ |

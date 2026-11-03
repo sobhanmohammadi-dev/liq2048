@@ -14,6 +14,7 @@ std::unique_ptr<Scene> makeBrandScene();  // dev: renders logo / banner images f
 std::unique_ptr<Scene> makeScene(SceneId id, Ctx& c);
 
 // ---- shared widgets and drawing helpers (Common.cpp) ----
+void setSettingsPage(int page);     // dev: choose the page shown next
 bool drawSettings(Ctx& c, float y0);  // settings panel; returns true when Back is pressed
 void langToggle(Ctx& c, float x, float y);
 void drawTankFrame(Ctx& c);           // walls, rivets and floor of the tank

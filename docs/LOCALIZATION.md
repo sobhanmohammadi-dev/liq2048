@@ -1,7 +1,9 @@
 # Localization
 
-Shipped languages: **English** (`en`, fallback) and **Persian** (`fa`, right-to-left).
-The default is the system language if supported, otherwise English. The player's choice is saved.
+Shipped languages (8): **English** (`en`, fallback), **Persian** (`fa`), **Spanish** (`es`), **French** (`fr`),
+**German** (`de`), **Turkish** (`tr`), **Portuguese** (`pt`) and **Arabic** (`ar`). Persian and Arabic are
+right-to-left. The default is the system language if supported, otherwise English. The player picks a language in
+Settings (General page); the in-game `EN`/`xx` button toggles between English and the last other language used.
 
 ## String tables
 
@@ -21,12 +23,16 @@ The default is the system language if supported, otherwise English. The player's
 
 ## Adding a language
 
-1. Copy `en.json` to `assets/lang/<code>.json` and translate every value.
-2. Provide a font that covers the script (see [ASSETS.md](ASSETS.md)).
-3. Register the code: `Ctx::setLanguage` and the language toggle in `src/scenes/Common.cpp`
-   (today the toggle switches EN ⇄ FA; extend it to cycle or pick from a list).
-4. If the language is right-to-left, extend `Loc::rtl()`.
-5. Run `ctest`: the localization test fails if a key is missing or if a language has an unknown extra key.
+1. Copy `en.json` to `assets/lang/<code>.json` and translate every value. Keep strings about as short as the
+   English ones (the UI is 270 px wide; setting labels must fit about 16 characters).
+2. Add the language to `kLangs`/`langInfo()`/`langAt()` in `src/i18n/Loc.hpp` (code, picker name, `rtl`,
+   `arabicScript`) and raise `kLangCount`.
+3. **Latin scripts** use the built-in pixel font, which is all-caps: accented letters are folded to their base letters
+   (`PixelFont::ascii`: é→E, ñ→N, ç→C, ğ→G, ş→S, ı/İ→I, ß→SS; German ä/ö/ü→AE/OE/UE). Write the JSON with correct
+   accents, the folding happens when drawing. Other scripts (Cyrillic, CJK, Devanagari) need a TTF and a new
+   face in `Gfx`; this is planned for a later station.
+4. **Arabic-script** languages (`arabicScript = true`) are drawn with `assets/fonts/fa.ttf` (Vazirmatn).
+5. Run `ctest`: `all_languages_complete` fails if a key is missing, empty, has a stray extra key, or loses `{0}`.
 
 ## Right-to-left support
 
@@ -37,7 +43,7 @@ The default is the system language if supported, otherwise English. The player's
 - SDL_ttf does not implement bidi, so `Gfx` pre-reverses embedded ASCII runs (digits, Latin words) in Persian
   strings. Keep such runs short and standalone (`"First 128"`) rather than mixing punctuation into them.
 
-## Fonts for Persian
+## Fonts for Persian and Arabic
 
 `assets/fonts/fa.ttf` is preferred (Vazirmatn is a good open-licensed choice). If it is missing, the game tries
 common system fonts (Tahoma, DejaVu Sans, Noto Naskh Arabic, Droid Arabic). When none is found, the language

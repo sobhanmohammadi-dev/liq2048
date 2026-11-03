@@ -1,6 +1,7 @@
 #include "ui/Ui.hpp"
 
 #include "core/Config.hpp"
+#include "core/Platform.hpp"
 #include "scenes/Ctx.hpp"
 
 namespace liq {
@@ -17,7 +18,7 @@ void Ui::endFrame() {
     if (c_->in.released) active_ = -1;
 }
 
-float Ui::mx(float x, float w) const { return c_->loc.rtl() ? cfg::kW - x - w : x; }
+float Ui::mx(float x, float w) const { return (c_->loc.rtl() != mirror_) ? cfg::kW - x - w : x; }
 Align Ui::start() const { return c_->loc.rtl() ? Align::Right : Align::Left; }
 
 void Ui::panel(float x, float y, float w, float h) {
@@ -29,7 +30,9 @@ Ui::Hit Ui::hit(float x, float y, float w, float h, bool enabled, bool focusable
     Input& in = c_->in;
     Hit r{};
     const int id = nextId_++;
-    r.hover = enabled && in.mx >= x && in.mx < x + w && in.my >= y && in.my < y + h;
+    // Invisible touch margin on phones (bigger with the "Large touch areas" option) so small buttons stay easy to hit.
+    const float m = platform::isMobile() ? (c_->save.bigTouch ? 6.f : 3.f) : (c_->save.bigTouch ? 3.f : 0.f);
+    r.hover = enabled && in.mx >= x - m && in.mx < x + w + m && in.my >= y - m && in.my < y + h + m;
     if (focusable && enabled) r.focus = (fidx_++ == focus_);
     if (enabled && in.pressed && r.hover) active_ = id;
     r.held = enabled && active_ == id && in.down && r.hover;

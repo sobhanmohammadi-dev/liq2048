@@ -90,7 +90,25 @@ int App::run(const AppOptions& opt) {
 
         std::string lang = !opt.shotLang.empty() ? opt.shotLang
                            : c.save.lang.empty() ? platform::systemLanguage() : c.save.lang;
-        if (!c.setLanguage(lang == "fa" ? "fa" : "en")) c.setLanguage("en");
+        if (!langInfo(lang) || !c.setLanguage(lang)) c.setLanguage("en");
+        if (c.save.altLang.empty() || !langInfo(c.save.altLang)) c.save.altLang = langInfo(lang) && lang != "en" ? lang : "fa";
+        if (shot && !opt.shotSet.empty()) {  // dev overrides for screenshots
+            std::string rest = opt.shotSet + ",";
+            for (size_t p; (p = rest.find(',')) != std::string::npos; rest.erase(0, p + 1)) {
+                const std::string kv = rest.substr(0, p);
+                const size_t eq = kv.find('=');
+                if (eq == std::string::npos) continue;
+                const std::string k = kv.substr(0, eq);
+                const int v = std::atoi(kv.c_str() + eq + 1);
+                Save& s = c.save;
+                if (k == "colorVision") s.colorVision = v;
+                else if (k == "highContrast") s.highContrast = v != 0;
+                else if (k == "leftHand") s.leftHand = v != 0;
+                else if (k == "reduceMotion") s.reduceMotion = v != 0;
+                else if (k == "theme") s.theme = v;
+            }
+        }
+        if (shot) setSettingsPage(opt.shotPage);
         c.setTheme(c.save.theme);
         if (!shot) {
             c.audio.init();
@@ -180,10 +198,18 @@ int App::run(const AppOptions& opt) {
             c.time += dt;
 
             c.ui.beginFrame();
+            c.ui.setMirror(false);  // the game scene turns this on for the left-handed layout
             scene->frame(c, dt);
             c.ui.endFrame();
 
             // Blinds transition between scenes.
+            if (c.hasNext && !closing && c.save.reduceMotion) {  // reduced motion: switch scenes instantly
+                c.hasNext = false;
+                c.ui.resetFocus();
+                scene = makeScene(c.next, c);
+                c.audio.setIntensity(0.f);
+                c.audio.setMood(c.next == SceneId::Game ? MusicMood::Game : MusicMood::Menu);
+            }
             if (c.hasNext && !closing) {
                 closing = true;
                 c.audio.play(Sfx::Swipe);

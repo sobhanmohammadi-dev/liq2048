@@ -9,6 +9,8 @@ struct AppOptions {
     std::string shotPath;
     std::string shotScene = "menu";  // menu | modes | progress | settings | game
     int shotFrames = 60;
+    int shotPage = 0;                // settings page to show (with --scene settings)
+    std::string shotSet;             // dev: comma list like "colorVision=1,highContrast=1,leftHand=1"
     std::string shotLang;            // optional: force "en" / "fa"
 };
 

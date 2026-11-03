@@ -16,7 +16,9 @@ static void usage() {
         "  --screenshot <file>    render headlessly and save a BMP (dev tool)\n"
         "  --scene <name>         menu|modes|progress|settings|game|logo|banner|social (with --screenshot)\n"
         "  --frames <n>           simulated frames before capture (default 60)\n"
-        "  --lang <en|fa>         force language (with --screenshot)\n"
+        "  --lang <code>          force language: en fa es fr de tr pt ar (with --screenshot)\n"
+        "  --page <0-2>           settings page (with --scene settings)\n"
+        "  --set k=v,k=v          override options, e.g. colorVision=1,highContrast=1 (dev tool)\n"
         "  --render-audio <wav> [seconds] [menu|game]   render the soundtrack to a WAV file (dev tool)");
 }
 
@@ -31,6 +33,8 @@ int main(int argc, char** argv) {
         else if (is("--scene")) opt.shotScene = arg();
         else if (is("--frames")) opt.shotFrames = std::atoi(arg());
         else if (is("--lang")) opt.shotLang = arg();
+        else if (is("--page")) opt.shotPage = std::atoi(arg());
+        else if (is("--set")) opt.shotSet = arg();
     }
     liq::App app;
     return app.run(opt);

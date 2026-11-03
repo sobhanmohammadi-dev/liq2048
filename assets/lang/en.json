@@ -80,5 +80,14 @@
   "settings.shake": "Screen shake",
   "settings.slowmo": "Slow motion",
   "settings.calm": "Calm mode",
-  "hud.undo": "Undo"
+  "hud.undo": "Undo",
+  "settings.reduce": "Reduced motion",
+  "settings.lefthand": "Left-hand HUD",
+  "settings.cvd": "Colour vision",
+  "settings.contrast": "High contrast",
+  "settings.bigtouch": "Big touch areas",
+  "settings.access": "Access",
+  "access.cvd.std": "Standard",
+  "access.cvd.rg": "Red/Green",
+  "access.cvd.by": "Blue/Yellow"
 }
