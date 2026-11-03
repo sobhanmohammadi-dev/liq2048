@@ -191,6 +191,16 @@ TEST(replay_text_roundtrip_and_playback_is_deterministic) {
     CHECK(replayChecksum(back, 300) == a);  // text format loses nothing
     r.drops[5].x += 1.f;
     CHECK(replayChecksum(r, 300) != a);     // and the checksum notices physics-relevant changes
+    Replay viaCode;
+    for (auto& d : r.drops) d.x = quantX(d.x);
+    const uint64_t qa = replayChecksum(r, 300);
+    CHECK(Replay::fromCode(r.toCode(), viaCode));
+    CHECK(viaCode.drops.size() == r.drops.size());
+    CHECK(replayChecksum(viaCode, 300) == qa);  // run codes are lossless
+    std::string code = r.toCode();
+    code[code.size() / 2] = code[code.size() / 2] == 'A' ? 'B' : 'A';
+    CHECK(!Replay::fromCode(code, viaCode));    // checksum catches typos
+    CHECK(!Replay::fromCode("LQ1-", viaCode));
     r.truncateFrom(r.drops[10].step);
     CHECK(r.drops.size() == 10);
     Replay bad;

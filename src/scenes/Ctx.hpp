@@ -6,6 +6,7 @@
 #include "audio/Audio.hpp"
 #include "core/Config.hpp"
 #include "core/Themes.hpp"
+#include "game/Replay.hpp"
 #include "gfx/BlobRaster.hpp"
 #include "gfx/Gfx.hpp"
 #include "i18n/Loc.hpp"
@@ -36,6 +37,8 @@ struct Ctx {
     bool hasNext = false;
     SceneId next = SceneId::Menu;
     ModeId mode = ModeId::Classic;
+    Replay pendingReplay;       // run code pasted in the menu, picked up by the next game scene
+    bool hasPendingReplay = false;
     int puzzleLevel = 0;        // selected puzzle (0-based) when mode == Puzzle
     float time = 0.f;           // seconds since start (animation clock)
     std::string brandVariant;   // dev: which branding image the Brand scene draws

@@ -117,15 +117,17 @@ Exit: tag `v1.4.0` (a smaller release than planned; the moved items keep their p
 Goal: sharing and friendly competition, with zero network code in the game.
 
 - ☐ Share card: export a PNG of the final pot and score (system share sheet on mobile, file on desktop).
-- ☐ Run codes: copy a short code that contains seed + inputs; friends paste it to replay your run or race it.
-- ☐ Daily result text ("Liq2048 Daily 2026-12-01: 1024, 38 drops") copied to the clipboard in one tap.
+- ✔ Run codes: "Copy code" on the game-over screen puts a short `LQ1-…` code (drops + settings, checksummed) on the clipboard; "Watch run code" in the menu replays it. Racing a code is not done yet.
+- ✔ Result text ("Liq2048 V1.5.0 - Classic: 1024 pts, 38 drops, chain x4") copied with "Copy result". It has no date yet.
 - ☐ Local hot-seat versus mode: two players alternate drops in one pot, score by merges.
 - ☐ **Mirror** mode (two pots, one drop stream, alternate sides; from v1.3.0) and per-mode history charts on the
   Stats tab.
 - ☐ Ghost races against your own best replay.
 - ☐ Import/export of save data as a file (manual backup and moving between devices).
 
-Exit: all sharing paths work on all five platforms without any permission beyond the share sheet. Tag `v1.5.0`.
+Status: partial. Share card PNG, hot-seat versus, Mirror mode, history charts, ghost races and save import/export are moved to v1.5.x. Clipboard use is untested on mobile.
+
+Exit: all sharing paths work on all five platforms without any permission beyond the share sheet. Tag `v1.5.0` (first part).
 
 ## v1.6.0: Craft (input, desktop and engineering quality)
 

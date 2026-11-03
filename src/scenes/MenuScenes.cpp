@@ -35,7 +35,7 @@ void drawLogoCluster(Ctx& c, float cy) {
 
 class MenuScene final : public Scene {
 public:
-    void frame(Ctx& c, float) override {
+    void frame(Ctx& c, float dt) override {
         Gfx& g = c.gfx;
         const Theme& t = *c.theme;
         Loc& L = c.loc;
@@ -46,14 +46,31 @@ public:
         drawLogoCluster(c, 160.f);
 
         const float bw = 150, bx = (cfg::kW - bw) / 2.f;
-        float y = 232;
-        if (ui.button(L.tr("menu.play"), bx, y, bw, 30, true, true, BtnStyle::Primary)) c.go(SceneId::ModeSelect);
-        y += 40;
-        if (ui.button(L.tr("menu.progress"), bx, y, bw, 30)) c.go(SceneId::Progress);
-        y += 40;
-        if (ui.button(L.tr("menu.settings"), bx, y, bw, 30)) c.go(SceneId::Settings);
-        y += 40;
-        if (!platform::isMobile() && ui.button(L.tr("menu.quit"), bx, y, bw, 30)) c.quit = true;
+        float y = 222;
+        if (ui.button(L.tr("menu.play"), bx, y, bw, 28, true, true, BtnStyle::Primary)) c.go(SceneId::ModeSelect);
+        y += 35;
+        if (ui.button(L.tr("menu.progress"), bx, y, bw, 28)) c.go(SceneId::Progress);
+        y += 35;
+        if (ui.button(L.tr("menu.runcode"), bx, y, bw, 28)) {  // watch a friend's run from the clipboard
+            char* txt = SDL_GetClipboardText();
+            Replay r;
+            if (txt && Replay::fromCode(txt, r) && !r.empty()) {
+                c.pendingReplay = r;
+                c.hasPendingReplay = true;
+                c.go(SceneId::Game);
+            } else {
+                badCodeT_ = 2.5f;
+            }
+            if (txt) SDL_free(txt);
+        }
+        y += 35;
+        if (ui.button(L.tr("menu.settings"), bx, y, bw, 28)) c.go(SceneId::Settings);
+        y += 35;
+        if (!platform::isMobile() && ui.button(L.tr("menu.quit"), bx, y, bw, 28)) c.quit = true;
+        if (badCodeT_ > 0.f) {
+            badCodeT_ -= dt;
+            g.text(L.tr("menu.badcode"), cfg::kW / 2.f, 416.f, 1, t.danger, Align::Center, TextFx::Outline, t.ink);
+        }
 
         g.icon(IconId::Crown, cfg::kW / 2.f - float(g.textW(L.fmt("menu.streak", std::to_string(c.save.streak)), 1)) / 2.f - 14.f,
                432.f, t.accent);
@@ -62,6 +79,9 @@ public:
         langToggle(c, 242, 8);
         if (c.in.esc && !platform::isMobile()) c.quit = true;
     }
+
+private:
+    float badCodeT_ = 0.f;
 };
 
 class ModeSelectScene final : public Scene {
