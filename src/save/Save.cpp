@@ -42,6 +42,7 @@ void Save::load() {
         else if (k == "slowmo") slowmo = iv != 0;
         else if (k == "calm") calm = iv != 0;
         else if (k == "colorVision") colorVision = iv;
+        else if (k == "quality") quality = iv;
         else if (k == "highContrast") highContrast = iv != 0;
         else if (k == "reduceMotion") reduceMotion = iv != 0;
         else if (k == "leftHand") leftHand = iv != 0;
@@ -64,6 +65,7 @@ void Save::load() {
     if (sfxVol < 0.f || sfxVol > 1.f) sfxVol = 0.9f;
     if (modifier < 0 || modifier > 4) modifier = 0;
     if (colorVision < 0 || colorVision > 2) colorVision = 0;
+    if (quality < 0 || quality > 2) quality = 1;
     if (fpsIdx < 0 || fpsIdx >= kFpsChoiceCount) fpsIdx = 0;
 }
 
@@ -74,7 +76,7 @@ void Save::store() const {
       << "\nach=" << ach << "\nstreak=" << streak << "\nlastDay=" << lastDay
       << "\ntutorialDone=" << tutorialDone << "\ntargetStage=" << targetStage << "\ndailyDay=" << dailyDay
       << "\ndailyToday=" << dailyToday << "\nfps=" << fpsIdx << "\nshowFps=" << showFps << "\nhaptics=" << haptics
-      << "\nguide=" << guide << "\nshake=" << shake << "\nslowmo=" << slowmo << "\ncalm=" << calm << "\ncolorVision=" << colorVision
+      << "\nguide=" << guide << "\nshake=" << shake << "\nslowmo=" << slowmo << "\ncalm=" << calm << "\nquality=" << quality << "\ncolorVision=" << colorVision
       << "\nhighContrast=" << highContrast << "\nreduceMotion=" << reduceMotion << "\nleftHand=" << leftHand
       << "\nbigTouch=" << bigTouch << "\naltLang=" << altLang << "\n";
     o << "modifier=" << modifier << "\nweeklyWeek=" << weeklyWeek << "\nweeklyBest=" << weeklyBest << "\nseenModes=" << seenModes << "\npuzzle=";

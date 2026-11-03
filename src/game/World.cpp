@@ -125,9 +125,14 @@ void World::buildPairs(float margin) {
         cx = std::clamp(int(p.x / cell) + 2, 0, nx - 1);
         cy = std::clamp(int(p.y / cell) + 2, 0, ny - 1);
     };
+    int minCx = nx, maxCx = 0, minCy = ny, maxCy = 0;
     for (int i = 0; i < int(parts.size()); ++i) {
         int cx, cy;
         cellIdx(parts[size_t(i)], cx, cy);
+        minCx = std::min(minCx, cx);
+        maxCx = std::max(maxCx, cx);
+        minCy = std::min(minCy, cy);
+        maxCy = std::max(maxCy, cy);
         next_[size_t(i)] = head_[size_t(cy) * size_t(nx) + size_t(cx)];
         head_[size_t(cy) * size_t(nx) + size_t(cx)] = i;
     }
@@ -141,8 +146,8 @@ void World::buildPairs(float margin) {
     // Half-shell of neighbour cells within +-2.
     static const int off[13][2] = {{0, 0}, {1, 0}, {2, 0}, {-2, 1}, {-1, 1}, {0, 1}, {1, 1}, {2, 1},
                                    {-2, 2}, {-1, 2}, {0, 2}, {1, 2}, {2, 2}};
-    for (int cy = 0; cy < ny; ++cy)
-        for (int cx = 0; cx < nx; ++cx) {
+    for (int cy = minCy; cy <= maxCy; ++cy)
+        for (int cx = minCx; cx <= maxCx; ++cx) {
             const int first = head_[size_t(cy) * size_t(nx) + size_t(cx)];
             if (first < 0) continue;
             for (int o = 0; o < 13; ++o) {
@@ -160,6 +165,7 @@ void World::buildPairs(float margin) {
 // Recompute pair geometry after particles moved; drop pairs that left the interaction radius.
 void World::regeom() {
     pairs_.clear();
+    pairs_.reserve(cand_.size());
     const float R2 = cfg::kInteract * cfg::kInteract;
     for (const PairRec& c : cand_) {
         const Particle &a = parts[size_t(c.i)], &b = parts[size_t(c.j)];
@@ -175,8 +181,9 @@ void World::regeom() {
             pr.ny /= l;
             d = 1e-4f;
         } else {
-            pr.nx = dx / d;
-            pr.ny = dy / d;
+            const float inv = 1.f / d;
+            pr.nx = dx * inv;
+            pr.ny = dy * inv;
         }
         pr.q = d / cfg::kInteract;
         pairs_.push_back(pr);
@@ -188,9 +195,10 @@ void World::step(float dt, float gravity) {
         p.ox = p.x;
         p.oy = p.y;
     }
-    const float h = dt / float(cfg::kSubsteps);
+    const int ns = std::clamp(substeps, 1, 3);
+    const float h = dt / float(ns);
     buildPairs(3.f);  // candidate pairs with a margin, reused by every substep
-    for (int s = 0; s < cfg::kSubsteps; ++s) substep(h, gravity, s == cfg::kSubsteps - 1);
+    for (int s = 0; s < ns; ++s) substep(h, gravity, s == ns - 1);
     for (auto& d : drops) d.age += dt;
     refresh();
     for (auto& d : drops) {
@@ -264,10 +272,11 @@ void World::substep(float h, float g, bool last) {
 
     // 2. advect
     for (auto& p : parts) {
-        const float sp = std::hypot(p.vx, p.vy);
-        if (sp > cfg::kMaxSpeed) {
-            p.vx *= cfg::kMaxSpeed / sp;
-            p.vy *= cfg::kMaxSpeed / sp;
+        const float sp2 = p.vx * p.vx + p.vy * p.vy;
+        if (sp2 > cfg::kMaxSpeed * cfg::kMaxSpeed) {
+            const float k = cfg::kMaxSpeed / std::sqrt(sp2);
+            p.vx *= k;
+            p.vy *= k;
         }
         p.px = p.x;
         p.py = p.y;
@@ -287,15 +296,16 @@ void World::substep(float h, float g, bool last) {
         rhoN_[size_t(pr.j)] += w * w * w;
     }
     const float h2 = h * h;
-    auto press = [&](size_t i) {
+    press_.resize(n);
+    for (size_t i = 0; i < n; ++i) {
         float P = cfg::kStiff * (rho_[i] - rho0);
         if (P < 0.f) P *= 0.35f;  // weak suction at the surface: liquid cohesion
-        return P;
-    };
+        press_[i] = P;
+    }
     for (const auto& pr : pairs_) {
         const size_t i = size_t(pr.i), j = size_t(pr.j);
         const float w = 1.f - pr.q;
-        const float D = h2 * ((press(i) + press(j)) * w + cfg::kStiffNear * (rhoN_[i] + rhoN_[j]) * w * w);
+        const float D = h2 * ((press_[i] + press_[j]) * w + cfg::kStiffNear * (rhoN_[i] + rhoN_[j]) * w * w);
         const float hx = 0.5f * D * pr.nx, hy = 0.5f * D * pr.ny;
         parts[j].x += hx;
         parts[j].y += hy;
@@ -304,14 +314,17 @@ void World::substep(float h, float g, bool last) {
     }
 
     // 4. cohesion inside a drop keeps each colour together
+    // Strong surface tension while a drop is falling or splashing; relaxed once it rests (no shimmer).
+    moving_.resize(drops.size());
+    for (size_t g2 = 0; g2 < drops.size(); ++g2) {
+        const Drop& dr = drops[g2];
+        moving_[g2] = dr.age < 1.2f || dr.vx * dr.vx + dr.vy * dr.vy > 35.f * 35.f;
+    }
     for (const auto& pr : pairs_) {
         Particle &a = parts[size_t(pr.i)], &b = parts[size_t(pr.j)];
         if (a.g != b.g) continue;
         const float d = pr.q * cfg::kInteract;
-        // Strong surface tension while a drop is falling or splashing; relaxed once it rests (no shimmer).
-        const Drop& dr = drops[size_t(a.g)];
-        const bool moving = dr.age < 1.2f || std::hypot(dr.vx, dr.vy) > 35.f;
-        if (d <= cfg::kSpacing * (moving ? 1.0f : cfg::kCohRange)) continue;
+        if (d <= cfg::kSpacing * (moving_[size_t(a.g)] ? 1.0f : cfg::kCohRange)) continue;
         const float pull = cfg::kCohesion * (1.f - pr.q) * 0.5f;
         a.x += pull * pr.nx;
         a.y += pull * pr.ny;

@@ -115,7 +115,7 @@ bool drawSettings(Ctx& c, float y0) {
     const Theme& t = *c.theme;
     Loc& L = c.loc;
     const bool desktop = !platform::isMobile();
-    const int rows = 7;
+    const int rows = 8;
     const float rowH = 32.f;
     const float panelH = 40.f + rows * rowH + 40.f;
     ui.panel(14, y0, 242, panelH);
@@ -144,6 +144,12 @@ bool drawSettings(Ctx& c, float y0) {
         toggle("settings.slowmo", c.save.slowmo);
         toggle("settings.calm", c.save.calm);
         toggle("settings.reduce", c.save.reduceMotion);
+        label("settings.quality");
+        if (const int d = ui.stepper(cx, y, cw, 20, L.tr(c.save.quality == 0 ? "settings.q.low" : c.save.quality == 1 ? "settings.q.med" : "settings.q.high"))) {
+            c.save.quality = (c.save.quality + d + 3) % 3;
+            c.save.store();
+        }
+        y += rowH;
         toggle("settings.lefthand", c.save.leftHand);
     } else if (page == 2) {
         label("settings.cvd");

@@ -154,6 +154,23 @@ TEST(overflow_timer_triggers_only_when_settled_above_line) {
     CHECK(w.overflow() > 0.f);
 }
 
+TEST(physics_is_deterministic_and_quality_levels_stay_stable) {
+    for (int q = 1; q <= 3; ++q) {
+        double sums[2] = {0, 0};
+        for (int run = 0; run < 2; ++run) {
+            World w;
+            w.substeps = q;
+            for (int i = 0; i < 12; ++i) w.spawn(60.f + float(i % 4) * 40.f, 80.f + float(i) * 6.f, i % 5);
+            for (int k = 0; k < 400; ++k) w.step(1.f / 60.f, 1.f);
+            for (const auto& p : w.parts) {
+                CHECK(p.x > -1.f && p.x < 271.f);
+                sums[run] += double(p.x) * 1.3 + double(p.y);
+            }
+        }
+        CHECK(sums[0] == sums[1]);  // same inputs, same result, bit for bit (in one build)
+    }
+}
+
 TEST(rng_is_deterministic_per_seed) {
     Rng a, b;
     a.seed(1234);

@@ -98,18 +98,16 @@ Exit: tag `v1.3.0`.
 
 Goal: push the liquid to its best while keeping 60 fps on a low-end phone.
 
-- ☐ Physics performance: SIMD (SSE/NEON) neighbour loops, tuned spatial hash, optional multi-threaded substeps;
-  target a 2x cheaper step so the particle count can rise.
-- ☐ Higher-fidelity option ("Liquid quality": Low / Medium / High) that changes particle spacing and substeps.
-- ☐ Surface tension and foam/bubble sprites on hard impacts; droplets that detach and re-merge cleanly.
-- ☐ Colour mixing refinement: deterministic mixing zones so layers stay readable, optional "marbling" setting.
-- ☐ Replay recorder: deterministic input log, so a run can be replayed exactly from seed and inputs;
-  regression tests use recorded replays to catch physics changes.
-- ☐ Fixed-point or cross-platform deterministic math check, so Daily seeds play the same on every platform.
-- ☐ New themes (6 more, two unlockable by achievements) and animated backdrops.
-- ☐ "Tiny pot" modifier (from v1.3.0) and pot shapes as cosmetics (wide, tall, curved, with a bump) that change physics a little.
+- ✔ Physics performance: precomputed pressures and flags, no hypot in hot loops, spatial-hash scan limited to occupied
+  cells. Measured with the same scene on the same machine: 1.63 → 1.50 ms/step (about 8%). The 2x target was NOT met;
+  SIMD and threads are moved to a later milestone.
+- ✔ "Liquid quality" (Low / Medium / High = 1 / 2 / 3 substeps) in Settings → Game feel. Daily and Puzzle always use Medium
+  so every player gets the same physics.
+- ✔ Test: the same inputs give bit-identical results within one build, at every quality level.
+- ➜ Moved to v1.5.0 or later: foam/bubble sprites, marbling colour setting, replay recorder (needs fixed-step game
+  logic first), cross-platform determinism check, 6 new themes and animated backdrops, pot shapes and the "tiny pot" modifier.
 
-Exit: replay tests pass bit-identically on Linux, macOS, Windows, Android. Tag `v1.4.0`.
+Exit: tag `v1.4.0` (a smaller release than planned; the moved items keep their place on the roadmap).
 
 ## v1.5.0: Social without a server
 
@@ -236,7 +234,7 @@ saves, replays or mods (with a migration path).
 | v1.1.0 | Feel | ☑ |
 | v1.2.0 | Reach | ☑ |
 | v1.3.0 | Modes | ☑ |
-| v1.4.0 | Liquid, second pass | ☐ |
+| v1.4.0 | Liquid, second pass (partial) | ✔ |
 | v1.5.0 | Social without a server | ☐ |
 | v1.6.0 | Craft | ☐ |
 | v1.7.0 | Stores and distribution | ☐ |

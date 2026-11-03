@@ -69,6 +69,7 @@ public:
     void particleSprites(float alpha, float radius, std::vector<BlobSprite>& out) const;
     void labelSprites(std::vector<BlobSprite>& out) const;
 
+    int substeps = cfg::kSubsteps;   // 1..3, the "Liquid quality" setting (2 = reference physics)
     float viscScale = 1.f;           // Thick liquid modifier multiplies the viscosity
 
     std::vector<Particle> parts;
@@ -95,7 +96,8 @@ private:
     std::vector<PairRec> pairs_;  // active neighbour pairs (q < 1) for the current positions
     std::vector<PairRec> cand_;   // candidate pairs found with a margin, valid for one fixed step
     bool candValid_ = false;
-    std::vector<float> rho_, rhoN_, rhoG_;
+    std::vector<float> rho_, rhoN_, rhoG_, press_;
+    std::vector<char> moving_;
     int stepCount_ = 0;
     void buildPairs(float margin = 0.f);
     void regeom();

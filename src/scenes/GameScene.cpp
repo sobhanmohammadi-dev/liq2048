@@ -216,6 +216,8 @@ private:
                : (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle) ? 0 : c.save.modifier;
         world_.clear();
         world_.viscScale = mod_ == 3 ? 3.f : 1.f;
+        // Daily and Puzzle must play identically for everyone, so they always use the reference quality.
+        world_.substeps = (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle) ? 2 : c.save.quality + 1;
         deadY_ = cfg::kDeadY;
         tideRelief_ = autoT_ = autoFill_ = 0.f;
         queueIdx_ = runMerges_ = runChain_ = stars_ = 0;

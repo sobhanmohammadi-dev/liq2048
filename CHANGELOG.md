@@ -8,6 +8,16 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.4.0]
+
+### Added
+- "Liquid quality" setting (Low / Medium / High).
+- Determinism test for the physics at all quality levels.
+
+### Changed
+- Faster physics step (about 8% in our benchmark).
+- Pot shapes, replays, new themes and foam effects were moved to later milestones (see docs/ROADMAP.md).
+
 ## [1.3.0] - 2026-11-03
 
 Station "Modes".
