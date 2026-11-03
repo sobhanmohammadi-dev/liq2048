@@ -15,6 +15,7 @@
 #include "core/Platform.hpp"
 #include "game/Mode.hpp"
 #include "game/Puzzle.hpp"
+#include "game/Replay.hpp"
 #include "game/World.hpp"
 #include "gfx/BlobRaster.hpp"
 #include "core/Themes.hpp"
@@ -169,6 +170,31 @@ TEST(physics_is_deterministic_and_quality_levels_stay_stable) {
         }
         CHECK(sums[0] == sums[1]);  // same inputs, same result, bit for bit (in one build)
     }
+}
+
+TEST(replay_text_roundtrip_and_playback_is_deterministic) {
+    Replay r;
+    r.substeps = 2;
+    r.gravity = cfg::kGravity;
+    Rng rg;
+    rg.seed(1234u);
+    uint32_t step = 0;
+    for (int i = 0; i < 20; ++i) {
+        step += uint32_t(rg.range(10, 70));
+        r.drops.push_back({step, rg.uni(60.f, 210.f), rg.range(0, 4)});
+    }
+    const uint64_t a = replayChecksum(r, 300);
+    CHECK(a == replayChecksum(r, 300));
+    Replay back;
+    CHECK(Replay::fromText(r.toText(), back));
+    CHECK(back.drops.size() == r.drops.size());
+    CHECK(replayChecksum(back, 300) == a);  // text format loses nothing
+    r.drops[5].x += 1.f;
+    CHECK(replayChecksum(r, 300) != a);     // and the checksum notices physics-relevant changes
+    r.truncateFrom(r.drops[10].step);
+    CHECK(r.drops.size() == 10);
+    Replay bad;
+    CHECK(!Replay::fromText("nonsense", bad));
 }
 
 TEST(rng_is_deterministic_per_seed) {

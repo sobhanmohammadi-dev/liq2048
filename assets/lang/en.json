@@ -85,6 +85,8 @@
   "settings.q.low": "Low",
   "settings.q.med": "Medium",
   "settings.q.high": "High",
+  "over.replay": "Watch replay",
+  "replay.banner": "REPLAY",
   "settings.reduce": "Reduced motion",
   "settings.lefthand": "Left-hand HUD",
   "settings.cvd": "Colour vision",

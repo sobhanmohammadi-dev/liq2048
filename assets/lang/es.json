@@ -85,6 +85,8 @@
   "settings.q.low": "Baja",
   "settings.q.med": "Media",
   "settings.q.high": "Alta",
+  "over.replay": "Ver repetición",
+  "replay.banner": "REPETICIÓN",
   "settings.reduce": "Menos movimiento",
   "settings.lefthand": "HUD zurdo",
   "settings.cvd": "Visión de color",

@@ -104,8 +104,11 @@ Goal: push the liquid to its best while keeping 60 fps on a low-end phone.
 - ✔ "Liquid quality" (Low / Medium / High = 1 / 2 / 3 substeps) in Settings → Game feel. Daily and Puzzle always use Medium
   so every player gets the same physics.
 - ✔ Test: the same inputs give bit-identical results within one build, at every quality level.
-- ➜ Moved to v1.5.0 or later: foam/bubble sprites, marbling colour setting, replay recorder (needs fixed-step game
-  logic first), cross-platform determinism check, 6 new themes and animated backdrops, pot shapes and the "tiny pot" modifier.
+- ✔ (v1.4.1) Replay recorder: every drop is logged (physics step, position, level); "Watch replay" on the game-over
+  screen replays the run without touching saves or achievements. Physics is reproduced exactly; timers (Timed, Rain,
+  Tide) follow wall-clock time, so those modes replay approximately. A checksum test covers playback and the text format.
+- ➜ Moved to v1.5.0 or later: foam/bubble sprites, marbling colour setting, saving/sharing replays as files, cross-platform
+  determinism check (replay checksums are only verified on the build that produced them), 6 new themes and animated backdrops, pot shapes and the "tiny pot" modifier.
 
 Exit: tag `v1.4.0` (a smaller release than planned; the moved items keep their place on the roadmap).
 
