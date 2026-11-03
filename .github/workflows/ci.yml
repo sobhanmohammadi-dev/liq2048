@@ -38,6 +38,7 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           -DLIQ_WARNINGS_AS_ERRORS=ON
           -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+          -DCMAKE_POLICY_VERSION_MINIMUM="3.5"
       - name: Build
         run: cmake --build build
       - name: Unit tests
@@ -63,7 +64,7 @@ jobs:
       - name: Install dependencies
         run: brew install ninja sdl2 sdl2_ttf
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIQ_WARNINGS_AS_ERRORS=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIQ_WARNINGS_AS_ERRORS=ON -DCMAKE_POLICY_VERSION_MINIMUM="3.5"
       - name: Build
         run: cmake --build build
       - name: Unit tests
@@ -82,7 +83,7 @@ jobs:
           path: build/_deps
           key: win-deps-${{ hashFiles('CMakeLists.txt') }}
       - name: Configure (SDL is downloaded and built statically)
-        run: cmake -S . -B build -DLIQ_FETCH_DEPS=ON -DLIQ_WARNINGS_AS_ERRORS=ON
+        run: cmake -S . -B build -DLIQ_FETCH_DEPS=ON -DLIQ_WARNINGS_AS_ERRORS=ON -DCMAKE_POLICY_VERSION_MINIMUM="3.5"
       - name: Build
         run: cmake --build build --config Release
       - name: Unit tests
@@ -105,5 +106,6 @@ jobs:
         run: |
           cmake -S . -B build-android -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DLIQ_FETCH_DEPS=ON
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DLIQ_FETCH_DEPS=ON \
+            -DCMAKE_POLICY_VERSION_MINIMUM="3.5"
           cmake --build build-android

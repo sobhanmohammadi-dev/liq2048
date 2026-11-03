@@ -1,7 +1,9 @@
 name: Mobile
 
-# Builds the Android APK/AAB and an unsigned iOS IPA. Runs on its own for changes to the mobile
-# project, and is called by release.yml for tagged releases.
+# Builds the Android APK/AAB and an unsigned iOS IPA.
+# Runs on its own for changes to the mobile project,
+# and is called by release.yml for tagged releases.
+
 on:
   workflow_call:
     inputs:
@@ -13,10 +15,18 @@ on:
       ANDROID_KEYSTORE_PASSWORD: { required: false }
       ANDROID_KEY_ALIAS: { required: false }
       ANDROID_KEY_PASSWORD: { required: false }
+
   workflow_dispatch:
+
   push:
     branches: [main]
-    paths: ["android/**", "ios/**", "CMakeLists.txt", "src/**", "assets/**", ".github/workflows/mobile.yml"]
+    paths:
+      - "android/**"
+      - "ios/**"
+      - "CMakeLists.txt"
+      - "src/**"
+      - "assets/**"
+      - ".github/workflows/mobile.yml"
 
 permissions:
   contents: read
@@ -29,32 +39,52 @@ jobs:
   android:
     name: Android (APK + AAB)
     runs-on: ubuntu-24.04
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Compute version
         id: ver
+        shell: bash
         run: |
           V="${{ inputs.version }}"
           V="${V#v}"
-          if [ -z "$V" ]; then V=$(grep -oP 'project\(Liq2048 VERSION \K[0-9.]+' CMakeLists.txt); fi
+
+          if [ -z "$V" ]; then
+            V=$(grep -oP 'project\(Liq2048 VERSION \K[0-9.]+' CMakeLists.txt)
+          fi
+
           IFS=. read -r MA MI PA <<< "$V"
+
           echo "version=$V" >> "$GITHUB_OUTPUT"
           echo "code=$((MA*10000 + MI*100 + PA))" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: "17" }
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - uses: android-actions/setup-android@v3
+
       - name: Install NDK and CMake
-        run: sdkmanager "ndk;26.3.11579264" "cmake;3.22.1" "platforms;android-34" "build-tools;34.0.0"
+        run: |
+          sdkmanager "ndk;26.3.11579264" \
+                     "cmake;3.22.1" \
+                     "platforms;android-34" \
+                     "build-tools;34.0.0"
 
       - name: Fetch SDL (Java glue + native sources)
-        run: git clone --depth 1 --branch "$SDL_RELEASE" https://github.com/libsdl-org/SDL.git android/SDL
-
-      - name: Add Persian font to the app bundle (SIL OFL, not stored in the repo)
         run: |
-          curl -sL -o /tmp/vz.zip "$VAZIRMATN_URL"
-          unzip -j -o /tmp/vz.zip fonts/ttf/Vazirmatn-Regular.ttf OFL.txt -d /tmp/vz
+          git clone --depth 1 --branch "$SDL_RELEASE" \
+            https://github.com/libsdl-org/SDL.git android/SDL
+
+      - name: Add Persian font to the app bundle (SIL OFL)
+        run: |
+          curl -fsSL -o /tmp/vz.zip "$VAZIRMATN_URL"
+          unzip -j -o /tmp/vz.zip \
+            fonts/ttf/Vazirmatn-Regular.ttf \
+            OFL.txt -d /tmp/vz
+
           mkdir -p assets/fonts
           cp /tmp/vz/Vazirmatn-Regular.ttf assets/fonts/fa.ttf
           cp /tmp/vz/OFL.txt assets/fonts/LICENSE-vazirmatn.txt
@@ -72,15 +102,25 @@ jobs:
           fi
 
       - uses: gradle/actions/setup-gradle@v4
-        with: { gradle-version: "8.9" }
+        with:
+          gradle-version: "8.9"
+
       - name: Build release APK and AAB
-        run: gradle -p android assembleRelease bundleRelease -PliqVersion=${{ steps.ver.outputs.version }} -PliqVersionCode=${{ steps.ver.outputs.code }}
+        run: |
+          gradle -p android assembleRelease bundleRelease \
+            -PliqVersion=${{ steps.ver.outputs.version }} \
+            -PliqVersionCode=${{ steps.ver.outputs.code }}
 
       - name: Collect
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/release/*.apk "dist/Liq2048-${{ steps.ver.outputs.version }}-android.apk"
-          cp android/app/build/outputs/bundle/release/*.aab "dist/Liq2048-${{ steps.ver.outputs.version }}-android.aab"
+
+          cp android/app/build/outputs/apk/release/*.apk \
+            "dist/Liq2048-${{ steps.ver.outputs.version }}-android.apk"
+
+          cp android/app/build/outputs/bundle/release/*.aab \
+            "dist/Liq2048-${{ steps.ver.outputs.version }}-android.aab"
+
       - uses: actions/upload-artifact@v4
         with:
           name: package-android
@@ -89,40 +129,65 @@ jobs:
   ios:
     name: iOS (unsigned IPA)
     runs-on: macos-14
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Compute version
         id: ver
+        shell: bash
         run: |
           V="${{ inputs.version }}"
           V="${V#v}"
-          if [ -z "$V" ]; then V=$(grep -oE 'project\(Liq2048 VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$'); fi
+
+          if [ -z "$V" ]; then
+            V=$(grep -oE 'project\(Liq2048 VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')
+          fi
+
           echo "version=$V" >> "$GITHUB_OUTPUT"
 
-      - name: Add Persian font to the app bundle (SIL OFL, not stored in the repo)
+      - name: Add Persian font to the app bundle (SIL OFL)
         run: |
-          curl -sL -o /tmp/vz.zip "$VAZIRMATN_URL"
-          unzip -j -o /tmp/vz.zip fonts/ttf/Vazirmatn-Regular.ttf OFL.txt -d /tmp/vz
+          curl -fsSL -o /tmp/vz.zip "$VAZIRMATN_URL"
+          unzip -j -o /tmp/vz.zip \
+            fonts/ttf/Vazirmatn-Regular.ttf \
+            OFL.txt -d /tmp/vz
+
           mkdir -p assets/fonts
           cp /tmp/vz/Vazirmatn-Regular.ttf assets/fonts/fa.ttf
           cp /tmp/vz/OFL.txt assets/fonts/LICENSE-vazirmatn.txt
 
       - name: Configure (Xcode, iOS)
         run: >
-          cmake -S . -B build-ios -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
-          -DLIQ_BUILD_TESTS=OFF -DLIQ_FETCH_DEPS=ON
+          cmake -S . -B build-ios -G Xcode
+          -DCMAKE_SYSTEM_NAME=iOS
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+          -DLIQ_BUILD_TESTS=OFF
+          -DLIQ_FETCH_DEPS=ON
+          -DCMAKE_POLICY_VERSION_MINIMUM="3.5"
+
       - name: Build (no code signing)
         run: >
           cmake --build build-ios --config Release --
-          -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          -sdk iphoneos
+          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGN_IDENTITY=""
+
       - name: Package IPA
         run: |
-          APP=$(find build-ios -name "Liq2048.app" -path "*Release-iphoneos*" | head -1)
+          APP=$(find build-ios -name "Liq2048.app" \
+            -path "*Release-iphoneos*" | head -1)
+
           test -n "$APP"
+
           mkdir -p Payload dist
           cp -R "$APP" Payload/
-          zip -qry "dist/Liq2048-${{ steps.ver.outputs.version }}-ios-unsigned.ipa" Payload
+
+          zip -qry \
+            "dist/Liq2048-${{ steps.ver.outputs.version }}-ios-unsigned.ipa" \
+            Payload
+
       - uses: actions/upload-artifact@v4
         with:
           name: package-ios

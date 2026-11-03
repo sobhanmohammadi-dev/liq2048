@@ -49,10 +49,14 @@ else()
   find_package(SDL2_ttf REQUIRED)
 endif()
 
-if(TARGET SDL2::SDL2)
-  set(LIQ_SDL_TARGET SDL2::SDL2)
+if(TARGET SDL2_ttf::SDL2_ttf)
+  set(LIQ_SDL_TTF_TARGET SDL2_ttf::SDL2_ttf)
+elseif(TARGET SDL2_ttf::SDL2_ttf-static)
+  set(LIQ_SDL_TTF_TARGET SDL2_ttf::SDL2_ttf-static)
+elseif(TARGET SDL2::ttf)
+  set(LIQ_SDL_TTF_TARGET SDL2::ttf)
 else()
-  set(LIQ_SDL_TARGET SDL2::SDL2-static)
+  message(FATAL_ERROR "No compatible SDL2_ttf target found")
 endif()
 
 # ---------------------------------------------------------------------------
@@ -74,7 +78,10 @@ endif()
 add_library(liq_core STATIC ${LIQ_SOURCES})
 target_include_directories(liq_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(liq_core PUBLIC stb_vorbis)
-target_link_libraries(liq_core PUBLIC ${LIQ_SDL_TARGET} SDL2_ttf::SDL2_ttf)
+target_link_libraries(liq_core PUBLIC
+  ${LIQ_SDL_TARGET}
+  ${LIQ_SDL_TTF_TARGET}
+)
 target_compile_definitions(liq_core PUBLIC LIQ_VERSION="${PROJECT_VERSION}")
 if(MSVC)
   target_compile_options(liq_core PRIVATE /W4 /utf-8)

@@ -45,13 +45,13 @@ jobs:
 
       - name: Configure (Linux, static SDL)
         if: runner.os == 'Linux'
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIQ_FETCH_DEPS=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIQ_FETCH_DEPS=ON -DCMAKE_POLICY_VERSION_MINIMUM="3.5"
       - name: Configure (macOS, universal arm64 + x86_64, static SDL)
         if: runner.os == 'macOS'
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIQ_FETCH_DEPS=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIQ_FETCH_DEPS=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_POLICY_VERSION_MINIMUM="3.5"
       - name: "Configure (Windows, static SDL)"
         if: runner.os == 'Windows'
-        run: cmake -S . -B build -DLIQ_FETCH_DEPS=ON
+        run: cmake -S . -B build -DLIQ_FETCH_DEPS=ON -DCMAKE_POLICY_VERSION_MINIMUM="3.5"
 
       - name: Build
         run: cmake --build build --config Release

@@ -27,7 +27,7 @@ jobs:
           build-mode: manual
       - name: Build
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIQ_BUILD_TESTS=OFF
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLIQ_BUILD_TESTS=OFF -DCMAKE_POLICY_VERSION_MINIMUM="3.5"
           cmake --build build
       - uses: github/codeql-action/analyze@v3
         with:
