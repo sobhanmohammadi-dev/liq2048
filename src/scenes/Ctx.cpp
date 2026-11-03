@@ -1,5 +1,8 @@
 #include "scenes/Ctx.hpp"
 
+#include "core/Access.hpp"
+#include "gfx/PixelFont.hpp"
+
 namespace liq {
 
 void Ctx::applySettings() {
@@ -10,10 +13,13 @@ void Ctx::applySettings() {
 }
 
 bool Ctx::setLanguage(const std::string& code) {
-    if (code == "fa" && !gfx.hasPersianFont()) return false;
+    const LangInfo* info = langInfo(code);
+    if (!info || (info->arabicScript && !gfx.hasPersianFont())) return false;
     loc.load(code);
-    gfx.setPersian(code == "fa");
+    gfx.setPersian(info->arabicScript);
+    PixelFont::setGermanFold(code == "de");
     save.lang = code;
+    if (code != "en") save.altLang = code;
     return true;
 }
 
@@ -25,7 +31,8 @@ bool Ctx::themeUnlocked(int i) const {
 void Ctx::setTheme(int i) {
     if (!themeUnlocked(i)) i = 0;
     save.theme = i;
-    theme = &themeAt(i);
+    themeStore = accessTheme(themeAt(i), save.colorVision, save.highContrast);
+    theme = &themeStore;
     gfx.buildBackdrop(*theme);
 }
 

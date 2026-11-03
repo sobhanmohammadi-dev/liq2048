@@ -8,6 +8,25 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.2.0] - 2026-11-03
+
+Station "Reach".
+
+### Added
+- Six new languages: Spanish, French, German, Turkish, Portuguese and Arabic (8 in total), with a language picker in
+  Settings. The pixel font folds accents to base letters; Arabic uses the same RTL path as Persian.
+- Colour-vision modes (Red/Green and Blue/Yellow safe droplet palettes, optimised for distinguishability under
+  colour-blindness simulation) with a live preview, and a High contrast option.
+- Reduced motion option (instant scene changes, no particles, rings, bubbles, shake or drifting backdrop).
+- Left-hand HUD layout and a Big touch areas option; every button also gets an invisible touch margin on phones.
+- Settings now have three pages (General, Game feel, Access).
+- `docs/ACCESSIBILITY.md`; tests that every language is complete, that accents fold correctly and that the
+  accessibility palettes stay distinct.
+- Dev tool flags `--page` and `--set` for screenshots.
+
+### Changed
+- The in-game language button toggles between English and the last other language used.
+
 ## [1.1.0] - 2026-11-02
 
 Station "Feel".
@@ -60,6 +79,7 @@ First stable release. Every earlier development station is tagged in git (`v0.1.
 | v0.4.0 | Sound engine and settling/splash physics |
 | v0.5.0 | Android and iOS builds, self-contained desktop packages |
 
-[Unreleased]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/sobhanmohammadi-dev/Liq2048/releases/tag/v1.0.0

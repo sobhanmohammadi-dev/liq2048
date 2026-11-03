@@ -10,6 +10,8 @@
 #include "core/Json.hpp"
 #include "core/Util.hpp"
 #include "audio/Audio.hpp"
+#include "core/Access.hpp"
+#include "gfx/PixelFont.hpp"
 #include "core/Platform.hpp"
 #include "game/Mode.hpp"
 #include "game/World.hpp"
@@ -292,6 +294,55 @@ TEST(fps_choices_and_limits) {
     s.fpsIdx = 6;
     CHECK(s.fpsLimit() == -1);
     CHECK(Save::fpsChoice(1) == 30);
+}
+
+TEST(all_languages_complete) {
+    // Every language must define every English key, keep the {0} placeholder, and never be blank.
+    auto load = [](const std::string& code) {
+        auto d = liq::platform::readAsset("lang/" + code + ".json");
+        return parseFlatJson(std::string(d.begin(), d.end()));
+    };
+    const auto en = load("en");
+    CHECK(en.size() > 80);
+    for (int i = 0; i < kLangCount; ++i) {
+        const std::string code = langAt(i).code;
+        const auto t = load(code);
+        for (const auto& kv : en) {
+            auto it = t.find(kv.first);
+            CHECK(it != t.end());
+            if (it == t.end()) continue;
+            CHECK(!it->second.empty());
+            CHECK((kv.second.find("{0}") != std::string::npos) == (it->second.find("{0}") != std::string::npos));
+        }
+        CHECK(t.size() == en.size());  // no stray keys
+    }
+}
+
+TEST(pixel_font_folds_accents) {
+    PixelFont::setGermanFold(false);
+    CHECK(PixelFont::ascii("Atr\xC3\xA1s \xC3\xA9\xC3\xB1 \xC3\xA7\xC4\x9F\xC5\x9F\xC4\xB1") == "AtrAs EN CGSI");
+    CHECK(PixelFont::ascii("\xC2\xBF" "Qu\xC3\xA9?") == "QuE?");
+    CHECK(PixelFont::ascii("\xC3\xBC") == "U");
+    PixelFont::setGermanFold(true);
+    CHECK(PixelFont::ascii("\xC3\xBC") == "UE");
+    CHECK(PixelFont::ascii("gr\xC3\xB6" "\xC3\x9F" "er") == "grOESSer");
+    PixelFont::setGermanFold(false);
+    CHECK(PixelFont::ascii("\xD9\x85") == "?");  // Arabic letters are not in the pixel font
+}
+
+TEST(accessibility_palettes_are_distinct) {
+    // Colour-vision palettes must never contain two near-identical colours.
+    for (int mode = 1; mode <= 2; ++mode) {
+        const Theme t = accessTheme(themeAt(0), mode, false);
+        for (int i = 0; i < 12; ++i)
+            for (int j = i + 1; j < 12; ++j) {
+                const int dr = int(t.blob[i].r) - int(t.blob[j].r), dg = int(t.blob[i].g) - int(t.blob[j].g),
+                          db = int(t.blob[i].b) - int(t.blob[j].b);
+                CHECK(dr * dr + dg * dg + db * db > 40 * 40);
+            }
+    }
+    const Theme hc = accessTheme(themeAt(0), 0, true);
+    CHECK(hc.text.r == 255 && hc.ink.r == 0);
 }
 
 TEST(save_game_feel_defaults) {

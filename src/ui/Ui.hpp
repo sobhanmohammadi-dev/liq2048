@@ -24,7 +24,8 @@ public:
     int stepper(float x, float y, float w, float h, const std::string& value, bool bitmapValue = false);
     void panel(float x, float y, float w, float h);
     void paragraph(const std::string& s, float x, float y, float w, int scale, Color col, Align a);
-    float mx(float x, float w) const;  // mirrors x for RTL layouts
+    float mx(float x, float w) const;  // mirrors x for RTL layouts (and left-handed HUD)
+    void setMirror(bool on) { mirror_ = on; }  // extra mirroring (left-handed game layout)
     Align start() const;               // leading alignment (Left, or Right in RTL)
     void resetFocus() { focus_ = 0; }
 
@@ -34,6 +35,7 @@ private:
     };
     Hit hit(float x, float y, float w, float h, bool enabled, bool focusable);
     Ctx* c_ = nullptr;
+    bool mirror_ = false;
     int nextId_ = 0, fidx_ = 0, focus_ = 0, active_ = -1;
 };
 

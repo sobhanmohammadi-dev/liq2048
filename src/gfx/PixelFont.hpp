@@ -3,7 +3,8 @@
 // in PixelFont.cpp. Two faces:
 //   Text5x7   proportional caps/digits/punctuation with 1px strokes (UI, titles, labels)
 //   Digits3x5 tiny numerals for small blobs
-// Lower-case input is shown as upper-case. Non-ASCII input shows '?'.
+// Lower-case input is shown as upper-case. Accented Latin letters fold to their base letters (all-caps
+// UI text), other non-ASCII input shows '?'.
 #include <cstdint>
 #include <string>
 
@@ -20,6 +21,7 @@ class PixelFont {
 public:
     static const Glyph& glyph(FontFace f, char c);
     static int height(FontFace f) { return f == FontFace::Text5x7 ? 7 : 5; }
+    static void setGermanFold(bool on);                   // German: A/O/U with umlaut -> AE/OE/UE
     static std::string ascii(const std::string& utf8);  // fold to printable ASCII
     static int width(FontFace f, const std::string& s);  // in pixels at scale 1
 

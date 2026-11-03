@@ -80,5 +80,14 @@
   "settings.shake": "تکان صفحه",
   "settings.slowmo": "حرکت آهسته",
   "settings.calm": "حالت آرام",
-  "hud.undo": "واگرد"
+  "hud.undo": "واگرد",
+  "settings.reduce": "حرکت کم",
+  "settings.lefthand": "چیدمان چپ‌دست",
+  "settings.cvd": "دید رنگ",
+  "settings.contrast": "کنتراست بالا",
+  "settings.bigtouch": "لمس بزرگ",
+  "settings.access": "دسترسی",
+  "access.cvd.std": "استاندارد",
+  "access.cvd.rg": "قرمز/سبز",
+  "access.cvd.by": "آبی/زرد"
 }

@@ -14,7 +14,7 @@
 
 **Liq2048** is a physics-based blob-merging puzzle, a Suika-style game with 2048 numbers. Drag, release, and merge
 identical numbered blobs into the next power of two before the container overflows. It has a clean flat pixel-art
-interface, five game modes, English and Persian (right-to-left) support, and it is **free forever: no ads, no
+interface, five game modes, 8 languages (English, Persian, Spanish, French, German, Turkish, Portuguese, Arabic; two right-to-left), and it is **free forever: no ads, no
 purchases, no tracking.**
 
 <p align="center">
@@ -30,7 +30,8 @@ purchases, no tracking.**
 - **Five modes:** Classic · Time Attack · Target (256 → 512 → 1024) · Daily Challenge (same seed for everyone) · Zen
 - **Healthy progression:** per-mode best scores, 9 achievements, a non-punitive daily streak, themes you earn by playing
 - **Polished UX:** skippable tutorial, aim guide, undo (Classic and Zen), haptics on phones, Calm mode, auto-pause, pause menu, smooth transitions, touch + mouse + keyboard
-- **Localization:** English and Persian with true RTL layout and Arabic-script shaping; JSON string tables are easy to extend
+- **Localization:** 8 languages with an in-game picker, true RTL layout and Arabic-script shaping; JSON string tables are easy to extend
+- **Accessibility:** colour-blind-safe droplet palettes, high contrast, reduced motion, Calm mode, left-handed HUD, larger touch areas ([docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md))
 - **Zero required assets:** all visuals are drawn in code with a built-in pixel font; add fonts, sounds and music whenever you like
 - **Portable:** C++17, SDL2, CMake; Windows, Linux, macOS, Android and iOS
 - **Visuals:** a real liquid simulation (drops splash, spread and merge) with dithered pixel-art colour blending, built-in pixel font, selectable frame rate (VSync to 144/unlimited)

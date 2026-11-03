@@ -1,7 +1,9 @@
 // Widgets and drawing helpers shared by several scenes.
+#include <cctype>
 #include <cmath>
 #include <string>
 
+#include "core/Access.hpp"
 #include "core/Config.hpp"
 #include "core/Platform.hpp"
 #include "game/World.hpp"
@@ -88,19 +90,26 @@ void drawDeadLine(Ctx& c, bool warn) {
 
 void langToggle(Ctx& c, float x, float y) {
     const Theme& t = *c.theme;
-    const bool fa = c.loc.code() == "fa";
-    const bool can = fa || c.gfx.hasPersianFont();
+    const bool en = c.loc.code() == "en";
+    const std::string target = en ? (c.save.altLang.empty() ? "fa" : c.save.altLang) : "en";
+    const LangInfo* ti = langInfo(target);
+    const bool can = ti && (!ti->arabicScript || c.gfx.hasPersianFont());
     const float w = 24, h = 14;
     const float bx = c.ui.mx(x, w);
     if (c.ui.button("", bx, y, w, h, can, false)) {
-        c.setLanguage(fa ? "en" : "fa");
+        c.setLanguage(target);
         c.save.store();
     }
-    c.gfx.number(fa ? "EN" : "FA", bx + w / 2.f, y + h / 2.f, 1, can ? t.text : t.dim, Align::Center);
+    std::string label = target;
+    for (auto& ch : label) ch = char(std::toupper(static_cast<unsigned char>(ch)));
+    c.gfx.number(label, bx + w / 2.f, y + h / 2.f, 1, can ? t.text : t.dim, Align::Center);
 }
 
+static int g_page = 0;  // 0 = general, 1 = game feel, 2 = accessibility
+void setSettingsPage(int p) { g_page = p < 0 || p > 2 ? 0 : p; }
+
 bool drawSettings(Ctx& c, float y0) {
-    static int page = 0;  // 0 = general, 1 = game feel
+    int& page = g_page;
     Gfx& g = c.gfx;
     Ui& ui = c.ui;
     const Theme& t = *c.theme;
@@ -134,19 +143,53 @@ bool drawSettings(Ctx& c, float y0) {
         toggle("settings.shake", c.save.shake);
         toggle("settings.slowmo", c.save.slowmo);
         toggle("settings.calm", c.save.calm);
-        const float pw = 100.f;
-        if (ui.button(L.tr("common.back"), 20, y0 + panelH - 34, pw, 24)) {
+        toggle("settings.reduce", c.save.reduceMotion);
+        toggle("settings.lefthand", c.save.leftHand);
+    } else if (page == 2) {
+        label("settings.cvd");
+        if (const int d = ui.stepper(cx, y, cw, 20, L.tr(colorVisionKey(c.save.colorVision)))) {
+            c.save.colorVision = (c.save.colorVision + d + kColorVisionCount) % kColorVisionCount;
+            c.refreshTheme();
+            c.save.store();
+        }
+        y += rowH;
+        label("settings.contrast");
+        if (ui.button(L.tr(c.save.highContrast ? "settings.on" : "settings.off"), cx, y, cw, 20)) {
+            c.save.highContrast = !c.save.highContrast;
+            c.refreshTheme();
+            c.save.store();
+        }
+        y += rowH;
+        toggle("settings.bigtouch", c.save.bigTouch);
+        // Live preview of the droplet palette.
+        for (int i = 0; i < 12; ++i) {
+            const float px = 26.f + float(i) * 18.f;
+            g.rect(px, y + 6.f, 16, 16, t.ink);
+            g.rect(px + 1.f, y + 7.f, 14, 14, t.blob[i]);
+        }
+    }
+    if (page != 0) {
+        if (ui.button(L.tr("common.back"), 20, y0 + panelH - 34, 100, 24)) {
             page = 0;
             return true;
         }
-        if (ui.button(L.tr("settings.general"), 150, y0 + panelH - 34, pw, 24)) page = 0;
+        if (ui.button(L.tr(page == 1 ? "settings.access" : "settings.general"), 150, y0 + panelH - 34, 100, 24)) page = page == 1 ? 2 : 0;
         return false;
     }
 
     // Language
     label("settings.language");
-    if (ui.stepper(cx, y, cw, 20, rtl ? "FA" : "EN", true) != 0) {
-        if (c.setLanguage(rtl ? "en" : "fa")) c.save.store();
+    if (const int d = ui.stepper(cx, y, cw, 20, langInfo(L.code()) ? langInfo(L.code())->name : "ENGLISH", true)) {
+        int idx = 0;
+        for (int i = 0; i < kLangCount; ++i)
+            if (L.code() == langAt(i).code) idx = i;
+        for (int k = 1; k <= kLangCount; ++k) {  // next language whose font is available
+            const LangInfo& li = langAt(((idx + d * k) % kLangCount + kLangCount) % kLangCount);
+            if (c.setLanguage(li.code)) {
+                c.save.store();
+                break;
+            }
+        }
     }
     y += rowH;
 

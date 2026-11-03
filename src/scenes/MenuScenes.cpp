@@ -39,7 +39,7 @@ public:
         const Theme& t = *c.theme;
         Loc& L = c.loc;
         Ui& ui = c.ui;
-        g.drawBackdrop(t, c.time);
+        g.drawBackdrop(t, c.save.reduceMotion ? 0.f : c.time);
         drawWordmark(c, cfg::kW / 2.f, 70.f + std::sin(c.time * 1.6f) * 1.f, 5);
         g.text(L.tr("menu.tagline"), cfg::kW / 2.f, 106.f, 1, t.dim, Align::Center);
         drawLogoCluster(c, 160.f);
@@ -70,7 +70,7 @@ public:
         const Theme& t = *c.theme;
         Loc& L = c.loc;
         Ui& ui = c.ui;
-        g.drawBackdrop(t, c.time);
+        g.drawBackdrop(t, c.save.reduceMotion ? 0.f : c.time);
         g.text(L.tr("select.title"), cfg::kW / 2.f, 28, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
         static const char* names[kModeCount] = {"mode.classic", "mode.timed", "mode.target", "mode.daily", "mode.zen"};
         static const char* descs[kModeCount] = {"mode.classic.desc", "mode.timed.desc", "mode.target.desc",
@@ -109,7 +109,7 @@ public:
         const Theme& t = *c.theme;
         Loc& L = c.loc;
         Ui& ui = c.ui;
-        g.drawBackdrop(t, c.time);
+        g.drawBackdrop(t, c.save.reduceMotion ? 0.f : c.time);
         g.text(L.tr("progress.title"), cfg::kW / 2.f, 28, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
         ui.panel(14, 46, 242, 352);
 
@@ -143,7 +143,7 @@ public:
 class SettingsScene final : public Scene {
 public:
     void frame(Ctx& c, float) override {
-        c.gfx.drawBackdrop(*c.theme, c.time);
+        c.gfx.drawBackdrop(*c.theme, c.save.reduceMotion ? 0.f : c.time);
         if (drawSettings(c, 72) || c.in.esc) c.go(SceneId::Menu);
     }
 };

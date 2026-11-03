@@ -30,7 +30,8 @@ struct Ctx {
     Audio audio;
     Input in;
     Ui ui;
-    const Theme* theme = &themeAt(0);
+    Theme themeStore = themeAt(0);  // the active theme with accessibility options applied
+    const Theme* theme = &themeStore;
     bool quit = false;
     bool hasNext = false;
     SceneId next = SceneId::Menu;
@@ -42,6 +43,7 @@ struct Ctx {
     void applySettings();                       // fullscreen + volume
     bool setLanguage(const std::string& code);  // false if Persian font missing
     void setTheme(int i);
+    void refreshTheme() { setTheme(save.theme); }  // after changing colour vision / contrast
     void cycleTheme(int dir = 1);               // next/previous unlocked theme
     bool themeUnlocked(int i) const;
 };

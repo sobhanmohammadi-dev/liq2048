@@ -21,7 +21,7 @@ public:
     float musicVol = 0.6f;      // 0..1
     float sfxVol = 0.9f;        // 0..1
     bool fullscreen = false;
-    std::string lang;           // "", "en", "fa"
+    std::string lang;           // "" (system) or a code from kLangs
     int theme = 0;
     uint32_t ach = 0;           // bitmask of Ach
     int streak = 0;             // consecutive days played (non-punitive: resets quietly)
@@ -38,8 +38,15 @@ public:
     bool shake = true;          // screen shake
     bool slowmo = true;         // brief slow motion on big merges
     bool calm = false;          // calm mode: no shake, slow motion, blinking or flashes
-    bool effShake() const { return shake && !calm; }
-    bool effSlowmo() const { return slowmo && !calm; }
+    // Accessibility (v1.2.0)
+    int colorVision = 0;        // 0 standard, 1 red/green safe, 2 blue/yellow safe
+    bool highContrast = false;
+    bool reduceMotion = false;  // no transitions, particles, shake, slow motion or drifting backdrop
+    bool leftHand = false;      // mirrors the in-game HUD
+    bool bigTouch = false;      // larger invisible touch margins around buttons
+    std::string altLang;        // language the quick toggle switches to (besides English)
+    bool effShake() const { return shake && !calm && !reduceMotion; }
+    bool effSlowmo() const { return slowmo && !calm && !reduceMotion; }
 
     int fpsLimit() const { return fpsChoice(fpsIdx); }
     void load();
