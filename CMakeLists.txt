@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(Liq2048
-    VERSION 1.3.0
+    VERSION 1.3.6
     LANGUAGES C CXX
     DESCRIPTION "Physics-based blob merging puzzle in C++17 and SDL2"
     HOMEPAGE_URL "https://github.com/sobhanmohammadi-dev/Liq2048"
@@ -63,23 +63,40 @@ if(LIQ_FETCH_DEPS)
 
     include(FetchContent)
 
-    # SDL2 library configuration.
+    # -----------------------------------------------------------------------
+    # SDL2 library configuration
+    # -----------------------------------------------------------------------
+
     if(ANDROID)
+
         set(SDL_SHARED ON CACHE BOOL "" FORCE)
         set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+
+        # SDL2_ttf must use the shared SDL2 target on Android.
+        set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+
     else()
+
         set(SDL_SHARED OFF CACHE BOOL "" FORCE)
         set(SDL_STATIC ON CACHE BOOL "" FORCE)
-    endif()
 
-    # SDL2_ttf is built statically on all platforms.
-    # BUILD_SHARED_LIBS controls SDL2_ttf's library type here.
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        # SDL2_ttf uses the static SDL2 target on desktop and iOS.
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+    endif()
 
     set(SDL2_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
 
+    # -----------------------------------------------------------------------
+    # SDL2_ttf configuration
+    # -----------------------------------------------------------------------
+
     set(SDL2TTF_INSTALL OFF CACHE BOOL "" FORCE)
     set(SDL2TTF_VENDORED ON CACHE BOOL "" FORCE)
+
+    # -----------------------------------------------------------------------
+    # Fetch SDL2
+    # -----------------------------------------------------------------------
 
     FetchContent_Declare(
         SDL2
@@ -88,11 +105,16 @@ if(LIQ_FETCH_DEPS)
         GIT_SHALLOW TRUE
     )
 
+    # -----------------------------------------------------------------------
+    # Fetch SDL2_ttf and its FreeType submodule
+    # -----------------------------------------------------------------------
+
     FetchContent_Declare(
         SDL2_ttf
         GIT_REPOSITORY https://github.com/libsdl-org/SDL_ttf.git
         GIT_TAG release-2.22.0
         GIT_SHALLOW TRUE
+        GIT_SUBMODULES external/freetype
     )
 
     FetchContent_MakeAvailable(SDL2 SDL2_ttf)
@@ -109,22 +131,28 @@ endif()
 # ---------------------------------------------------------------------------
 
 if(TARGET SDL2::SDL2)
+
     set(LIQ_SDL_TARGET SDL2::SDL2)
 
 elseif(TARGET SDL2::SDL2-static)
+
     set(LIQ_SDL_TARGET SDL2::SDL2-static)
 
 elseif(TARGET SDL2)
+
     set(LIQ_SDL_TARGET SDL2)
 
 elseif(TARGET SDL2-static)
+
     set(LIQ_SDL_TARGET SDL2-static)
 
 else()
+
     message(FATAL_ERROR
         "No compatible SDL2 target found. "
         "Expected SDL2::SDL2 or SDL2::SDL2-static."
     )
+
 endif()
 
 # ---------------------------------------------------------------------------
@@ -132,21 +160,27 @@ endif()
 # ---------------------------------------------------------------------------
 
 if(TARGET SDL2_ttf::SDL2_ttf)
+
     set(LIQ_SDL_TTF_TARGET SDL2_ttf::SDL2_ttf)
 
 elseif(TARGET SDL2_ttf::SDL2_ttf-static)
+
     set(LIQ_SDL_TTF_TARGET SDL2_ttf::SDL2_ttf-static)
 
 elseif(TARGET SDL2_ttf)
+
     set(LIQ_SDL_TTF_TARGET SDL2_ttf)
 
 elseif(TARGET SDL2::ttf)
+
     set(LIQ_SDL_TTF_TARGET SDL2::ttf)
 
 else()
+
     message(FATAL_ERROR
         "No compatible SDL2_ttf target found."
     )
+
 endif()
 
 message(STATUS "Liq2048 SDL2 target: ${LIQ_SDL_TARGET}")
@@ -272,6 +306,10 @@ else()
 
 endif()
 
+# ---------------------------------------------------------------------------
+# Main executable linking
+# ---------------------------------------------------------------------------
+
 target_link_libraries(liq2048
     PRIVATE
         liq_core
@@ -282,10 +320,16 @@ if(TARGET SDL2::SDL2main)
     target_link_libraries(liq2048 PRIVATE SDL2::SDL2main)
 endif()
 
+# ---------------------------------------------------------------------------
+# Windows configuration
+# ---------------------------------------------------------------------------
+
 if(WIN32)
+
     set_target_properties(liq2048 PROPERTIES
         WIN32_EXECUTABLE ON
     )
+
 endif()
 
 # ---------------------------------------------------------------------------
