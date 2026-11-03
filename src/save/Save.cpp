@@ -7,7 +7,7 @@
 
 namespace liq {
 
-std::string Save::path() const { return platform::prefPath() + "save.txt"; }
+std::string Save::path() const { return pathOverride().empty() ? platform::prefPath() + "save.txt" : pathOverride(); }
 
 void Save::load() {
     auto d = platform::readFile(path());
@@ -47,9 +47,22 @@ void Save::load() {
         else if (k == "leftHand") leftHand = iv != 0;
         else if (k == "bigTouch") bigTouch = iv != 0;
         else if (k == "altLang") altLang = v;
+        else if (k == "modifier") modifier = iv;
+        else if (k == "weeklyWeek") weeklyWeek = iv;
+        else if (k == "weeklyBest") weeklyBest = iv;
+        else if (k == "seenModes") seenModes = uint32_t(std::strtoul(v.c_str(), nullptr, 10));
+        else if (k == "puzzle") {
+            for (size_t i = 0; i < v.size() && i < size_t(kPuzzleMax); ++i) puzzleStars[i] = (unsigned char)(v[i] >= '0' && v[i] <= '3' ? v[i] - '0' : 0);
+        } else if (k == "gamesPlayed") gamesPlayed = iv;
+        else if (k == "totalDrops") totalDrops = iv;
+        else if (k == "totalMerges") totalMerges = iv;
+        else if (k == "longestChain") longestChain = iv;
+        else if (k == "highestLevel") highestLevel = iv;
+        else if (k == "playSeconds") playSeconds = iv;
     }
     if (musicVol < 0.f || musicVol > 1.f) musicVol = 0.6f;
     if (sfxVol < 0.f || sfxVol > 1.f) sfxVol = 0.9f;
+    if (modifier < 0 || modifier > 4) modifier = 0;
     if (colorVision < 0 || colorVision > 2) colorVision = 0;
     if (fpsIdx < 0 || fpsIdx >= kFpsChoiceCount) fpsIdx = 0;
 }
@@ -64,6 +77,10 @@ void Save::store() const {
       << "\nguide=" << guide << "\nshake=" << shake << "\nslowmo=" << slowmo << "\ncalm=" << calm << "\ncolorVision=" << colorVision
       << "\nhighContrast=" << highContrast << "\nreduceMotion=" << reduceMotion << "\nleftHand=" << leftHand
       << "\nbigTouch=" << bigTouch << "\naltLang=" << altLang << "\n";
+    o << "modifier=" << modifier << "\nweeklyWeek=" << weeklyWeek << "\nweeklyBest=" << weeklyBest << "\nseenModes=" << seenModes << "\npuzzle=";
+    for (int i = 0; i < kPuzzleMax; ++i) o << char('0' + puzzleStars[i]);
+    o << "\ngamesPlayed=" << gamesPlayed << "\ntotalDrops=" << totalDrops << "\ntotalMerges=" << totalMerges
+      << "\nlongestChain=" << longestChain << "\nhighestLevel=" << highestLevel << "\nplaySeconds=" << playSeconds << "\n";
     platform::writeFile(path(), o.str());
 }
 

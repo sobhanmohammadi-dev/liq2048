@@ -4,12 +4,15 @@ namespace liq {
 
 enum Ach {
     kFirst128, kFirst256, kFirst512, kFirst1024, kFirst2048,
-    kChain3, kChain5, kScore1k, kScore5k, kAchCount
+    kChain3, kChain5, kScore1k, kScore5k,
+    kRain60, kTide90, kWeekly, kPuzzle5, kPuzzle3Star, kTargetWin, kDrops1000, kChain7, kStreak3, kModded, kAchCount
 };
 
 inline const char* achKey(int i) {
     static const char* k[kAchCount] = {"ach.first128", "ach.first256", "ach.first512", "ach.first1024", "ach.first2048",
-                                       "ach.chain3",   "ach.chain5",   "ach.score1k",  "ach.score5k"};
+                                       "ach.chain3",   "ach.chain5",   "ach.score1k",  "ach.score5k",
+                                       "ach.rain60",   "ach.tide90",   "ach.weekly",   "ach.puzzle5",  "ach.puzzle3star",
+                                       "ach.targetwin", "ach.drops1000", "ach.chain7",  "ach.streak3",  "ach.modded"};
     return k[i];
 }
 

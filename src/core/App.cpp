@@ -16,6 +16,7 @@ namespace {
 SceneId sceneFromName(const std::string& n, Ctx& c) {
     if (n == "modes") return SceneId::ModeSelect;
     if (n == "progress") return SceneId::Progress;
+    if (n == "puzzles") return SceneId::Puzzle;
     if (n == "settings") return SceneId::Settings;
     if (n == "game") return SceneId::Game;
     if (n == "logo" || n == "banner" || n == "social") {
@@ -106,6 +107,9 @@ int App::run(const AppOptions& opt) {
                 else if (k == "leftHand") s.leftHand = v != 0;
                 else if (k == "reduceMotion") s.reduceMotion = v != 0;
                 else if (k == "theme") s.theme = v;
+                else if (k == "mode") c.mode = ModeId(std::min(std::max(v, 0), kModeCount - 1));
+                else if (k == "puzzle") c.puzzleLevel = v;
+                else if (k == "modifier") s.modifier = v;
             }
         }
         if (shot) setSettingsPage(opt.shotPage);

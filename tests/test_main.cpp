@@ -14,6 +14,7 @@
 #include "gfx/PixelFont.hpp"
 #include "core/Platform.hpp"
 #include "game/Mode.hpp"
+#include "game/Puzzle.hpp"
 #include "game/World.hpp"
 #include "gfx/BlobRaster.hpp"
 #include "core/Themes.hpp"
@@ -343,6 +344,61 @@ TEST(accessibility_palettes_are_distinct) {
     }
     const Theme hc = accessTheme(themeAt(0), 0, true);
     CHECK(hc.text.r == 255 && hc.ink.r == 0);
+}
+
+TEST(new_modes_rules) {
+    Save sv;
+    auto rain = makeMode(ModeId::Rain, sv, 20000);
+    CHECK(!rain->manualDrop());
+    CHECK(rain->autoDropInterval(0.f) > rain->autoDropInterval(60.f));
+    CHECK(rain->autoDropInterval(10000.f) >= 1.f);  // never faster than the floor
+    auto tide = makeMode(ModeId::Tide, sv, 20000);
+    CHECK(tide->deadLineShift(0.f) == 0.f);
+    CHECK(tide->deadLineShift(30.f) > 0.f);
+    CHECK(tide->deadLineShift(1e6f) <= cfg::kTideMaxShift);
+    auto wk = makeMode(ModeId::Weekly, sv, 20000);
+    CHECK(wk->fixedModifier() >= 1 && wk->fixedModifier() <= 4);
+    CHECK(wk->seed() == makeMode(ModeId::Weekly, sv, 20000 + 1)->seed());   // same week -> same seed (20000 and 20001 share a week)
+    CHECK(weekOf(20003) == weekOf(20000) || weekOf(20003) == weekOf(20000) + 1);
+    CHECK(weeklyRuleOf(weekOf(20000)) == wk->fixedModifier());
+}
+
+TEST(puzzle_pack_is_valid) {
+    const auto parsed = parsePuzzles("# c\n3 2 | q 0 0 1 | p 1 100 300 0 150 320\nbad line\n");
+    CHECK(parsed.size() == 1);
+    CHECK(parsed[0].goal == 3 && parsed[0].par == 2 && parsed[0].queue.size() == 3 && parsed[0].pot.size() == 2);
+    CHECK(puzzleStarsFor(parsed[0], 2) == 3 && puzzleStarsFor(parsed[0], 4) == 2 && puzzleStarsFor(parsed[0], 9) == 1);
+    const auto& pack = puzzlePack();
+    CHECK(pack.size() >= 12);
+    for (const auto& d : pack) {
+        CHECK(d.par >= 2 && d.par <= int(d.queue.size()));
+        CHECK(d.goal >= 3 && d.goal <= 11);
+        for (const auto& p : d.pot) CHECK(p.x > cfg::kFieldL && p.x < cfg::kFieldR && p.level >= 0 && p.level < d.goal);
+    }
+    // A puzzle run: queue exhausted without the goal is a loss, reaching the goal is a win.
+    Save sv;
+    auto m = makeMode(ModeId::Puzzle, sv, 0, 0);
+    Stats s;
+    s.dropsLeft = 3;
+    CHECK(m->evaluate(s) == Outcome::Running);
+    s.highest = m->puzzle()->goal;
+    CHECK(m->evaluate(s) == Outcome::Won);
+    s.highest = 0; s.dropsLeft = 0; s.quiet = 2.f;
+    CHECK(m->evaluate(s) == Outcome::Lost);
+}
+
+TEST(save_roundtrip_new_fields) {
+    Save::pathOverride() = "liq_test_save.txt";
+    Save a;
+    a.modifier = 3; a.weeklyBest = 777; a.puzzleStars[0] = 3; a.puzzleStars[7] = 1; a.totalDrops = 1234; a.longestChain = 6;
+    CHECK(a.puzzlesSolved() == 2);
+    a.store();
+    Save b;
+    b.load();
+    CHECK(b.modifier == 3 && b.weeklyBest == 777 && b.puzzleStars[0] == 3 && b.puzzleStars[7] == 1 && b.puzzleStars[1] == 0);
+    CHECK(b.totalDrops == 1234 && b.longestChain == 6);
+    Save::pathOverride().clear();
+    std::remove("liq_test_save.txt");
 }
 
 TEST(save_game_feel_defaults) {

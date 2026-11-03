@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(Liq2048 VERSION 1.2.0 LANGUAGES C CXX
+project(Liq2048 VERSION 1.3.0 LANGUAGES C CXX
         DESCRIPTION "Physics-based blob merging puzzle in C++17 and SDL2"
         HOMEPAGE_URL "https://github.com/sobhanmohammadi-dev/Liq2048")
 
@@ -143,6 +143,8 @@ endif()
 # ---------------------------------------------------------------------------
 if(LIQ_BUILD_TOOLS AND NOT ANDROID AND NOT IOS)
   add_executable(liq_audiogen tools/audiogen/main.cpp tools/audiogen/Synth.cpp)
+  add_executable(liq_puzzlegen tools/puzzlegen/main.cpp)
+  target_link_libraries(liq_puzzlegen PRIVATE liq_core)
 endif()
 
 # ---------------------------------------------------------------------------

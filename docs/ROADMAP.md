@@ -74,22 +74,25 @@ Goal: playable by as many people as possible.
 
 Exit: tag `v1.2.0`.
 
-## v1.3.0: Modes (more ways to play)
+## v1.3.0: Modes (more ways to play) ☑ released
 
 Goal: more reasons to come back, still without any network.
 
-- ☐ **Endless Rain**: a calm survival mode where drops keep coming faster; leaderboard-free, personal best only.
-- ☐ **Puzzle**: hand-made starting pots with a goal ("reach 512 in 12 drops"); first pack of 60 levels, three
-  stars each, level editor data format documented.
-- ☐ **Rising Tide**: the floor slowly rises; merging lowers it.
-- ☐ **Mirror**: two pots, one drop stream, alternate sides.
-- ☐ Weekly challenge on top of Daily (fixed seed per ISO week, special rule).
-- ☐ Modifiers for any mode: low gravity, thick (viscous) liquid, tiny pot, bonus drops.
-- ☐ Statistics page: drops, merges, longest chain, time played, per-mode history charts.
-- ☐ Ten more achievements and a medal for each mode.
-- ☐ Interactive 20-second tutorial with the real pot (carried over from v1.1.0).
+- ☑ **Endless Rain**: drops fall by themselves, faster over time; personal best only.
+- ☑ **Puzzle**: 15 levels (generated and verified by a solver, see `docs/PUZZLES.md`) with pre-filled pots, a fixed
+  queue, a goal tile and three stars.
+- ☑ **Rising Tide**: the overflow line sinks; merging pushes it back up.
+- ☑ Weekly challenge on top of Daily (fixed seed per week, special rule).
+- ☑ Modifiers: low gravity, heavy gravity, thick liquid, bonus drops.
+- ☑ Statistics tab (games, drops, merges, longest chain, highest tile, time, puzzles) and ten more achievements
+  (19 total) with bronze/silver/gold medals per mode.
+- ☑ Interactive first-run coach inside the real pot, plus a one-time hint per mode.
+- ➜ Moved to v1.5.0: **Mirror** (two pots, one drop stream) together with hot-seat versus, which also needs two
+  worlds; per-mode history charts.
+- ➜ Moved to v1.4.0: the "tiny pot" modifier, together with pot shapes.
+- ➜ Moved to v1.8.0: more puzzle packs (the planned 60 levels; pack 1 has 15) and a level editor.
 
-Exit: every mode has a tutorial card, a best-score record and tests for its rules. Tag `v1.3.0`.
+Exit: tag `v1.3.0`.
 
 ## v1.4.0: Liquid (simulation and visuals, second pass)
 
@@ -104,7 +107,7 @@ Goal: push the liquid to its best while keeping 60 fps on a low-end phone.
   regression tests use recorded replays to catch physics changes.
 - ☐ Fixed-point or cross-platform deterministic math check, so Daily seeds play the same on every platform.
 - ☐ New themes (6 more, two unlockable by achievements) and animated backdrops.
-- ☐ Pot shapes as cosmetics (wide, tall, curved, with a bump) that change physics a little.
+- ☐ "Tiny pot" modifier (from v1.3.0) and pot shapes as cosmetics (wide, tall, curved, with a bump) that change physics a little.
 
 Exit: replay tests pass bit-identically on Linux, macOS, Windows, Android. Tag `v1.4.0`.
 
@@ -116,6 +119,8 @@ Goal: sharing and friendly competition, with zero network code in the game.
 - ☐ Run codes: copy a short code that contains seed + inputs; friends paste it to replay your run or race it.
 - ☐ Daily result text ("Liq2048 Daily 2026-12-01: 1024, 38 drops") copied to the clipboard in one tap.
 - ☐ Local hot-seat versus mode: two players alternate drops in one pot, score by merges.
+- ☐ **Mirror** mode (two pots, one drop stream, alternate sides; from v1.3.0) and per-mode history charts on the
+  Stats tab.
 - ☐ Ghost races against your own best replay.
 - ☐ Import/export of save data as a file (manual backup and moving between devices).
 
@@ -230,7 +235,7 @@ saves, replays or mods (with a migration path).
 | v1.0.x | Verification and hotfixes | ☐ |
 | v1.1.0 | Feel | ☑ |
 | v1.2.0 | Reach | ☑ |
-| v1.3.0 | Modes | ☐ |
+| v1.3.0 | Modes | ☑ |
 | v1.4.0 | Liquid, second pass | ☐ |
 | v1.5.0 | Social without a server | ☐ |
 | v1.6.0 | Craft | ☐ |

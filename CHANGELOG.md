@@ -8,6 +8,23 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.3.0] - 2026-11-03
+
+Station "Modes".
+
+### Added
+- **Endless Rain** (drops fall by themselves, faster over time), **Rising Tide** (the overflow line sinks, merges
+  push it back), **Weekly Challenge** (one seed per week plus a special rule, own weekly best) and **Puzzle**
+  (15 verified levels with a pre-filled pot, fixed drop queue, goal tile and 1 to 3 stars).
+- Modifiers: low gravity, heavy gravity, thick liquid, bonus drops (unranked runs).
+- Mode screen with two pages; level picker for puzzles.
+- Progress screen with tabs: scores with bronze/silver/gold medals, 19 achievements (10 new), lifetime statistics.
+- First-run coach hints inside the real pot, and a one-time hint the first time each mode is played.
+- `tools/puzzlegen` (generates and verifies the puzzle pack), `docs/PUZZLES.md`, tests for the new rules.
+
+### Changed
+- Save format extended (stats, modifier, weekly best, puzzle stars); old saves load unchanged.
+
 ## [1.2.0] - 2026-11-03
 
 Station "Reach".
@@ -79,7 +96,8 @@ First stable release. Every earlier development station is tagged in git (`v0.1.
 | v0.4.0 | Sound engine and settling/splash physics |
 | v0.5.0 | Android and iOS builds, self-contained desktop packages |
 
-[Unreleased]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/sobhanmohammadi-dev/Liq2048/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/sobhanmohammadi-dev/Liq2048/releases/tag/v1.0.0

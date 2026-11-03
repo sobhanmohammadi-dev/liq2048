@@ -69,6 +69,8 @@ public:
     void particleSprites(float alpha, float radius, std::vector<BlobSprite>& out) const;
     void labelSprites(std::vector<BlobSprite>& out) const;
 
+    float viscScale = 1.f;           // Thick liquid modifier multiplies the viscosity
+
     std::vector<Particle> parts;
     std::vector<Drop> drops;
     std::vector<MergeEvent> events;  // drained by the game each step

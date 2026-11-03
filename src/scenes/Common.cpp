@@ -76,10 +76,10 @@ void drawTankFrame(Ctx& c) {
     }
 }
 
-void drawDeadLine(Ctx& c, bool warn) {
+void drawDeadLine(Ctx& c, bool warn, float lineY) {
     Gfx& g = c.gfx;
     const Theme& t = *c.theme;
-    const int y = int(cfg::kDeadY);
+    const int y = int(lineY);
     const int shift = warn ? int(c.time * 24.f) % 8 : 0;  // marching dashes while in danger
     const Color col = warn ? ((int(c.time * 8.f) & 1) ? t.danger : mix(t.danger, t.ink, 0.35f)) : mix(t.dim, t.tank, 0.35f);
     for (int x = int(cfg::kFieldL) - shift; x < int(cfg::kFieldR); x += 8) {

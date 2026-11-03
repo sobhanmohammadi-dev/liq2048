@@ -15,7 +15,7 @@
 
 namespace liq {
 
-enum class SceneId { Menu, ModeSelect, Progress, Settings, Game, Brand };
+enum class SceneId { Menu, ModeSelect, Progress, Settings, Game, Brand, Puzzle };
 
 struct Ctx {
     Ctx() : raster(cfg::kW, cfg::kH) { ui.bind(this); }
@@ -36,6 +36,7 @@ struct Ctx {
     bool hasNext = false;
     SceneId next = SceneId::Menu;
     ModeId mode = ModeId::Classic;
+    int puzzleLevel = 0;        // selected puzzle (0-based) when mode == Puzzle
     float time = 0.f;           // seconds since start (animation clock)
     std::string brandVariant;   // dev: which branding image the Brand scene draws
 
