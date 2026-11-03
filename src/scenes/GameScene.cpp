@@ -43,6 +43,10 @@ public:
             c.save.dailyDay = today_;
             c.save.dailyToday = 0;
         }
+        if (mid_ == ModeId::Weekly && c.save.weeklyWeek != weekOf(today_)) {
+            c.save.weeklyWeek = weekOf(today_);
+            c.save.weeklyBest = 0;
+        }
         st_ = c.save.tutorialDone ? St::Playing : St::Tutorial;
         c.in.focusLost = false;
         start(c);
@@ -84,7 +88,7 @@ public:
         g.setOffset(sx, sy);
         g.drawTankBg();
         drawBubbles(c);
-        drawDeadLine(c, world_.overflow() > 0.2f);
+        drawDeadLine(c, world_.overflow() > 0.2f, deadY_);
         drawGuide(c);
         drawBlobs(c, sx, sy);
         drawTankFrame(c);
@@ -93,6 +97,7 @@ public:
         drawHud(c);
         drawHistory(c);
         drawToast(c);
+        drawHint(c, paused);
 
         switch (st_) {
             case St::Tutorial: tutorial(c); break;
@@ -131,6 +136,19 @@ private:
         bool valid = false;
     } snap_;
     int undos_ = 1;
+    // Modes (v1.3.0)
+    int mod_ = 0;                       // active modifier (0 none, 1 low g, 2 heavy g, 3 thick, 4 bonus drops)
+    float deadY_ = cfg::kDeadY, tideRelief_ = 0.f, autoT_ = 0.f, autoFill_ = 0.f;
+    int queueIdx_ = 0, runMerges_ = 0, runChain_ = 0, stars_ = 0;
+    std::string hint_;                  // short coaching banner inside the pot
+    float hintT_ = 0.f;                 // seconds left, < 0 = until cleared
+    int coach_ = -1;                    // first-run coach step (-1 = off)
+    bool statsDone_ = false;
+    float gravityNow() const { return cfg::kGravity * mode_->gravityScale() * (mod_ == 1 ? 0.55f : mod_ == 2 ? 1.4f : 1.f); }
+    void setHint(const std::string& s, float t) {
+        hint_ = s;
+        hintT_ = t;
+    }
     bool undoAllowed() const { return mid_ == ModeId::Classic || mid_ == ModeId::Zen; }
 
     void buzz(Ctx& c, float strength, int ms) const {
@@ -182,13 +200,28 @@ private:
     std::vector<PopRing> rings_;
 
     int roll() {
+        if (mode_) {
+            const int q = mode_->queueLevel(queueIdx_++);
+            if (q >= 0) return q;
+            if (mode_->puzzle()) return 0;  // queue used up
+        }
         const int r = rng_.range(0, 99);
+        if (mod_ == 4) return r < 15 ? 1 : r < 45 ? 2 : r < 80 ? 3 : 4;
         return r < 40 ? 0 : r < 70 ? 1 : r < 90 ? 2 : 3;
     }
 
     void start(Ctx& c) {
-        mode_ = makeMode(mid_, c.save, today_);
+        mode_ = makeMode(mid_, c.save, today_, c.puzzleLevel);
+        mod_ = mode_->fixedModifier() >= 0 ? mode_->fixedModifier()
+               : (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle) ? 0 : c.save.modifier;
         world_.clear();
+        world_.viscScale = mod_ == 3 ? 3.f : 1.f;
+        deadY_ = cfg::kDeadY;
+        tideRelief_ = autoT_ = autoFill_ = 0.f;
+        queueIdx_ = runMerges_ = runChain_ = stars_ = 0;
+        statsDone_ = false;
+        hint_.clear();
+        hintT_ = 0.f;
         parts_.clear();
         texts_.clear();
         rings_.clear();
@@ -202,11 +235,37 @@ private:
         undos_ = 1;
         aiming_ = committed_ = newBest_ = false;
         outcome_ = Outcome::Running;
+        if (const PuzzleDef* pz = mode_->puzzle()) {  // pre-filled pot, let it settle before play
+            for (const auto& p : pz->pot) world_.spawn(p.x, p.y, p.level);
+            for (int i = 0; i < 150; ++i) world_.step(cfg::kStep, cfg::kGravity);
+            world_.events.clear();
+            world_.impacts.clear();
+        }
         cur_ = roll();
         next_ = roll();
+        introHint(c);
         aimX_ = holdX_ = (cfg::kFieldL + cfg::kFieldR) / 2;
         holdPop_ = Spring{-0.4f, 6.f};
         nextPop_ = Spring{};
+    }
+
+    // The first time a mode is played (and for rules that change), show a short hint inside the pot.
+    void introHint(Ctx& c) {
+        static const char* desc[kModeCount] = {"mode.classic.desc", "mode.timed.desc", "mode.target.desc", "mode.daily.desc",
+                                               "mode.zen.desc", "mode.rain.desc", "mode.tide.desc", "mode.weekly.desc", "mode.puzzle.desc"};
+        static const char* modKey[5] = {"mod.none", "mod.lowg", "mod.heavy", "mod.thick", "mod.bonus"};
+        const uint32_t bit = 1u << int(mid_);
+        std::string s;
+        if (!(c.save.seenModes & bit) && st_ != St::Tutorial) {
+            c.save.seenModes |= bit;
+            s = c.loc.tr(desc[int(mid_)]);
+        }
+        if (mid_ == ModeId::Weekly) s = (s.empty() ? "" : s + " ") + c.loc.fmt("mod.rule", c.loc.tr(modKey[mod_]));
+        else if (mid_ == ModeId::Puzzle) {
+            const PuzzleDef* pz = mode_->puzzle();
+            s = c.loc.fmt("puzzle.goal", std::to_string(1 << pz->goal)) + " " + c.loc.fmt("puzzle.par", std::to_string(pz->par));
+        }
+        if (!s.empty()) setHint(s, 5.f);
     }
 
     Stats stats() const {
@@ -222,12 +281,14 @@ private:
         return s;
     }
 
-    int bestFor(const Ctx& c) const { return mid_ == ModeId::Daily ? c.save.dailyToday : c.save.best[int(mid_)]; }
+    int bestFor(const Ctx& c) const {
+        return mid_ == ModeId::Daily ? c.save.dailyToday : mid_ == ModeId::Weekly ? c.save.weeklyBest : c.save.best[int(mid_)];
+    }
 
     // ----- simulation -----
-    void tryDrop(Ctx& c) {
+    void tryDrop(Ctx& c, bool force = false) {
         const int lim = mode_->dropLimit();
-        if (cooldown_ > 0 || (lim >= 0 && drops_ >= lim)) return;
+        if ((cooldown_ > 0 && !force) || (lim >= 0 && drops_ >= lim)) return;
         if (undoAllowed()) saveSnap();
         world_.spawn(aimX_, cfg::kSpawnY, cur_);
         ++drops_;
@@ -239,6 +300,10 @@ private:
         nextPop_ = Spring{-0.45f, 7.f};
         c.audio.play(Sfx::Drop);
         buzz(c, 0.25f, 12);
+        if (coach_ == 0) {
+            coach_ = 1;
+            setHint(c.loc.tr("coach.2"), -1.f);
+        }
     }
 
     void grant(Ctx& c, int id) {
@@ -252,6 +317,14 @@ private:
     void onMerge(Ctx& c, const MergeEvent& e) {
         const Theme& t = *c.theme;
         const int value = 1 << e.level;
+        ++runMerges_;
+        runChain_ = std::max(runChain_, e.chain);
+        tideRelief_ += 3.f + 1.5f * float(e.level);
+        if (coach_ == 1) {
+            coach_ = 2;
+            setHint(c.loc.tr("coach.3"), 3.5f);
+        }
+        if (e.chain >= 7) grant(c, kChain7);
         score_ += value * e.chain;
         quiet_ = 0;
         maxLevel_ = std::max(maxLevel_, e.level);
@@ -301,7 +374,7 @@ private:
         float top = float(cfg::kFloor);
         for (const auto& d : world_.drops)
             if (d.age > 1.f) top = std::min(top, d.top);
-        float target = clampv((float(cfg::kFloor) - top) / (float(cfg::kFloor) - float(cfg::kDeadY)), 0.f, 1.f);
+        float target = clampv((float(cfg::kFloor) - top) / (float(cfg::kFloor) - deadY_), 0.f, 1.f);
         if (chainT_ > 0.f) target = std::min(1.f, target + 0.25f);
         if (st_ != St::Playing) target *= 0.3f;
         tension_ += (target - tension_) * std::min(1.f, dt * 1.5f);
@@ -333,18 +406,33 @@ private:
         elapsed_ += dt;
         quiet_ += dt;
         mode_->update(dt);
-        if (want) tryDrop(c);
+        if (want && mode_->manualDrop()) tryDrop(c);
+        if (const float iv = mode_->autoDropInterval(elapsed_); iv > 0.f) {
+            autoT_ += dt;
+            autoFill_ = std::min(1.f, autoT_ / iv);
+            if (autoT_ >= iv) {
+                autoT_ = 0.f;
+                tryDrop(c, true);
+            }
+        }
+        if (mid_ == ModeId::Tide) {
+            const float shift = mode_->deadLineShift(elapsed_);
+            tideRelief_ = std::min(tideRelief_, shift);
+            deadY_ = cfg::kDeadY + shift - tideRelief_;
+        }
+        if (mid_ == ModeId::Rain && elapsed_ >= 60.f) grant(c, kRain60);
+        if (mid_ == ModeId::Tide && elapsed_ >= 90.f) grant(c, kTide90);
 
         acc_ += dt;
         while (acc_ >= cfg::kStep) {
-            world_.step(cfg::kStep, cfg::kGravity * mode_->gravityScale());
+            world_.step(cfg::kStep, gravityNow());
             acc_ -= cfg::kStep;
             for (const auto& e : world_.events) onMerge(c, e);
             world_.events.clear();
             for (const auto& im : world_.impacts) onImpact(c, im);
             world_.impacts.clear();
         }
-        world_.updateOverflow(cfg::kDeadY, dt);
+        world_.updateOverflow(deadY_, dt);
 
         if (!mode_->failable() && world_.overflow() > 1.5f) popOverflow(c);
 
@@ -355,7 +443,7 @@ private:
     // Zen has no fail state: liquid that settles above the line drains away harmlessly.
     void popOverflow(Ctx& c) {
         const Theme& t = *c.theme;
-        for (const Drop& d : world_.popAbove(cfg::kDeadY)) {
+        for (const Drop& d : world_.popAbove(deadY_)) {
             const Color col = t.blob[std::min(d.level, 11)];
             for (int i = 0; i < 14; ++i)
                 parts_.push_back({d.x, d.y, rngFx_.uni(-90.f, 90.f), rngFx_.uni(-90.f, 90.f), 0.5f, 0.5f, col, 2});
@@ -367,10 +455,26 @@ private:
     void commit(Ctx& c) {
         if (committed_) return;
         committed_ = true;
-        int& best = c.save.best[int(mid_)];
-        newBest_ = score_ > best;
-        if (newBest_) best = score_;
-        if (mid_ == ModeId::Daily && score_ > c.save.dailyToday) c.save.dailyToday = score_;
+        if (!statsDone_) {  // lifetime statistics
+            statsDone_ = true;
+            Save& sv = c.save;
+            ++sv.gamesPlayed;
+            sv.totalDrops += drops_;
+            sv.totalMerges += runMerges_;
+            sv.longestChain = std::max(sv.longestChain, runChain_);
+            sv.highestLevel = std::max(sv.highestLevel, maxLevel_);
+            sv.playSeconds += int(elapsed_);
+            if (sv.totalDrops >= 1000) grant(c, kDrops1000);
+            if (sv.streak >= 3) grant(c, kStreak3);
+            if (mod_ != 0 && mid_ != ModeId::Weekly && score_ >= 1000) grant(c, kModded);
+        }
+        if (mid_ != ModeId::Puzzle) {
+            const bool counts = mod_ == 0 || mid_ == ModeId::Weekly;  // modifiers keep their own, unranked, runs
+            int& best = mid_ == ModeId::Weekly ? c.save.weeklyBest : c.save.best[int(mid_)];
+            newBest_ = counts && score_ > best;
+            if (newBest_) best = score_;
+            if (mid_ == ModeId::Daily && score_ > c.save.dailyToday) c.save.dailyToday = score_;
+        }
         c.save.store();
     }
 
@@ -378,7 +482,19 @@ private:
         outcome_ = o;
         st_ = St::Over;
         overT_ = 0;
-        if (o == Outcome::Won && mid_ == ModeId::Target) c.save.targetStage = std::min(c.save.targetStage + 1, 2);
+        if (o == Outcome::Won && mid_ == ModeId::Target) {
+            c.save.targetStage = std::min(c.save.targetStage + 1, 2);
+            grant(c, kTargetWin);
+        }
+        if (o == Outcome::Finished && mid_ == ModeId::Weekly) grant(c, kWeekly);
+        if (o == Outcome::Won && mid_ == ModeId::Puzzle) {
+            const PuzzleDef* pz = mode_->puzzle();
+            stars_ = puzzleStarsFor(*pz, drops_);
+            unsigned char& st = c.save.puzzleStars[std::min(c.puzzleLevel, Save::kPuzzleMax - 1)];
+            st = (unsigned char)std::max<int>(st, stars_);
+            if (c.save.puzzlesSolved() >= 5) grant(c, kPuzzle5);
+            if (stars_ == 3) grant(c, kPuzzle3Star);
+        }
         commit(c);
         c.audio.play(o == Outcome::Lost ? Sfx::Fail : Sfx::Success);
         buzz(c, o == Outcome::Lost ? 0.7f : 0.5f, o == Outcome::Lost ? 140 : 60);
@@ -486,7 +602,8 @@ private:
         if (st_ != St::Over && (lim < 0 || drops_ < lim)) {
             const float br = 1.f + vis::kBreath * std::sin(c.time * 6.2831853f * vis::kBreathHz);
             // After a release the next drop swells up from nothing while the cooldown runs out.
-            const float fill = clampv(1.f - std::max(0.f, cooldown_) / cfg::kDropCooldown, 0.f, 1.f);
+            float fill = clampv(1.f - std::max(0.f, cooldown_) / cfg::kDropCooldown, 0.f, 1.f);
+            if (!mode_->manualDrop()) fill = std::min(fill, std::max(0.15f, autoFill_));
             const float grow = fill * fill * (3.f - 2.f * fill);
             std::vector<BlobSprite> held{popped(plainSprite(holdX_ + float(sx), cfg::kSpawnY + float(sy), cur_), holdPop_.x + br - 1.f)};
             held[0].ra *= grow;
@@ -519,10 +636,12 @@ private:
 
         // Score (counts up) + best.
         g.number(std::to_string(int(std::lround(dispScore_))), cfg::kW / 2.f, 24, 3, t.text, Align::Center, TextFx::Outline, t.ink);
-        const std::string best = L.tr("hud.best") + " " + std::to_string(std::max(bestFor(c), score_));
-        const float bw = float(g.textW(best, 1));
-        g.icon(IconId::Crown, cfg::kW / 2.f - bw / 2.f - 13.f, 45.f, t.accent);
-        g.text(best, cfg::kW / 2.f + 5.f, 48, 1, t.dim, Align::Center);
+        if (mid_ != ModeId::Puzzle) {
+            const std::string best = L.tr("hud.best") + " " + std::to_string(std::max(bestFor(c), score_));
+            const float bw = float(g.textW(best, 1));
+            g.icon(IconId::Crown, cfg::kW / 2.f - bw / 2.f - 13.f, 45.f, t.accent);
+            g.text(best, cfg::kW / 2.f + 5.f, 48, 1, t.dim, Align::Center);
+        }
 
         // Pause + language.
         const float px = ui.mx(238, 24);
@@ -569,6 +688,25 @@ private:
             }
         }
         if (maxLevel_ > 3) g.icon(IconId::Marker, cfg::kW / 2.f + (float(maxLevel_) - 5.5f) * 19.f - 2.f, 474.f, t.accent);
+    }
+
+    void drawHint(Ctx& c, bool paused) {
+        if (hint_.empty() || st_ == St::Tutorial || st_ == St::Over) return;
+        if (hintT_ > 0.f && !paused) {
+            hintT_ -= 1.f / 60.f;
+            if (hintT_ <= 0.f) {
+                hint_.clear();
+                return;
+            }
+        }
+        Gfx& g = c.gfx;
+        const Theme& t = *c.theme;
+        const float w = 196.f;
+        const auto lines = g.wrap(hint_, w - 16.f, 1);
+        const float h = 12.f + float(lines.size()) * float(g.lineH(1));
+        const float x = (cfg::kW - w) / 2.f, y = 190.f;
+        g.panel(x, y, w, h, t.panel, t.panelHi, t.panelLo, t.accent);
+        for (size_t i = 0; i < lines.size(); ++i) g.text(lines[i], cfg::kW / 2.f, y + 7.f + float(i) * float(g.lineH(1)) + 3.f, 1, t.text, Align::Center);
     }
 
     void drawToast(Ctx& c) {
@@ -644,6 +782,8 @@ private:
         c.save.store();
         st_ = St::Playing;
         c.in.esc = false;
+        coach_ = 0;
+        setHint(c.loc.tr("coach.1"), -1.f);
     }
 
     void pauseMenu(Ctx& c) {
@@ -663,8 +803,42 @@ private:
         if (ui.button(L.tr("pause.settings"), 70, 274, 130, 24)) st_ = St::Settings;
         if (ui.button(L.tr("pause.quit"), 70, 304, 130, 24)) {
             commit(c);
-            c.go(SceneId::Menu);
+            c.go(mid_ == ModeId::Puzzle ? SceneId::Puzzle : SceneId::Menu);
         }
+    }
+
+    void puzzleOverlay(Ctx& c, float oy) {
+        Gfx& g = c.gfx;
+        Ui& ui = c.ui;
+        const Theme& t = *c.theme;
+        Loc& L = c.loc;
+        const PuzzleDef* pz = mode_->puzzle();
+        const bool won = outcome_ == Outcome::Won;
+        g.text(L.tr(won ? "over.solved" : "over.outofdrops"), cfg::kW / 2.f, 164 + oy, 2, won ? t.accent : t.danger, Align::Center,
+               TextFx::Outline, t.ink);
+        g.text(L.fmt("puzzle.level", std::to_string(c.puzzleLevel + 1)), cfg::kW / 2.f, 190 + oy, 1, t.dim, Align::Center);
+        for (int i = 0; i < 3; ++i) {  // stars drawn as crowns, lit one after another
+            const bool on = won && i < stars_ && overT_ > 0.25f + 0.25f * float(i);
+            g.icon(IconId::Crown, cfg::kW / 2.f - 36.f + float(i) * 26.f, 206.f + oy, on ? t.accent : t.panelLo, 2);
+        }
+        g.text(L.tr("hud.drops") + " " + std::to_string(drops_) + "  " + L.fmt("puzzle.par", std::to_string(pz->par)), cfg::kW / 2.f,
+               236.f + oy, 1, t.text, Align::Center);
+        const bool hasNext = won && c.puzzleLevel + 1 < int(puzzlePack().size());
+        float y = 258.f + oy;
+        if (hasNext) {
+            if (ui.button(L.tr("over.next"), 55, y, 160, 24, true, true, BtnStyle::Primary)) {
+                ++c.puzzleLevel;
+                start(c);
+                st_ = St::Playing;
+            }
+            y += 30.f;
+        }
+        if (ui.button(L.tr(won ? "over.retry" : "over.restart"), 55, y, 160, 24, true, true, hasNext ? BtnStyle::Normal : BtnStyle::Primary)) {
+            start(c);
+            st_ = St::Playing;
+        }
+        y += 30.f;
+        if (ui.button(L.tr("over.levels"), 55, y, 160, 24) || c.in.esc) c.go(SceneId::Puzzle);
     }
 
     void overlay(Ctx& c) {
@@ -676,6 +850,10 @@ private:
         const float slide = std::min(1.f, overT_ * 4.f);
         const float oy = std::floor((1.f - slide) * -60.f);
         ui.panel(35, 140 + oy, 200, 214);
+        if (mid_ == ModeId::Puzzle) {
+            puzzleOverlay(c, oy);
+            return;
+        }
         const char* key = outcome_ == Outcome::Won ? "over.won" : outcome_ == Outcome::Lost ? "over.lost" : "over.finished";
         g.text(L.tr(key), cfg::kW / 2.f, 164 + oy, 2, outcome_ == Outcome::Lost ? t.danger : t.accent, Align::Center,
                TextFx::Outline, t.ink);

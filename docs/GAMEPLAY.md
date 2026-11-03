@@ -64,3 +64,34 @@ growth, chain window, drop cooldown. Change a value, rebuild, and play: no other
 - **Settings → More** has: aim guide, vibration (phones), screen shake, slow motion and **Calm mode**
   (no shake, slow motion, blinking or flashes; fewer particles).
 - The game pauses by itself when the window loses focus or the app goes to the background.
+
+## More modes (1.3.0)
+
+Open them from **Play → More modes**.
+
+- **Endless Rain:** drops fall by themselves, faster and faster (every 3.2 s down to every 1.1 s). You cannot drop
+  manually, only steer. Survive as long as you can.
+- **Rising Tide:** the overflow line slowly sinks (1.4 px per second, up to 150 px). Every merge pushes it back up,
+  more for bigger droplets, but never above its start.
+- **Weekly Challenge:** the same 100 drops for everyone for a whole week (Monday to Sunday, UTC) with that week's
+  rule: low gravity, heavy gravity, thick liquid or bonus drops. Own weekly best, reset every week.
+- **Puzzle:** 15 levels. Each starts with a filled pot and a fixed queue of drops; reach the goal droplet before the
+  queue runs out. Three stars for the par number of drops, two for par + 2, one for any solution. Pick any level.
+  See [PUZZLES.md](PUZZLES.md).
+
+### Modifiers
+
+On the mode screen, **Modifier** changes the next Classic, Time Attack, Target, Zen, Rain or Tide run:
+*Low gravity* (55%), *Heavy gravity* (140%), *Thick liquid* (3x viscosity) or *Bonus drops* (bigger drops).
+Runs with a modifier are not ranked: they never change your best scores (but count for statistics and the
+*Modded 1000* achievement). Daily and Puzzle ignore the modifier; Weekly uses its own.
+
+### Progress
+
+The Progress screen has three tabs: **Scores** (best per mode with bronze, silver and gold medals), **Awards**
+(19 achievements) and **Stats** (games, drops, merges, longest chain, highest tile, time played, puzzles solved).
+
+### Hints
+
+The very first game coaches you inside the real pot (drag and release, same numbers merge, stay below the line).
+The first time you play each mode a short hint explains it.

@@ -17,7 +17,7 @@ public:
         return v[idx < 0 ? 0 : (idx >= kFpsChoiceCount ? kFpsChoiceCount - 1 : idx)];
     }
 
-    int best[kModeCount] = {0, 0, 0, 0, 0};
+    int best[kModeCount] = {};
     float musicVol = 0.6f;      // 0..1
     float sfxVol = 0.9f;        // 0..1
     bool fullscreen = false;
@@ -30,6 +30,20 @@ public:
     int targetStage = 0;        // Target mode escalates 256 -> 512 -> 1024
     int dailyDay = 0;
     int dailyToday = 0;         // best score on dailyDay
+    // Modes (v1.3.0)
+    static constexpr int kPuzzleMax = 60;
+    int modifier = 0;           // 0 none, 1 low gravity, 2 heavy gravity, 3 thick liquid, 4 bonus drops
+    int weeklyWeek = 0, weeklyBest = 0;
+    unsigned char puzzleStars[kPuzzleMax] = {};  // 0 = unsolved, 1..3 stars
+    uint32_t seenModes = 0;     // bit per ModeId: intro hint already shown
+    // Lifetime statistics
+    int gamesPlayed = 0, totalDrops = 0, totalMerges = 0, longestChain = 0, highestLevel = 0;
+    int playSeconds = 0;
+    int puzzlesSolved() const {
+        int n = 0;
+        for (unsigned char s : puzzleStars) n += s > 0;
+        return n;
+    }
     int fpsIdx = 0;             // index into fpsChoice(); default VSync
     bool showFps = false;
     // Game feel (v1.1.0)
@@ -48,6 +62,10 @@ public:
     bool effShake() const { return shake && !calm && !reduceMotion; }
     bool effSlowmo() const { return slowmo && !calm && !reduceMotion; }
 
+    static std::string& pathOverride() {  // tests point the save at a scratch file
+        static std::string p;
+        return p;
+    }
     int fpsLimit() const { return fpsChoice(fpsIdx); }
     void load();
     void store() const;

@@ -255,7 +255,7 @@ void World::substep(float h, float g, bool last) {
         Particle &a = parts[size_t(pr.i)], &b = parts[size_t(pr.j)];
         const float u = (a.vx - b.vx) * pr.nx + (a.vy - b.vy) * pr.ny;  // >0 approaching
         if (u <= 0.f) continue;
-        const float I = h * (1.f - pr.q) * (cfg::kViscSigma * u + cfg::kViscBeta * u * u) * 0.5f;
+        const float I = h * (1.f - pr.q) * (cfg::kViscSigma * viscScale * u + cfg::kViscBeta * u * u) * 0.5f;
         a.vx -= I * pr.nx;
         a.vy -= I * pr.ny;
         b.vx += I * pr.nx;
