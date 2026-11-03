@@ -33,14 +33,14 @@ public:
     virtual int dropLimit() const { return -1; }
     virtual float gravityScale() const { return 1.f; }
     virtual bool failable() const { return true; }
-    virtual void update(float dt) {}
+    virtual void update(float) {}
     // Endless Rain: drops fall by themselves; > 0 = seconds between drops, manualDrop() is false.
-    virtual float autoDropInterval(float elapsed) const { return 0.f; }
+    virtual float autoDropInterval(float) const { return 0.f; }
     virtual bool manualDrop() const { return true; }
     // Rising Tide: how far (px) the overflow line has sunk after `elapsed` seconds.
-    virtual float deadLineShift(float elapsed) const { return 0.f; }
+    virtual float deadLineShift(float) const { return 0.f; }
     // Puzzle: fixed drop queue (>= 0 = forced level), pre-filled pot, goal. -1 = not a puzzle.
-    virtual int queueLevel(int index) const { return -1; }
+    virtual int queueLevel(int) const { return -1; }
     virtual const PuzzleDef* puzzle() const { return nullptr; }
     // Weekly: the week's special rule (modifier index), -1 = use the player's own modifier.
     virtual int fixedModifier() const { return -1; }

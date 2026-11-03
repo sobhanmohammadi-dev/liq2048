@@ -151,7 +151,7 @@ public:
                 g.rect(x + bw / 2.f - 11.f + float(s) * 8.f, y + 31.f, 5, 5, s < st ? t.accent : t.panelLo);
         }
         if (pages > 1 && ui.button(">", 148, 408, 100, 26)) page_ = (page_ + 1) % pages;
-        if (ui.button(L.tr("common.back"), 22, 408, pages > 1 ? 100 : 226, 26) || c.in.esc) c.go(SceneId::ModeSelect);
+        if (ui.button( L.tr("common.back"), 22.f, 408.f, static_cast<float>(pages > 1 ? 100 : 226), 26.f) || c.in.esc) {c.go(SceneId::ModeSelect);}
     }
 
 private:
