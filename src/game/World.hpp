@@ -85,7 +85,7 @@ private:
     int chain_ = 0;
     float sinceMerge_ = 99.f;
     float overflow_ = 0.f;
-    uint32_t seed_ = 1;
+    // uint32_t seed_ = 1;
     // Spatial hash scratch.
     std::vector<int> head_, next_;
     struct PairRec {
