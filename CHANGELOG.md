@@ -8,6 +8,13 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.5.0]
+
+### Added
+- Run codes: copy a run as a short checksummed `LQ1-…` code and watch a friend's code from the menu.
+- "Copy result" text for sharing a score.
+- Drop positions are quantised to 1/128 px (needed for lossless run codes; no visible change).
+
 ## [1.4.1]
 
 ### Added

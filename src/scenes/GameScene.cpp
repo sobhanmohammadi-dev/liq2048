@@ -38,7 +38,17 @@ constexpr float kParticleIso = 1.1f;    // surface level of the summed particle 
 
 class GameScene final : public Scene {
 public:
-    explicit GameScene(Ctx& c) : mid_(c.mode) {
+    static ModeId takeMode(Ctx& c) {  // a pasted run code decides the mode
+        if (c.hasPendingReplay) c.mode = ModeId(std::min(c.pendingReplay.mode, kModeCount - 1));
+        return c.mode;
+    }
+    explicit GameScene(Ctx& c) : mid_(takeMode(c)) {
+        if (c.hasPendingReplay) {
+            rec_ = c.pendingReplay;
+            c.hasPendingReplay = false;
+            replaying_ = true;
+            c.puzzleLevel = rec_.puzzle;
+        }
         today_ = platform::dayNumber();
         if (mid_ == ModeId::Daily && c.save.dailyDay != today_) {
             c.save.dailyDay = today_;
@@ -48,7 +58,7 @@ public:
             c.save.weeklyWeek = weekOf(today_);
             c.save.weeklyBest = 0;
         }
-        st_ = c.save.tutorialDone ? St::Playing : St::Tutorial;
+        st_ = c.save.tutorialDone || replaying_ ? St::Playing : St::Tutorial;
         c.in.focusLost = false;
         start(c);
     }
@@ -324,6 +334,7 @@ private:
         if ((cooldown_ > 0 && !force) || (lim >= 0 && drops_ >= lim)) return;
         if (undoAllowed()) saveSnap();
         const int lvl = levelOverride >= 0 ? levelOverride : cur_;
+        aimX_ = quantX(aimX_);  // run codes store positions in 1/128 px
         if (!replaying_) rec_.drops.push_back({simStep_, aimX_, lvl});
         world_.spawn(aimX_, cfg::kSpawnY, lvl);
         ++drops_;
@@ -897,7 +908,7 @@ private:
         g.dim(t, 0);
         const float slide = std::min(1.f, overT_ * 4.f);
         const float oy = std::floor((1.f - slide) * -60.f);
-        ui.panel(35, 140 + oy, 200, 222);
+        ui.panel(35, 140 + oy, 200, 248);
         if (mid_ == ModeId::Puzzle) {
             puzzleOverlay(c, oy);
             return;
@@ -917,6 +928,21 @@ private:
             g.icon(IconId::Crown, cfg::kW / 2.f + w / 2.f + 5.f, 257.f + oy, t.accent);
         }
         const bool canReplay = !rec_.empty();
+        if (canReplay) {
+            if (ui.button(L.tr("over.copycode"), 55, 360 + oy, 78, 20)) {
+                SDL_SetClipboardText(rec_.toCode().c_str());
+                toast_ = L.tr("over.copied");
+                toastT_ = 2.f;
+            }
+            if (ui.button(L.tr("over.copyres"), 137, 360 + oy, 78, 20)) {
+                static const char* names[kModeCount] = {"mode.classic", "mode.timed", "mode.target", "mode.daily", "mode.zen",
+                                                        "mode.rain", "mode.tide", "mode.weekly", "mode.puzzle"};
+                SDL_SetClipboardText(("Liq2048 V" LIQ_VERSION " - " + L.tr(names[int(mid_)]) + ": " + std::to_string(score_) + " pts, " +
+                                      std::to_string(drops_) + " drops, chain x" + std::to_string(runChain_)).c_str());
+                toast_ = L.tr("over.copied");
+                toastT_ = 2.f;
+            }
+        }
         if (ui.button(L.tr("over.restart"), 55, 280 + oy, 160, 24, true, true, BtnStyle::Primary)) {
             replaying_ = false;
             start(c);

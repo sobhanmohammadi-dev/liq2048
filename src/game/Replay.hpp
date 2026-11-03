@@ -8,6 +8,9 @@
 
 namespace liq {
 
+// Drop positions are quantised to 1/128 px, so a run code stores them in 16 bits and loses nothing.
+inline float quantX(float x) { return float(int(x * 128.f + 0.5f)) / 128.f; }
+
 struct ReplayDrop {
     uint32_t step = 0;  // fixed physics steps simulated before this drop
     float x = 0;
@@ -28,6 +31,8 @@ struct Replay {
     // Remove drops at or after a step (used by undo).
     void truncateFrom(uint32_t step);
 
+    std::string toCode() const;  // short shareable run code, e.g. "LQ1-..." (base64url + checksum)
+    static bool fromCode(const std::string& s, Replay& out);
     std::string toText() const;
     static bool fromText(const std::string& s, Replay& out);
 };
