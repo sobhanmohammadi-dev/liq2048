@@ -85,6 +85,8 @@
   "settings.q.low": "Basse",
   "settings.q.med": "Moyenne",
   "settings.q.high": "Haute",
+  "over.replay": "Revoir la partie",
+  "replay.banner": "REPRISE",
   "settings.reduce": "Moins de mouvement",
   "settings.lefthand": "HUD gaucher",
   "settings.cvd": "Vision couleur",

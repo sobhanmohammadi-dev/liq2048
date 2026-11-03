@@ -8,6 +8,12 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.4.1]
+
+### Added
+- Replay recorder and a "Watch replay" button on the game-over screen (8 languages). Watching never changes stats, bests or achievements.
+- `Replay` text format (`LIQREPLAY 1`) and a regression test for playback determinism.
+
 ## [1.4.0]
 
 ### Added

@@ -8,6 +8,7 @@
 #include "core/Platform.hpp"
 #include "core/Util.hpp"
 #include "game/Mode.hpp"
+#include "game/Replay.hpp"
 #include "game/World.hpp"
 #include "scenes/Scenes.hpp"
 
@@ -98,6 +99,7 @@ public:
         drawHistory(c);
         drawToast(c);
         drawHint(c, paused);
+        if (replaying_ && st_ != St::Over) c.gfx.text(c.loc.tr("replay.banner"), cfg::kW / 2.f, 78, 1, c.theme->accent, Align::Center, TextFx::Outline, c.theme->ink);
 
         switch (st_) {
             case St::Tutorial: tutorial(c); break;
@@ -133,9 +135,16 @@ private:
         Rng rng;
         int score = 0, drops = 0, cur = 0, next = 0, maxLevel = 0;
         float elapsed = 0, quiet = 0;
+        uint32_t simStep = 0;
         bool valid = false;
     } snap_;
     int undos_ = 1;
+    // Replay (v1.4.1): a finished run can be watched again; playback never touches saves or achievements.
+    Replay rec_;
+    uint32_t simStep_ = 0;
+    size_t repIdx_ = 0;
+    bool replaying_ = false;
+    uint32_t replayTail_ = 0;
     // Modes (v1.3.0)
     int mod_ = 0;                       // active modifier (0 none, 1 low g, 2 heavy g, 3 thick, 4 bonus drops)
     float deadY_ = cfg::kDeadY, tideRelief_ = 0.f, autoT_ = 0.f, autoFill_ = 0.f;
@@ -165,11 +174,12 @@ private:
         snap_.maxLevel = maxLevel_;
         snap_.elapsed = elapsed_;
         snap_.quiet = quiet_;
+        snap_.simStep = simStep_;
         snap_.valid = true;
     }
 
     void doUndo(Ctx& c) {
-        if (!undoAllowed() || !snap_.valid || undos_ <= 0 || st_ != St::Playing) return;
+        if (!undoAllowed() || replaying_ || !snap_.valid || undos_ <= 0 || st_ != St::Playing) return;
         world_ = snap_.world;
         rng_ = snap_.rng;
         score_ = snap_.score;
@@ -179,6 +189,8 @@ private:
         maxLevel_ = snap_.maxLevel;
         elapsed_ = snap_.elapsed;
         quiet_ = snap_.quiet;
+        simStep_ = snap_.simStep;
+        rec_.truncateFrom(simStep_);
         snap_.valid = false;
         --undos_;
         parts_.clear();
@@ -218,6 +230,12 @@ private:
         world_.viscScale = mod_ == 3 ? 3.f : 1.f;
         // Daily and Puzzle must play identically for everyone, so they always use the reference quality.
         world_.substeps = (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle) ? 2 : c.save.quality + 1;
+        if (replaying_) {
+            mod_ = rec_.modifier;
+            world_.viscScale = mod_ == 3 ? 3.f : 1.f;
+            world_.substeps = rec_.substeps;
+        }
+        replayTail_ = 0;
         deadY_ = cfg::kDeadY;
         tideRelief_ = autoT_ = autoFill_ = 0.f;
         queueIdx_ = runMerges_ = runChain_ = stars_ = 0;
@@ -227,8 +245,21 @@ private:
         parts_.clear();
         texts_.clear();
         rings_.clear();
-        const uint32_t seed = mode_->seed();
-        rng_.seed(seed ? seed : uint32_t(SDL_GetTicks()) * 2246822519u + 7u);
+        uint32_t seed = mode_->seed();
+        if (replaying_) seed = rec_.seed;
+        else if (!seed) seed = uint32_t(SDL_GetTicks()) * 2246822519u + 7u;
+        rng_.seed(seed);
+        simStep_ = 0;
+        repIdx_ = 0;
+        if (!replaying_) {
+            rec_.clear();
+            rec_.mode = int(mid_);
+            rec_.modifier = mod_;
+            rec_.substeps = world_.substeps;
+            rec_.gravity = gravityNow();
+            rec_.seed = seed;
+            rec_.puzzle = c.puzzleLevel;
+        }
         rngFx_.seed(99u);
         score_ = drops_ = maxLevel_ = 0;
         dispScore_ = 0;
@@ -288,11 +319,13 @@ private:
     }
 
     // ----- simulation -----
-    void tryDrop(Ctx& c, bool force = false) {
+    void tryDrop(Ctx& c, bool force = false, int levelOverride = -1) {
         const int lim = mode_->dropLimit();
         if ((cooldown_ > 0 && !force) || (lim >= 0 && drops_ >= lim)) return;
         if (undoAllowed()) saveSnap();
-        world_.spawn(aimX_, cfg::kSpawnY, cur_);
+        const int lvl = levelOverride >= 0 ? levelOverride : cur_;
+        if (!replaying_) rec_.drops.push_back({simStep_, aimX_, lvl});
+        world_.spawn(aimX_, cfg::kSpawnY, lvl);
         ++drops_;
         cur_ = next_;
         next_ = roll();
@@ -309,6 +342,7 @@ private:
     }
 
     void grant(Ctx& c, int id) {
+        if (replaying_) return;
         if (c.save.unlock(id)) {
             toast_ = c.loc.tr(achKey(id));
             toastT_ = 3.0f;
@@ -391,6 +425,7 @@ private:
             return;
         }
         if (in.undo) doUndo(c);
+        if (replaying_) in.pressed = in.down = in.released = in.drop = in.left = in.right = false;
         // Aiming: drag with mouse/finger, release to drop. Keys: arrows + space/down.
         const float rad = World::radiusFor(cur_);
         if (in.pressed && in.my > 64) aiming_ = true;
@@ -409,7 +444,7 @@ private:
         quiet_ += dt;
         mode_->update(dt);
         if (want && mode_->manualDrop()) tryDrop(c);
-        if (const float iv = mode_->autoDropInterval(elapsed_); iv > 0.f) {
+        if (const float iv = mode_->autoDropInterval(elapsed_); iv > 0.f && !replaying_) {
             autoT_ += dt;
             autoFill_ = std::min(1.f, autoT_ / iv);
             if (autoT_ >= iv) {
@@ -427,7 +462,13 @@ private:
 
         acc_ += dt;
         while (acc_ >= cfg::kStep) {
+            while (replaying_ && repIdx_ < rec_.drops.size() && rec_.drops[repIdx_].step <= simStep_) {
+                aimX_ = rec_.drops[repIdx_].x;
+                tryDrop(c, true, rec_.drops[repIdx_].level);
+                ++repIdx_;
+            }
             world_.step(cfg::kStep, gravityNow());
+            ++simStep_;
             acc_ -= cfg::kStep;
             for (const auto& e : world_.events) onMerge(c, e);
             world_.events.clear();
@@ -440,6 +481,7 @@ private:
 
         const Outcome o = mode_->evaluate(stats());
         if (o != Outcome::Running) finish(c, o);
+        else if (replaying_ && repIdx_ >= rec_.drops.size() && ++replayTail_ > 60u * 4u) finish(c, Outcome::Finished);
     }
 
     // Zen has no fail state: liquid that settles above the line drains away harmlessly.
@@ -484,6 +526,10 @@ private:
         outcome_ = o;
         st_ = St::Over;
         overT_ = 0;
+        if (replaying_) {  // watching only: no stats, bests, stars or achievements
+            c.audio.play(Sfx::Success);
+            return;
+        }
         if (o == Outcome::Won && mid_ == ModeId::Target) {
             c.save.targetStage = std::min(c.save.targetStage + 1, 2);
             grant(c, kTargetWin);
@@ -851,7 +897,7 @@ private:
         g.dim(t, 0);
         const float slide = std::min(1.f, overT_ * 4.f);
         const float oy = std::floor((1.f - slide) * -60.f);
-        ui.panel(35, 140 + oy, 200, 214);
+        ui.panel(35, 140 + oy, 200, 222);
         if (mid_ == ModeId::Puzzle) {
             puzzleOverlay(c, oy);
             return;
@@ -870,11 +916,18 @@ private:
             g.icon(IconId::Crown, cfg::kW / 2.f - w / 2.f - 14.f, 257.f + oy, t.accent);
             g.icon(IconId::Crown, cfg::kW / 2.f + w / 2.f + 5.f, 257.f + oy, t.accent);
         }
-        if (ui.button(L.tr("over.restart"), 55, 284 + oy, 160, 26, true, true, BtnStyle::Primary)) {
+        const bool canReplay = !rec_.empty();
+        if (ui.button(L.tr("over.restart"), 55, 280 + oy, 160, 24, true, true, BtnStyle::Primary)) {
+            replaying_ = false;
             start(c);
             st_ = St::Playing;
         }
-        if (ui.button(L.tr("over.menu"), 55, 316 + oy, 160, 26) || c.in.esc) c.go(SceneId::Menu);
+        if (canReplay && ui.button(L.tr("over.replay"), 55, 308 + oy, 160, 22)) {
+            replaying_ = true;
+            start(c);
+            st_ = St::Playing;
+        }
+        if (ui.button(L.tr("over.menu"), 55, 334 + oy, 160, 22) || c.in.esc) c.go(SceneId::Menu);
     }
 };
 
