@@ -1,3 +1,4 @@
+
 name: Mobile
 
 # Builds the Android APK/AAB and an unsigned iOS IPA.
@@ -11,12 +12,22 @@ on:
         type: string
         default: ""
     secrets:
-      ANDROID_KEYSTORE_BASE64: { required: false }
-      ANDROID_KEYSTORE_PASSWORD: { required: false }
-      ANDROID_KEY_ALIAS: { required: false }
-      ANDROID_KEY_PASSWORD: { required: false }
+      ANDROID_KEYSTORE_BASE64:
+        required: false
+      ANDROID_KEYSTORE_PASSWORD:
+        required: false
+      ANDROID_KEY_ALIAS:
+        required: false
+      ANDROID_KEY_PASSWORD:
+        required: false
 
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.3.0). Leave empty to use CMakeLists.txt"
+        required: false
+        type: string
+        default: ""
 
   push:
     branches: [main]
@@ -46,32 +57,89 @@ jobs:
       - name: Compute version
         id: ver
         shell: bash
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
         run: |
-          V="${{ inputs.version }}"
+          set -euo pipefail
+
+          V="${VERSION_INPUT:-}"
           V="${V#v}"
 
           if [ -z "$V" ]; then
-            V=$(grep -oP 'project\(Liq2048 VERSION \K[0-9.]+' CMakeLists.txt)
+            V=$(awk '
+              {
+                if (!inside && $0 ~ /^[[:space:]]*project[[:space:]]*\([[:space:]]*Liq2048([[:space:]]|$)/)
+                  inside=1
+
+                if (inside && match($0, /VERSION[[:space:]]+[0-9]+(\.[0-9]+)*/)) {
+                  v=substr($0, RSTART, RLENGTH)
+                  sub(/^VERSION[[:space:]]+/, "", v)
+                  print v
+                  exit
+                }
+
+                if (inside && $0 ~ /^[[:space:]]*\)/)
+                  exit
+              }
+            ' CMakeLists.txt)
+          fi
+
+          if [ -z "$V" ]; then
+            echo "::error::Could not extract version from CMakeLists.txt"
+            exit 1
+          fi
+
+          if [[ ! "$V" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "::error::Invalid version format: $V"
+            exit 1
           fi
 
           IFS=. read -r MA MI PA <<< "$V"
 
+          MA=${MA:-0}
+          MI=${MI:-0}
+          PA=${PA:-0}
+
+          MA=$((10#$MA))
+          MI=$((10#$MI))
+          PA=$((10#$PA))
+
+          if (( MI > 99 || PA > 99 )); then
+            echo "::error::Minor and patch versions must be between 0 and 99"
+            exit 1
+          fi
+
+          CODE=$((MA * 10000 + MI * 100 + PA))
+
+          if (( CODE < 1 || CODE > 2100000000 )); then
+            echo "::error::Android versionCode is outside the supported range: $CODE"
+            exit 1
+          fi
+
           echo "version=$V" >> "$GITHUB_OUTPUT"
-          echo "code=$((MA*10000 + MI*100 + PA))" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+
+          echo "Using version: $V"
+          echo "Android versionCode: $CODE"
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      # Explicitly override v3's deprecated default package list.
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: Install NDK and CMake
         run: |
-          sdkmanager "ndk;26.3.11579264" \
-                     "cmake;3.22.1" \
-                     "platforms;android-34" \
-                     "build-tools;34.0.0"
+          sdkmanager --install \
+            "ndk;26.3.11579264" \
+            "cmake;3.22.1" \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
 
       - name: Fetch SDL (Java glue + native sources)
         run: |
@@ -81,6 +149,9 @@ jobs:
       - name: Add Persian font to the app bundle (SIL OFL)
         run: |
           curl -fsSL -o /tmp/vz.zip "$VAZIRMATN_URL"
+
+          mkdir -p /tmp/vz
+
           unzip -j -o /tmp/vz.zip \
             fonts/ttf/Vazirmatn-Regular.ttf \
             OFL.txt -d /tmp/vz
@@ -92,13 +163,17 @@ jobs:
       - name: Decode signing key (optional)
         env:
           KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -n "$KS" ]; then
-            echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"
+          if [ -n "${KS:-}" ]; then
+            printf '%s' "$KS" | base64 --decode > "$RUNNER_TEMP/release.jks"
+
             echo "LIQ_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-            echo "LIQ_KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
-            echo "LIQ_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> "$GITHUB_ENV"
-            echo "LIQ_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+            echo "LIQ_KEYSTORE_PASSWORD=$KS_PASSWORD" >> "$GITHUB_ENV"
+            echo "LIQ_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "LIQ_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
           fi
 
       - uses: gradle/actions/setup-gradle@v4
@@ -106,20 +181,25 @@ jobs:
           gradle-version: "8.9"
 
       - name: Build release APK and AAB
+        env:
+          LIQ_VERSION: ${{ steps.ver.outputs.version }}
+          LIQ_VERSION_CODE: ${{ steps.ver.outputs.code }}
         run: |
           gradle -p android assembleRelease bundleRelease \
-            -PliqVersion=${{ steps.ver.outputs.version }} \
-            -PliqVersionCode=${{ steps.ver.outputs.code }}
+            -PliqVersion="$LIQ_VERSION" \
+            -PliqVersionCode="$LIQ_VERSION_CODE"
 
       - name: Collect
+        env:
+          LIQ_VERSION: ${{ steps.ver.outputs.version }}
         run: |
           mkdir -p dist
 
           cp android/app/build/outputs/apk/release/*.apk \
-            "dist/Liq2048-${{ steps.ver.outputs.version }}-android.apk"
+            "dist/Liq2048-${LIQ_VERSION}-android.apk"
 
           cp android/app/build/outputs/bundle/release/*.aab \
-            "dist/Liq2048-${{ steps.ver.outputs.version }}-android.aab"
+            "dist/Liq2048-${LIQ_VERSION}-android.aab"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -136,19 +216,52 @@ jobs:
       - name: Compute version
         id: ver
         shell: bash
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
         run: |
-          V="${{ inputs.version }}"
+          set -euo pipefail
+
+          V="${VERSION_INPUT:-}"
           V="${V#v}"
 
           if [ -z "$V" ]; then
-            V=$(grep -oE 'project\(Liq2048 VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')
+            V=$(awk '
+              {
+                if (!inside && $0 ~ /^[[:space:]]*project[[:space:]]*\([[:space:]]*Liq2048([[:space:]]|$)/)
+                  inside=1
+
+                if (inside && match($0, /VERSION[[:space:]]+[0-9]+(\.[0-9]+)*/)) {
+                  v=substr($0, RSTART, RLENGTH)
+                  sub(/^VERSION[[:space:]]+/, "", v)
+                  print v
+                  exit
+                }
+
+                if (inside && $0 ~ /^[[:space:]]*\)/)
+                  exit
+              }
+            ' CMakeLists.txt)
+          fi
+
+          if [ -z "$V" ]; then
+            echo "::error::Could not extract version from CMakeLists.txt"
+            exit 1
+          fi
+
+          if [[ ! "$V" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "::error::Invalid version format: $V"
+            exit 1
           fi
 
           echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Using iOS version: $V"
 
       - name: Add Persian font to the app bundle (SIL OFL)
         run: |
           curl -fsSL -o /tmp/vz.zip "$VAZIRMATN_URL"
+
+          mkdir -p /tmp/vz
+
           unzip -j -o /tmp/vz.zip \
             fonts/ttf/Vazirmatn-Regular.ttf \
             OFL.txt -d /tmp/vz
@@ -176,6 +289,8 @@ jobs:
 
       - name: Package IPA
         run: |
+          set -euo pipefail
+
           APP=$(find build-ios -name "Liq2048.app" \
             -path "*Release-iphoneos*" | head -1)
 
