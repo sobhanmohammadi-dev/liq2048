@@ -25,7 +25,8 @@ public:
     void panel(float x, float y, float w, float h);
     void paragraph(const std::string& s, float x, float y, float w, int scale, Color col, Align a);
     float mx(float x, float w) const;  // mirrors x for RTL layouts (and left-handed HUD)
-    void setMirror(bool on) { mirror_ = on; }  // extra mirroring (left-handed game layout)
+    void setMirror(bool on) { mirror_ = on; }
+    bool mirrored() const { return mirror_; }  // extra mirroring (left-handed game layout)
     Align start() const;               // leading alignment (Left, or Right in RTL)
     void resetFocus() { focus_ = 0; }
 

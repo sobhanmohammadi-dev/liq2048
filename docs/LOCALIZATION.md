@@ -45,6 +45,7 @@ Settings (General page); the in-game `EN`/`xx` button toggles between English an
 
 ## Fonts for Persian and Arabic
 
-`assets/fonts/fa.ttf` is preferred (Vazirmatn is a good open-licensed choice). If it is missing, the game tries
+`assets/fonts/fa.ttf` is Vazirmatn and ships in the repository. Joining of letters, lam-alef ligatures and the
+right-to-left order are done by the game (`ArabicShaper`), not by SDL_ttf, which keeps all platforms identical. If the file is missing, the game tries
 common system fonts (Tahoma, DejaVu Sans, Noto Naskh Arabic, Droid Arabic). When none is found, the language
 button is disabled and the game stays in English; it never shows broken text.

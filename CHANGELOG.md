@@ -8,6 +8,25 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.6.1]
+
+### Added
+- Authors page (menu, bottom left): who made the game, thanks to SDL2, Vazirmatn and Claude (sound and music).
+- Vazirmatn font bundled in the repository (`assets/fonts/fa.ttf`, SIL OFL).
+
+### Fixed
+- Persian and Arabic text: letters were disconnected and in the wrong order on phones. The game now shapes
+  Arabic-script text itself (joined letters, ligatures, right-to-left order), identical on every platform.
+- Left-hand mode: the labels on the settings page were hidden behind the buttons.
+- Phones with tall screens: the game now fills the whole display (the bars around it use the theme gradient).
+- The numbers inside droplets no longer jitter while the liquid rests.
+
+### Changed
+- Harder: bigger drops appear as a run goes on, and the overflow line sits lower in every mode except Zen, Puzzle and Rising Tide.
+- Rising Tide: the line sinks all the time (up to 230 px), merges lift it but never above its start, and it moves smoothly.
+- The language button in the top corner was removed; change the language in Settings.
+- Roadmap: v1.7.0 is now "Battle" (PvP over LAN, PvE, more puzzles); store release plans were removed.
+
 ## [1.6.0]
 
 ### Added

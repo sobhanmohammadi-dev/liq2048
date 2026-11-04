@@ -49,8 +49,8 @@ inline constexpr float kZenGravity = 0.35f;
 inline constexpr float kTimeAttackSeconds = 90.f;
 inline constexpr int kDailyDrops = 60;
 inline constexpr int kWeeklyDrops = 100;
-inline constexpr float kTideMaxShift = 150.f;   // how far the Rising Tide line can sink (px)
-inline constexpr float kTideRate = 1.4f;        // px per second
+inline constexpr float kTideMaxShift = 230.f;   // how far the Rising Tide line can sink (px)
+inline constexpr float kTideRate = 1.6f;        // px per second
 
 }  // namespace liq::cfg
 

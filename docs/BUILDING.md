@@ -76,8 +76,7 @@ The bundle (Info.plist, app icon, `assets/`) is configured in `CMakeLists.txt` a
 **unsigned** IPA (`CODE_SIGNING_ALLOWED=NO`); sign it yourself or sideload with AltStore/Sideloadly. A paid Apple
 developer account is required to publish on the App Store.
 
-Persian text needs a font on mobile: release builds bundle Vazirmatn (SIL OFL, downloaded in CI). For local builds
-put a Persian TTF at `assets/fonts/fa.ttf`.
+Persian and Arabic use Vazirmatn (SIL OFL), which is bundled at `assets/fonts/fa.ttf`.
 
 ## Tests
 

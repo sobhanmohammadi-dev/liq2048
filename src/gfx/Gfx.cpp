@@ -1,36 +1,19 @@
 #include "gfx/Gfx.hpp"
 
+#include "gfx/ArabicShaper.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 
 #include "core/Config.hpp"
 #include "core/Platform.hpp"
+#include "core/Util.hpp"
 #include "gfx/BlobRaster.hpp"
 
 namespace liq {
 
 namespace {
-
-// SDL_ttf lays a whole string out right-to-left with no bidi pass, which would
-// mirror embedded Western digits/Latin words ("90" -> "09"). Pre-reversing each
-// ASCII alphanumeric run cancels that, so "90" and "FPS" read correctly.
-std::string rtlFix(const std::string& s) {
-    std::string out = s;
-    size_t i = 0;
-    while (i < out.size()) {
-        const auto isAn = [](char ch) { return static_cast<unsigned char>(ch) < 0x80 && std::isalnum(static_cast<unsigned char>(ch)); };
-        if (isAn(out[i])) {
-            size_t j = i;
-            while (j < out.size() && isAn(out[j])) ++j;
-            std::reverse(out.begin() + long(i), out.begin() + long(j));
-            i = j;
-        } else {
-            ++i;
-        }
-    }
-    return out;
-}
 
 constexpr uint8_t kBayer4[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
 
@@ -128,12 +111,7 @@ TTF_Font* Gfx::font(Face& f, int pt) {
     TTF_Font* tf = TTF_OpenFontRW(rw, 1, pt);  // closes rw with the font; the data vector outlives it
     if (tf) {
         TTF_SetFontHinting(tf, TTF_HINTING_NORMAL);
-#if SDL_TTF_VERSION_ATLEAST(2, 20, 0)
-        if (&f == &fa_) {
-            TTF_SetFontDirection(tf, TTF_DIRECTION_RTL);
-            TTF_SetFontScriptName(tf, "Arab");
-        }
-#endif
+        // The text arrives already shaped and in visual order (ArabicShaper), so the font is used left to right.
     }
     f.sizes[pt] = tf;
     return tf;
@@ -156,7 +134,7 @@ const Gfx::Tex* Gfx::ttfTex(Face& f, int pt, const std::string& s) {
     }
     Tex tex;
     if (TTF_Font* tf = font(f, pt)) {
-        const std::string shaped = (&f == &fa_) ? rtlFix(s) : s;
+        const std::string shaped = (&f == &fa_) ? shapeArabicVisual(s) : s;
         if (SDL_Surface* surf = TTF_RenderUTF8_Blended(tf, shaped.c_str(), SDL_Color{255, 255, 255, 255})) {
             SDL_Surface* conv = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_ARGB8888, 0);
             SDL_FreeSurface(surf);
@@ -184,6 +162,32 @@ const Gfx::Tex* Gfx::ttfTex(Face& f, int pt, const std::string& s) {
 void Gfx::clear(Color c) {
     SDL_SetRenderDrawColor(r_, c.r, c.g, c.b, 255);
     SDL_RenderClear(r_);
+}
+
+void Gfx::fillBars(const Theme& t) {
+    int ow = 0, oh = 0;
+    SDL_GetRendererOutputSize(r_, &ow, &oh);
+    if (ow <= 0 || oh <= 0) return;
+    float scale = std::min(float(ow) / float(cfg::kW), float(oh) / float(cfg::kH));
+    if (SDL_RenderGetIntegerScale(r_) && scale >= 1.f) scale = std::floor(scale);
+    const int cw = int(float(cfg::kW) * scale), ch = int(float(cfg::kH) * scale);
+    const int cx = (ow - cw) / 2, cy = (oh - ch) / 2;
+    if (cx <= 0 && cy <= 0) return;  // exact fit: nothing to paint
+    int lw = 0, lh = 0;
+    SDL_RenderGetLogicalSize(r_, &lw, &lh);
+    SDL_RenderSetLogicalSize(r_, 0, 0);  // pixel space for the bars
+    constexpr int kStrips = 48;
+    for (int i = 0; i < kStrips; ++i) {
+        const int y0 = oh * i / kStrips, y1 = oh * (i + 1) / kStrips;
+        const float mid = float(y0 + y1) * 0.5f;
+        const float k = clampv((mid - float(cy)) / float(std::max(1, ch)), 0.f, 1.f) * 4.f;  // 0..4 across sky[0..4]
+        const int a = std::min(3, int(k));
+        const Color col = mix(t.sky[a], t.sky[a + 1], k - float(a));
+        SDL_SetRenderDrawColor(r_, col.r, col.g, col.b, 255);
+        SDL_Rect rc{0, y0, ow, y1 - y0};
+        SDL_RenderFillRect(r_, &rc);
+    }
+    SDL_RenderSetLogicalSize(r_, lw, lh);
 }
 
 void Gfx::rect(float x, float y, float w, float h, Color c) {
@@ -474,8 +478,13 @@ bool Gfx::screenshot(const std::string& path) {
     SDL_GetRendererOutputSize(r_, &w, &h);
     SDL_Surface* s = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
     if (!s) return false;
-    const bool ok = SDL_RenderReadPixels(r_, nullptr, SDL_PIXELFORMAT_ARGB8888, s->pixels, s->pitch) == 0 &&
-                    SDL_SaveBMP(s, path.c_str()) == 0;
+    int lw = 0, lh = 0;
+    SDL_RenderGetLogicalSize(r_, &lw, &lh);
+    SDL_RenderSetLogicalSize(r_, 0, 0);  // read the whole window, including the bars around the logical screen
+    SDL_Rect all{0, 0, w, h};
+    const bool read = SDL_RenderReadPixels(r_, &all, SDL_PIXELFORMAT_ARGB8888, s->pixels, s->pitch) == 0;
+    SDL_RenderSetLogicalSize(r_, lw, lh);
+    const bool ok = read && SDL_SaveBMP(s, path.c_str()) == 0;
     SDL_FreeSurface(s);
     return ok;
 }

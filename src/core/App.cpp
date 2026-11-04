@@ -3,6 +3,7 @@
 #include <SDL.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <vector>
 #include <memory>
 
@@ -20,6 +21,7 @@ SceneId sceneFromName(const std::string& n, Ctx& c) {
     if (n == "puzzles") return SceneId::Puzzle;
     if (n == "settings") return SceneId::Settings;
     if (n == "game") return SceneId::Game;
+    if (n == "credits") return SceneId::Credits;
     if (n == "logo" || n == "banner" || n == "social") {
         c.brandVariant = n;
         return SceneId::Brand;
@@ -55,7 +57,9 @@ int App::run(const AppOptions& opt) {
     SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);  // optional: no gamepad support is not an error
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
     if (platform::isMobile()) flags |= SDL_WINDOW_FULLSCREEN;
-    const int ww = shot ? cfg::kW * 2 : cfg::kW * 3, wh = shot ? cfg::kH * 2 : cfg::kH * 3 / 2 * 2;
+    int ww = shot ? cfg::kW * 2 : cfg::kW * 3, wh = shot ? cfg::kH * 2 : cfg::kH * 3 / 2 * 2;
+    if (shot)  // dev: LIQ_SHOT_SIZE=720x1600 previews phones with a different aspect ratio
+        if (const char* sz = SDL_getenv("LIQ_SHOT_SIZE")) std::sscanf(sz, "%dx%d", &ww, &wh);
     SDL_Window* window = SDL_CreateWindow("Liq2048", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, ww, wh, flags);
     if (!window) {
         SDL_Log("Window failed: %s", SDL_GetError());
@@ -238,6 +242,7 @@ int App::run(const AppOptions& opt) {
             }
             c.time += dt;
 
+            c.gfx.fillBars(*c.theme);
             c.ui.beginFrame();
             c.ui.setMirror(false);  // the game scene turns this on for the left-handed layout
             scene->frame(c, dt);

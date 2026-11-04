@@ -36,6 +36,9 @@ public:
     void setOffset(int dx, int dy) { ox_ = dx; oy_ = dy; }
 
     void clear(Color c);
+    // Paints the window area outside the logical screen (phones taller than 9:16, wide desktop windows)
+    // with the theme gradient, so the game always fills the whole display.
+    void fillBars(const Theme& t);
     void present() { SDL_RenderPresent(r_); }
 
     // ---- primitives (coordinates are pixel-grid units, rounded to whole pixels) ----

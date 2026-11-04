@@ -244,8 +244,16 @@ void World::anchors() {
                 drops[g].ly = ty;
                 drops[g].lr = 1.f;
             } else {
-                drops[g].lx += (tx - drops[g].lx) * 0.4f;
-                drops[g].ly += (ty - drops[g].ly) * 0.4f;
+                // Follow quickly while the drop falls or splashes; once it rests, ignore small wobble (dead zone)
+                // and glide slowly, so the numbers stay put instead of jittering with the liquid.
+                Drop& d = drops[g];
+                const bool resting = d.age > 1.2f && d.vx * d.vx + d.vy * d.vy < 35.f * 35.f;
+                const float ex = tx - d.lx, ey = ty - d.ly;
+                const float dist = std::sqrt(ex * ex + ey * ey);
+                float k = 0.4f;
+                if (resting) k = dist < 2.5f ? 0.f : std::min(0.12f, 0.02f + (dist - 2.5f) * 0.01f);
+                d.lx += ex * k;
+                d.ly += ey * k;
             }
         }
 }

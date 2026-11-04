@@ -157,6 +157,9 @@ private:
     uint32_t replayTail_ = 0;
     // Modes (v1.3.0)
     int mod_ = 0;                       // active modifier (0 none, 1 low g, 2 heavy g, 3 thick, 4 bonus drops)
+    // Harder than before (v1.6.1): the overflow line sits lower in the pot, so there is less room to stack.
+    // Zen, Puzzle and Rising Tide (whose line moves) keep the original start position.
+    float deadBase() const { return (mid_ == ModeId::Zen || mid_ == ModeId::Puzzle || mid_ == ModeId::Tide) ? cfg::kDeadY : cfg::kDeadY + 22.f; }
     float deadY_ = cfg::kDeadY, tideRelief_ = 0.f, autoT_ = 0.f, autoFill_ = 0.f;
     int queueIdx_ = 0, runMerges_ = 0, runChain_ = 0, stars_ = 0;
     std::string hint_;                  // short coaching banner inside the pot
@@ -229,7 +232,14 @@ private:
         }
         const int r = rng_.range(0, 99);
         if (mod_ == 4) return r < 15 ? 1 : r < 45 ? 2 : r < 80 ? 3 : 4;
-        return r < 40 ? 0 : r < 70 ? 1 : r < 90 ? 2 : 3;
+        if (mid_ == ModeId::Zen) return r < 40 ? 0 : r < 70 ? 1 : r < 90 ? 2 : 3;  // Zen stays relaxed
+        // Everyone else gets bigger drops the longer a run lasts (cumulative weights for levels 0..5).
+        static const int w[5][6] = {{38, 70, 90, 100, 100, 100}, {28, 56, 78, 93, 100, 100}, {20, 42, 66, 86, 100, 100},
+                                    {14, 32, 54, 78, 100, 100}, {10, 24, 44, 68, 88, 100}};
+        const int tier = std::min(4, drops_ / 12);
+        int lvl = 0;
+        while (lvl < 5 && r >= w[tier][lvl]) ++lvl;
+        return lvl;
     }
 
     void start(Ctx& c) {
@@ -246,7 +256,7 @@ private:
             world_.substeps = rec_.substeps;
         }
         replayTail_ = 0;
-        deadY_ = cfg::kDeadY;
+        deadY_ = deadBase();
         tideRelief_ = autoT_ = autoFill_ = 0.f;
         queueIdx_ = runMerges_ = runChain_ = stars_ = 0;
         statsDone_ = false;
@@ -467,7 +477,9 @@ private:
         if (mid_ == ModeId::Tide) {
             const float shift = mode_->deadLineShift(elapsed_);
             tideRelief_ = std::min(tideRelief_, shift);
-            deadY_ = cfg::kDeadY + shift - tideRelief_;
+            // The line sinks all the time; merges lift it, but never above where it started. Eased, so it glides.
+            const float target = cfg::kDeadY + shift - tideRelief_;
+            deadY_ += clampv(target - deadY_, -50.f * dt, 50.f * dt);
         }
         if (mid_ == ModeId::Rain && elapsed_ >= 60.f) grant(c, kRain60);
         if (mid_ == ModeId::Tide && elapsed_ >= 90.f) grant(c, kTide90);
@@ -703,13 +715,12 @@ private:
             g.text(best, cfg::kW / 2.f + 5.f, 48, 1, t.dim, Align::Center);
         }
 
-        // Pause + language.
+        // Pause.
         const float px = ui.mx(238, 24);
         if (ui.iconButton(IconId::Pause, px, 8, 24, 24, play, false)) {
             st_ = St::Paused;
             ui.resetFocus();
         }
-        if (play) langToggle(c, 238, 36);
 
         // Undo (Classic and Zen): icon plus remaining charges.
         if (undoAllowed()) {

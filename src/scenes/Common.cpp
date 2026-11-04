@@ -88,23 +88,6 @@ void drawDeadLine(Ctx& c, bool warn, float lineY) {
     }
 }
 
-void langToggle(Ctx& c, float x, float y) {
-    const Theme& t = *c.theme;
-    const bool en = c.loc.code() == "en";
-    const std::string target = en ? (c.save.altLang.empty() ? "fa" : c.save.altLang) : "en";
-    const LangInfo* ti = langInfo(target);
-    const bool can = ti && (!ti->arabicScript || c.gfx.hasPersianFont());
-    const float w = 24, h = 14;
-    const float bx = c.ui.mx(x, w);
-    if (c.ui.button("", bx, y, w, h, can, false)) {
-        c.setLanguage(target);
-        c.save.store();
-    }
-    std::string label = target;
-    for (auto& ch : label) ch = char(std::toupper(static_cast<unsigned char>(ch)));
-    c.gfx.number(label, bx + w / 2.f, y + h / 2.f, 1, can ? t.text : t.dim, Align::Center);
-}
-
 static int g_page = 0;  // 0 = general, 1 = game feel, 2 = accessibility
 void setSettingsPage(int p) { g_page = p < 0 || p > 2 ? 0 : p; }
 
@@ -122,8 +105,9 @@ bool drawSettings(Ctx& c, float y0) {
     g.text(L.tr("settings.title"), 135, y0 + 20, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
 
     const bool rtl = L.rtl();
-    const float lx = rtl ? 244.f : 26.f;
-    const Align la = rtl ? Align::Right : Align::Left;
+    const bool flip = rtl != ui.mirrored();  // labels sit opposite the controls (RTL language or left-hand layout)
+    const float lx = flip ? 244.f : 26.f;
+    const Align la = flip ? Align::Right : Align::Left;
     float y = y0 + 40.f;
     auto label = [&](const char* key) { g.text(L.tr(key), lx, y + 10.f, 1, t.text, la); };
     const float cw = 112.f, cx = ui.mx(132.f, cw);  // control column

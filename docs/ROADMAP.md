@@ -6,13 +6,13 @@ green, `CHANGELOG.md` updated) the closing commit gets an annotated git tag, `vX
 publishes it. Smaller fixes in between ship as patch tags (`v1.0.1`, ...).
 
 The project promises stay fixed in every station: **free, open source, no ads, no purchases, no tracking, no
-network access in the game itself.**
+internet access.** (From v1.7.0 the only networking is the optional, local-network Battle mode, started by the player.)
 
 Status legend: ☐ planned, ◐ in progress, ☑ done.
 
 ```
 v1.0.0 ─ v1.0.x ─ v1.1.0 ─ v1.2.0 ─ v1.3.0 ─ v1.4.0 ─ v1.5.0 ─ v1.6.0 ─ v1.7.0 ─ v1.8.0 ─ v2.0.0
- stable   verify   feel    reach    modes    liquid   social   craft    stores    modding   next gen
+ stable   verify   feel    reach    modes    liquid   social   craft    battle    modding   next gen
 ```
 
 ---
@@ -149,21 +149,25 @@ Status: partial; the rest is moved to v1.6.x. The new CI job has not run on GitH
 
 Exit: CI includes sanitizers and fuzz smoke tests, all green. Tag `v1.6.0` (first part).
 
-## v1.7.0: Stores and distribution
+## v1.7.0: Battle (head-to-head play and more puzzles)
 
-Goal: easy to install everywhere.
+Goal: play against someone, or against the game, for the highest score in a fixed time.
 
-- ☐ Linux: AppImage and Flatpak (Flathub submission), `.deb`; metainfo and desktop files.
-- ☐ Windows: signed installer or portable zip plus winget manifest; Microsoft Store optional.
-- ☐ macOS: notarized build (needs an Apple developer certificate) and Homebrew cask.
-- ☐ Android: Google Play listing (AAB, store assets, privacy statement "collects nothing"), plus F-Droid
-  inclusion with reproducible build metadata.
-- ☐ iOS: signed TestFlight/App Store build when a developer account is available; keep the unsigned IPA.
-- ☐ itch.io page with all platforms; web demo build via Emscripten (WebAssembly) as a stretch goal.
-- ☐ Store screenshots and short trailer generated from the headless `--screenshot` tool and branding scripts.
-- ☐ Press kit page in `docs/` (logo, screenshots, description, facts).
+- ☐ **Battle mode** (new mode, timed): every player gets an identical drop queue (same seed) in their own pot, and the
+  player with the highest score when the clock runs out wins. Ties are broken by the highest level reached.
+- ☐ **PvE**: battle against computer opponents at several skill levels (they aim and drop with a human-like delay and
+  some mistakes), so the mode works offline and alone.
+- ☐ **PvP over LAN**: host or join a game on the local network, with no internet and no account. Only a small
+  message stream (drop positions, scores, clock) is sent; both sides run the same deterministic simulation from the
+  shared seed (built on the v1.4.1 replay format). Networking is off until the player opens Battle, and nothing is
+  ever sent outside the local network.
+- ☐ Result screen with both pots, scores and a rematch button; optional hot-seat PvP on one device.
+- ☐ Battle needs cross-platform determinism: run the replay-checksum test on every platform first (open item from v1.4.0),
+  and exchange a state checksum during a match to detect desyncs.
+- ☐ **More puzzles**: grow the puzzle pack from 15 to at least 45 levels (new mechanics: walls, locked drops, limited
+  drop sizes), solved and verified with `tools/puzzlegen`; per-level star targets.
 
-Exit: at least Flathub, F-Droid or Play, and winget published. Tag `v1.7.0`.
+Exit: a two-player LAN match and a PvE match both play to the end on desktop and Android; 45 puzzles. Tag `v1.7.0`.
 
 ## v1.8.0: Modding and community
 
@@ -190,7 +194,6 @@ Larger changes that may justify a major version. Each is optional and will be de
 
 - ☐ Optional 3D-lit "deluxe" renderer (kept off by default; the pixel look stays the identity).
 - ☐ Campaign: a map of regions, each with a puzzle pack, boss pots and a story told in a few lines of text.
-- ☐ Local-network (LAN) versus mode over a direct connection, still with no servers and no accounts.
 - ☐ Procedural music with more variation: stems layered by game state, new key and mood per theme.
 - ☐ Tablet and foldable layouts, desktop widescreen layout with side panels.
 - ☐ Console-style couch mode with controller-first UI.
@@ -206,7 +209,7 @@ Larger changes that may justify a major version. Each is optional and will be de
 | Performance | Frame-time and memory numbers recorded in the station's release notes. |
 | Docs | `CHANGELOG.md`, `README.md`, affected `docs/*.md` and screenshots updated before the tag. |
 | Localization | New strings added to `en.json` and `fa.json` at least; missing keys fall back to English. |
-| Security and privacy | Dependencies updated, CodeQL clean, still zero network access and zero data collection. |
+| Security and privacy | Dependencies updated, CodeQL clean, no internet access (only the optional local-network Battle mode) and zero data collection. |
 | Audio | New sounds added through `tools/audiogen`, never as unexplained binaries. |
 
 ## Release and tagging procedure
@@ -241,9 +244,10 @@ saves, replays or mods (with a migration path).
 | v1.2.0 | Reach | ☑ |
 | v1.3.0 | Modes | ☑ |
 | v1.4.0 | Liquid, second pass (partial) | ✔ |
-| v1.5.0 | Social without a server | ☐ |
-| v1.6.0 | Craft | ☐ |
-| v1.7.0 | Stores and distribution | ☐ |
+| v1.5.0 | Social without a server (first part) | ◐ |
+| v1.6.0 | Craft (first part) | ◐ |
+| v1.6.1 | Fixes: Persian/Arabic, mobile layout, difficulty, Rising Tide, authors page | ☑ |
+| v1.7.0 | Battle (PvP over LAN, PvE) and more puzzles | ☐ |
 | v1.8.0 | Modding and community | ☐ |
 | v2.0.0 | Next generation | ☐ |
 

@@ -18,9 +18,9 @@ assets/
 | File | Used for |
 |------|----------|
 | `fonts/pixel.ttf` | Optional Latin pixel font. Without it the built-in 5×7 bitmap font is used. Pixel fonts look best at multiples of 8 px. |
-| `fonts/fa.ttf` | Persian text. System-font fallbacks are tried if absent. |
+| `fonts/fa.ttf` | Persian and Arabic text: Vazirmatn Regular (SIL OFL, licence in `fonts/LICENSE-vazirmatn.txt`), bundled in the repository. |
 
-Latin text, scores and droplet numerals use the built-in pixel font family (5×7 text, 3×5 digits) defined in `src/gfx/PixelFont.cpp`. Only Persian (and an optional `pixel.ttf`) uses TTF, thresholded to hard edges.
+Latin text, scores and droplet numerals use the built-in pixel font family (5×7 text, 3×5 digits) defined in `src/gfx/PixelFont.cpp`. Only Persian/Arabic (and an optional `pixel.ttf`) uses TTF, thresholded to hard edges. Arabic-script text is shaped by the game itself (`src/gfx/ArabicShaper.cpp`), so it looks the same on every platform.
 
 ## Sound
 

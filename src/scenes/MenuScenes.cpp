@@ -76,7 +76,7 @@ public:
                432.f, t.accent);
         g.text(L.fmt("menu.streak", std::to_string(c.save.streak)), cfg::kW / 2.f, 435.f, 1, t.dim, Align::Center);
         g.number("V" LIQ_VERSION, cfg::kW - 6.f, 470.f, 1, mix(t.dim, t.sky[3], 0.4f), Align::Right);
-        langToggle(c, 242, 8);
+        if (ui.button(L.tr("menu.authors"), 8, 454, 64, 16)) c.go(SceneId::Credits);
         if (c.in.esc && !platform::isMobile()) c.quit = true;
     }
 
@@ -134,7 +134,6 @@ public:
         }
         if (ui.button(L.tr("common.back"), 22, 408, 100, 26) || c.in.esc) c.go(SceneId::Menu);
         if (ui.button(L.tr(page_ == 0 ? "select.more" : "select.main"), 148, 408, 100, 26)) page_ ^= 1;
-        langToggle(c, 242, 8);
     }
 
 private:
@@ -176,6 +175,33 @@ public:
 
 private:
     int page_ = 0;
+};
+
+class CreditsScene final : public Scene {
+public:
+    void frame(Ctx& c, float) override {
+        Gfx& g = c.gfx;
+        const Theme& t = *c.theme;
+        Loc& L = c.loc;
+        Ui& ui = c.ui;
+        g.drawBackdrop(t, c.save.reduceMotion ? 0.f : c.time);
+        g.text(L.tr("credits.title"), cfg::kW / 2.f, 40, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
+        ui.panel(14, 64, 242, 330);
+        const float cx = cfg::kW / 2.f;
+        g.text(L.tr("credits.made"), cx, 92, 1, t.dim, Align::Center);
+        g.text("SOBHAN MOHAMMADI", cx, 118, 2, t.text, Align::Center, TextFx::Outline, t.ink);
+        g.rect(40, 150, 190, 1, t.panelLo);
+        g.text(L.tr("credits.thanks"), cx, 172, 1, t.accent, Align::Center);
+        struct Row { const char* name; const char* key; };
+        static const Row rows[3] = {{"SDL2", "credits.sdl"}, {"VAZIRMATN", "credits.font"}, {"CLAUDE", "credits.audio"}};
+        float y = 204;
+        for (const Row& r : rows) {
+            g.text(r.name, cx, y, 1, t.text, Align::Center, TextFx::Outline, t.ink);
+            g.text(L.tr(r.key), cx, y + 16, 1, t.dim, Align::Center);
+            y += 54;
+        }
+        if (ui.button(L.tr("common.back"), 22, 408, 226, 26) || c.in.esc) c.go(SceneId::Menu);
+    }
 };
 
 class ProgressScene final : public Scene {
@@ -264,6 +290,7 @@ public:
 
 std::unique_ptr<Scene> makeMenuScene() { return std::make_unique<MenuScene>(); }
 std::unique_ptr<Scene> makeModeSelectScene() { return std::make_unique<ModeSelectScene>(); }
+std::unique_ptr<Scene> makeCreditsScene() { return std::make_unique<CreditsScene>(); }
 std::unique_ptr<Scene> makeProgressScene() { return std::make_unique<ProgressScene>(); }
 std::unique_ptr<Scene> makeSettingsScene() { return std::make_unique<SettingsScene>(); }
 std::unique_ptr<Scene> makePuzzleSelectScene() { return std::make_unique<PuzzleSelectScene>(); }
@@ -274,6 +301,7 @@ std::unique_ptr<Scene> makeScene(SceneId id, Ctx& c) {
         case SceneId::Progress: return makeProgressScene();
         case SceneId::Settings: return makeSettingsScene();
         case SceneId::Puzzle: return makePuzzleSelectScene();
+        case SceneId::Credits: return makeCreditsScene();
         case SceneId::Game: return makeGameScene(c);
         case SceneId::Brand: return makeBrandScene();
         default: return makeMenuScene();

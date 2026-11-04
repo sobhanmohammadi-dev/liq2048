@@ -11,6 +11,7 @@
 #include "core/Util.hpp"
 #include "audio/Audio.hpp"
 #include "core/Access.hpp"
+#include "gfx/ArabicShaper.hpp"
 #include "gfx/PixelFont.hpp"
 #include "core/Platform.hpp"
 #include "game/Mode.hpp"
@@ -275,6 +276,30 @@ TEST(fuzz_smoke_parsers_survive_damaged_input) {
         const std::string m = mutate(ogg, r);
         (void)decodeOgg(reinterpret_cast<const unsigned char*>(m.data()), int(m.size()));
     }
+}
+
+TEST(arabic_shaping_joins_letters_and_orders_visually) {
+    auto cps = [](const std::string& u) {
+        std::vector<unsigned> v;
+        for (size_t i = 0; i < u.size();) {
+            const unsigned char c = (unsigned char)u[i];
+            unsigned cp = c;
+            int n = 1;
+            if (c >= 0xF0) { cp = (c & 7u) << 18 | (u[i + 1] & 63u) << 12 | (u[i + 2] & 63u) << 6 | (u[i + 3] & 63u); n = 4; }
+            else if (c >= 0xE0) { cp = (c & 15u) << 12 | (u[i + 1] & 63u) << 6 | (u[i + 2] & 63u); n = 3; }
+            else if (c >= 0xC0) { cp = (c & 31u) << 6 | (u[i + 1] & 63u); n = 2; }
+            v.push_back(cp);
+            i += size_t(n);
+        }
+        return v;
+    };
+    // "classic" (Persian): kaf lam-alef sin ye kaf -> visual order is the reverse of the shaped logical order.
+    const auto v = cps(shapeArabicVisual("\xDA\xA9\xD9\x84\xD8\xA7\xD8\xB3\xDB\x8C\xDA\xA9"));
+    CHECK((v == std::vector<unsigned>{0xFB8F, 0xFBFF, 0xFEB3, 0xFEFC, 0xFB90}));
+    // Latin text and digits are untouched and keep their order inside RTL text.
+    CHECK(shapeArabicVisual("FPS 60") == "FPS 60");
+    const auto m = cps(shapeArabicVisual("\xD8\xA7 60"));  // alef + space + 60
+    CHECK((m == std::vector<unsigned>{'6', '0', ' ', 0xFE8D}));
 }
 
 TEST(rng_is_deterministic_per_seed) {
