@@ -1,0 +1,3 @@
+# Known leak in third-party stb_vorbis when decoding corrupt OGG data (only reachable with damaged files;
+# shipped assets are trusted). Everything else must stay leak-free.
+leak:stb_vorbis

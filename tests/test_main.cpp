@@ -207,6 +207,76 @@ TEST(replay_text_roundtrip_and_playback_is_deterministic) {
     CHECK(!Replay::fromText("nonsense", bad));
 }
 
+static std::string slurp(const char* path) {
+    std::string s;
+    if (FILE* f = std::fopen(path, "rb")) {
+        char buf[4096];
+        size_t n;
+        while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) s.append(buf, n);
+        std::fclose(f);
+    }
+    return s;
+}
+
+// Smoke fuzzing: damaged input must never crash or hang (run under ASan/UBSan in CI).
+static std::string mutate(std::string s, Rng& r) {
+    if (s.empty()) return s;
+    const int edits = r.range(1, 6);
+    for (int i = 0; i < edits; ++i) {
+        const size_t at = size_t(r.range(0, int(s.size()) - 1));
+        switch (r.range(0, 3)) {
+            case 0: s[at] = char(r.range(0, 255)); break;
+            case 1: s.erase(at, size_t(r.range(1, 8))); break;
+            case 2: s.insert(at, std::string(size_t(r.range(1, 8)), char(r.range(0, 255)))); break;
+            default: s.resize(at); break;
+        }
+        if (s.empty()) break;
+    }
+    return s;
+}
+
+TEST(fuzz_smoke_parsers_survive_damaged_input) {
+    Rng r;
+    r.seed(777u);
+    const std::string json = slurp("assets/lang/en.json");
+    CHECK(!json.empty());
+    for (int i = 0; i < 300; ++i) (void)parseFlatJson(mutate(json, r));
+
+    Replay rp;
+    rp.gravity = 100.f;
+    for (int i = 0; i < 30; ++i) rp.drops.push_back({uint32_t(i * 20), 100.f + float(i), i % 6});
+    const std::string code = rp.toCode(), text = rp.toText();
+    Replay out;
+    for (int i = 0; i < 2000; ++i) {
+        (void)Replay::fromCode(mutate(code, r), out);
+        (void)Replay::fromText(mutate(text, r), out);
+    }
+
+    Save::pathOverride() = "liq_fuzz_save.txt";
+    Save sv;
+    sv.store();
+    const std::string save = slurp("liq_fuzz_save.txt");
+    for (int i = 0; i < 200; ++i) {
+        if (FILE* f = std::fopen("liq_fuzz_save.txt", "wb")) {
+            const std::string m = mutate(save, r);
+            std::fwrite(m.data(), 1, m.size(), f);
+            std::fclose(f);
+        }
+        Save l;
+        l.load();
+        CHECK(l.quality >= 0 && l.quality <= 2 && l.colorVision >= 0 && l.colorVision <= 2);
+    }
+    Save::pathOverride().clear();
+    std::remove("liq_fuzz_save.txt");
+
+    const std::string ogg = slurp("assets/sounds/chain_2.ogg");
+    CHECK(!ogg.empty());
+    for (int i = 0; i < 40; ++i) {
+        const std::string m = mutate(ogg, r);
+        (void)decodeOgg(reinterpret_cast<const unsigned char*>(m.data()), int(m.size()));
+    }
+}
+
 TEST(rng_is_deterministic_per_seed) {
     Rng a, b;
     a.seed(1234);

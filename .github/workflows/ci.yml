@@ -56,6 +56,31 @@ jobs:
           path: build/game.bmp
           retention-days: 7
 
+  sanitizers:
+    name: Linux (ASan + UBSan)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libsdl2-dev libsdl2-ttf-dev
+      - name: Configure
+        run: >
+          cmake -S . -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_C_FLAGS="-fsanitize=address,undefined" -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+          -DCMAKE_POLICY_VERSION_MINIMUM="3.5"
+      - name: Build tests
+        run: cmake --build build-san --target liq_tests
+      - name: Run tests (includes fuzz smoke tests)
+        env:
+          LSAN_OPTIONS: suppressions=${{ github.workspace }}/tests/lsan.supp
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+          SDL_AUDIODRIVER: dummy
+          SDL_VIDEODRIVER: dummy
+        run: ctest --test-dir build-san --output-on-failure
+
   macos:
     name: macOS
     runs-on: macos-latest

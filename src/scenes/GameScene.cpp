@@ -443,6 +443,7 @@ private:
         if (aiming_ && (in.down || in.released)) aimX_ = in.mx;
         if (in.left) aimX_ -= cfg::kAimSpeed * dt;
         if (in.right) aimX_ += cfg::kAimSpeed * dt;
+        if (in.wheel != 0.f && !aiming_) aimX_ += in.wheel * 8.f;  // mouse wheel nudges the aim
         aimX_ = clampv(aimX_, cfg::kFieldL + rad, cfg::kFieldR - rad);
         bool want = false;
         if (aiming_ && in.released) {

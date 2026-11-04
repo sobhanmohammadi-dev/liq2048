@@ -8,6 +8,12 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.6.0]
+
+### Added
+- Gamepad support, mouse-wheel aiming, F3 frame-time overlay.
+- Fuzz smoke tests and an ASan + UBSan CI job.
+
 ## [1.5.0]
 
 ### Added
