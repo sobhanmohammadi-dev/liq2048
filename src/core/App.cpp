@@ -59,7 +59,7 @@ int App::run(const AppOptions& opt) {
     if (platform::isMobile()) flags |= SDL_WINDOW_FULLSCREEN;
     int ww = shot ? cfg::kW * 2 : cfg::kW * 3, wh = shot ? cfg::kH * 2 : cfg::kH * 3 / 2 * 2;
     if (shot)  // dev: LIQ_SHOT_SIZE=720x1600 previews phones with a different aspect ratio
-        if (const char* sz = SDL_getenv("LIQ_SHOT_SIZE")) std::sscanf(sz, "%dx%d", &ww, &wh);
+        if (const char* sz = SDL_getenv("LIQ_SHOT_SIZE")) std::sscanf_s(sz, "%dx%d", &ww, &wh);
     SDL_Window* window = SDL_CreateWindow("Liq2048", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, ww, wh, flags);
     if (!window) {
         SDL_Log("Window failed: %s", SDL_GetError());
