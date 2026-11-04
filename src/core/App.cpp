@@ -3,6 +3,7 @@
 #include <SDL.h>
 
 #include <algorithm>
+#include <vector>
 #include <memory>
 
 #include "core/Config.hpp"
@@ -51,6 +52,7 @@ int App::run(const AppOptions& opt) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         return 1;
     }
+    SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);  // optional: no gamepad support is not an error
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
     if (platform::isMobile()) flags |= SDL_WINDOW_FULLSCREEN;
     const int ww = shot ? cfg::kW * 2 : cfg::kW * 3, wh = shot ? cfg::kH * 2 : cfg::kH * 3 / 2 * 2;
@@ -130,12 +132,41 @@ int App::run(const AppOptions& opt) {
         const double freq = double(SDL_GetPerformanceFrequency());
         constexpr float kBlinds = 0.22f;
 
+        std::vector<SDL_GameController*> pads;
+        bool perfOverlay = false;
+        float frameMs[90] = {};
+        int frameIdx = 0;
         while (!c.quit) {
             c.in.beginFrame();
             SDL_Event e;
             while (SDL_PollEvent(&e)) {
                 switch (e.type) {
                     case SDL_QUIT: c.quit = true; break;
+                    case SDL_MOUSEWHEEL: c.in.wheel += float(e.wheel.y) * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.f : 1.f); break;
+                    case SDL_CONTROLLERDEVICEADDED:
+                        if (SDL_IsGameController(e.cdevice.which))
+                            if (SDL_GameController* gc = SDL_GameControllerOpen(e.cdevice.which)) pads.push_back(gc);
+                        break;
+                    case SDL_CONTROLLERDEVICEREMOVED:
+                        for (size_t k = 0; k < pads.size(); ++k)
+                            if (SDL_GameControllerFromInstanceID(e.cdevice.which) == pads[k]) {
+                                SDL_GameControllerClose(pads[k]);
+                                pads.erase(pads.begin() + long(k));
+                                break;
+                            }
+                        break;
+                    case SDL_CONTROLLERBUTTONDOWN:
+                        switch (e.cbutton.button) {
+                            case SDL_CONTROLLER_BUTTON_A: c.in.confirm = c.in.drop = true; break;
+                            case SDL_CONTROLLER_BUTTON_B:
+                            case SDL_CONTROLLER_BUTTON_START:
+                            case SDL_CONTROLLER_BUTTON_BACK: c.in.esc = true; break;
+                            case SDL_CONTROLLER_BUTTON_X: c.in.undo = true; break;
+                            case SDL_CONTROLLER_BUTTON_DPAD_UP: c.in.up = true; break;
+                            case SDL_CONTROLLER_BUTTON_DPAD_DOWN: c.in.dn = c.in.drop = true; break;
+                            default: break;
+                        }
+                        break;
                     case SDL_MOUSEMOTION: c.in.mx = float(e.motion.x); c.in.my = float(e.motion.y); break;
                     case SDL_MOUSEBUTTONDOWN:
                         if (e.button.button == SDL_BUTTON_LEFT) {
@@ -169,6 +200,7 @@ int App::run(const AppOptions& opt) {
                             case SDL_SCANCODE_W: c.in.up = true; break;
                             case SDL_SCANCODE_DOWN:
                             case SDL_SCANCODE_S: c.in.dn = c.in.drop = true; break;
+                            case SDL_SCANCODE_F3: perfOverlay = !perfOverlay; break;
                             case SDL_SCANCODE_F11:
                                 c.save.fullscreen = !c.save.fullscreen;
                                 c.applySettings();
@@ -189,6 +221,11 @@ int App::run(const AppOptions& opt) {
             const Uint8* ks = SDL_GetKeyboardState(nullptr);
             c.in.left = ks[SDL_SCANCODE_LEFT] || ks[SDL_SCANCODE_A];
             c.in.right = ks[SDL_SCANCODE_RIGHT] || ks[SDL_SCANCODE_D];
+            for (SDL_GameController* gc : pads) {  // d-pad or left stick steers the aim
+                const int ax = SDL_GameControllerGetAxis(gc, SDL_CONTROLLER_AXIS_LEFTX);
+                if (ax < -12000 || SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_DPAD_LEFT)) c.in.left = true;
+                if (ax > 12000 || SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_DPAD_RIGHT)) c.in.right = true;
+            }
 
             float dt;
             if (shot) {
@@ -240,6 +277,17 @@ int App::run(const AppOptions& opt) {
             if (c.save.showFps && !shot)
                 c.gfx.number(std::to_string(int(fpsAvg + 0.5f)), 4, 472, 1, c.theme->accent, Align::Left, TextFx::Outline, c.theme->ink);
 
+            if (perfOverlay && !shot) {  // F3: frame-time graph (bars: 0..33 ms, line = 16.7 ms)
+                frameMs[frameIdx % 90] = dt * 1000.f;
+                for (int k = 0; k < 90; ++k) {
+                    const float ms = frameMs[(frameIdx + 1 + k) % 90];
+                    const int h = std::min(40, int(ms * 1.2f));
+                    c.gfx.rect(4.f + float(k) * 2.f, float(440 - h), 2, float(h), ms > 20.f ? c.theme->danger : c.theme->accent);
+                }
+                c.gfx.rect(4.f, 440.f - 20.f, 180, 1, c.theme->text);
+                c.gfx.number(std::to_string(int(dt * 1000.f + 0.5f)) + "MS", 4, 444, 1, c.theme->text, Align::Left, TextFx::Outline, c.theme->ink);
+                ++frameIdx;
+            }
             ++frame;
             if (shot && frame >= opt.shotFrames) {
                 if (!c.gfx.screenshot(opt.shotPath)) {

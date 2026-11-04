@@ -133,20 +133,21 @@ Exit: all sharing paths work on all five platforms without any permission beyond
 
 Goal: a solid, pleasant foundation.
 
-- ☐ Gamepad support (SDL GameController): menus, aim, drop; Steam Deck verified checklist.
-- ☐ Full keyboard navigation of all menus, remappable keys, mouse wheel to aim.
+- ✔ Gamepad support (SDL GameController): d-pad/stick aims, A drops/confirms, B/Start/Back pauses, X undoes, d-pad navigates menus. Written and compiled, NOT tested with a real controller; no Steam Deck checklist yet.
+- ✔ Mouse wheel nudges the aim. ➜ Moved: remappable keys, full keyboard audit.
 - ☐ Desktop polish: resizable window with integer scaling, borderless fullscreen, multi-monitor, high-DPI.
 - ☐ Controller/keyboard glyph hints in the UI.
-- ☐ Test coverage report in CI with a floor; fuzz tests for the JSON parser, save loader and OGG decoder;
-  sanitizer builds (ASan/UBSan) in CI.
+- ✔ Fuzz smoke tests (JSON, save loader, run codes, replay text, OGG) and an ASan + UBSan CI job; clean locally. Found a leak in third-party stb_vorbis on corrupt OGG (suppressed in `tests/lsan.supp`, shipped sounds unaffected). ➜ Moved: coverage report with a floor.
 - ☐ Reproducible builds and checksums (`SHA256SUMS`) attached to every release; signed tags.
-- ☐ Profiling overlay (frame time graph, particle count) behind a developer flag.
+- ✔ F3 toggles a frame-time graph (particle count not shown yet).
 - ☐ Carried over from v1.1.0/v1.2.0: screen-reader labels (TalkBack, VoiceOver), large-text option,
   notch/safe-area handling, audio ducking for calls, aim snapping and preview-opacity options, lowered
   one-handed HUD.
 - ☐ Source documentation pass: every header has a one-paragraph purpose comment; `docs/ARCHITECTURE.md` diagrams.
 
-Exit: CI includes sanitizers and fuzz smoke tests, all green. Tag `v1.6.0`.
+Status: partial; the rest is moved to v1.6.x. The new CI job has not run on GitHub yet.
+
+Exit: CI includes sanitizers and fuzz smoke tests, all green. Tag `v1.6.0` (first part).
 
 ## v1.7.0: Stores and distribution
 
