@@ -65,6 +65,11 @@ public:
     // Height of the liquid surface at x (for the aim guide); floor if empty.
     float surfaceY(float x, float halfWidth) const;
 
+    // Battle spectating: a compact picture of the pot (drops with their particles, positions in 1/128 px) and the
+    // reverse, which rebuilds a World that can only be drawn (never stepped).
+    void picture(std::vector<int>& levels, std::vector<int>& counts, std::vector<uint16_t>& pos) const;
+    void setPicture(const std::vector<int>& levels, const std::vector<int>& counts, const std::vector<uint16_t>& pos);
+
     // Rendering helpers. alpha in [0,1] interpolates between the last two fixed steps.
     void particleSprites(float alpha, float radius, std::vector<BlobSprite>& out) const;
     void labelSprites(std::vector<BlobSprite>& out) const;

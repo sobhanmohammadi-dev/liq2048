@@ -153,21 +153,24 @@ Exit: CI includes sanitizers and fuzz smoke tests, all green. Tag `v1.6.0` (firs
 
 Goal: play against someone, or against the game, for the highest score in a fixed time.
 
-- ☐ **Battle mode** (new mode, timed): every player gets an identical drop queue (same seed) in their own pot, and the
+- ✅ **Battle mode** (new mode, timed): every player gets an identical drop queue (same seed) in their own pot, and the
   player with the highest score when the clock runs out wins. Ties are broken by the highest level reached.
-- ☐ **PvE**: battle against computer opponents at several skill levels (they aim and drop with a human-like delay and
-  some mistakes), so the mode works offline and alone.
-- ☐ **PvP over LAN**: host or join a game on the local network, with no internet and no account. Only a small
-  message stream (drop positions, scores, clock) is sent; both sides run the same deterministic simulation from the
-  shared seed (built on the v1.4.1 replay format). Networking is off until the player opens Battle, and nothing is
-  ever sent outside the local network.
-- ☐ Result screen with both pots, scores and a rematch button; optional hot-seat PvP on one device.
-- ☐ Battle needs cross-platform determinism: run the replay-checksum test on every platform first (open item from v1.4.0),
-  and exchange a state checksum during a match to detect desyncs.
-- ☐ **More puzzles**: grow the puzzle pack from 15 to at least 45 levels (new mechanics: walls, locked drops, limited
-  drop sizes), solved and verified with `tools/puzzlegen`; per-level star targets.
+  Modifiers apply; 60/90/120/180 s.
+- ✅ **PvE**: Versus Bot with Easy, Medium, Hard and Adaptive difficulty (human-like aim delay and mistakes), offline.
+- ✅ **PvP over LAN**: host a game, others find it in *Browse games* (UDP broadcast), the host sees the join and
+  presses Start. No internet, no account; networking starts only on the LAN screens.
+- ✅ **View Opponent** toggle: the opponent's pot streamed as ~10 Hz particle snapshots and interpolated, so it is exact
+  on every platform without needing cross-platform determinism (each player's score is computed on their own device).
+- ✅ Result screen with scores, win/loss/draw record and rematch.
+- ✅ New main menu with Classic, Battle, Puzzle and Zen as the four main tiles.
+- ◐ **More puzzles**: 15 → 26 levels, all solved and verified with `tools/puzzlegen`. The target of 45 (and new mechanics
+  such as walls and locked drops) is **not** reached: the generator needs minutes per hard level and found nothing for
+  the hardest slice. Moved to v1.8.0.
+- → Moved to v1.8.0: hot-seat PvP on one device; the remaining 19 puzzles; per-level star targets.
+- ☐ Not yet verified: LAN play on real Wi-Fi between two physical devices, Android/iOS permission behaviour (iOS local
+  network prompt, broadcast on iOS), bot balance with real players, and native-speaker review of the Battle translations.
 
-Exit: a two-player LAN match and a PvE match both play to the end on desktop and Android; 45 puzzles. Tag `v1.7.0`.
+Exit: a two-player LAN match and a PvE match both play to the end on desktop and Android. Tag `v1.7.0`.
 
 ## v1.8.0: Modding and community
 
@@ -247,7 +250,7 @@ saves, replays or mods (with a migration path).
 | v1.5.0 | Social without a server (first part) | ◐ |
 | v1.6.0 | Craft (first part) | ◐ |
 | v1.6.1 | Fixes: Persian/Arabic, mobile layout, difficulty, Rising Tide, authors page | ☑ |
-| v1.7.0 | Battle (PvP over LAN, PvE) and more puzzles | ☐ |
+| v1.7.0 | Battle (PvP over LAN, PvE) and more puzzles | ✅ (26 of 45 puzzles) |
 | v1.8.0 | Modding and community | ☐ |
 | v2.0.0 | Next generation | ☐ |
 

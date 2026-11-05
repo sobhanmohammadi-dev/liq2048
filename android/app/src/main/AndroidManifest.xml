@@ -5,6 +5,10 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <!-- Only the vibration permission (haptics); no network or storage access: the game is fully offline. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Battle (LAN) only: local-network play. The game never contacts the internet. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
     <application
         android:allowBackup="true"

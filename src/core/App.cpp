@@ -24,6 +24,14 @@ SceneId sceneFromName(const std::string& n, Ctx& c) {
     if (n == "settings") return SceneId::Settings;
     if (n == "game") return SceneId::Game;
     if (n == "credits") return SceneId::Credits;
+    if (n == "battle") return SceneId::Battle;
+    if (n == "battlegame") {  // dev: a bot match with scripted input
+        c.mode = ModeId::Battle;
+        c.battle.cfg.seed = 7;
+        c.battle.cfg.myName = "You";
+        c.battle.cfg.oppName = "Medium";
+        return SceneId::Game;
+    }
     if (n == "logo" || n == "banner" || n == "social") {
         c.brandVariant = n;
         return SceneId::Brand;

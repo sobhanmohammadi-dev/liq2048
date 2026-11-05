@@ -1,5 +1,8 @@
 #include "save/Save.hpp"
 
+#include <algorithm>
+#include <cctype>
+
 #include <cstdlib>
 #include <sstream>
 
@@ -48,6 +51,13 @@ void Save::load() {
         else if (k == "leftHand") leftHand = iv != 0;
         else if (k == "bigTouch") bigTouch = iv != 0;
         else if (k == "altLang") altLang = v;
+        else if (k == "playerName") { playerName.clear(); for (char ch : v) if (std::isalnum(static_cast<unsigned char>(ch)) && playerName.size() < 12) playerName += char(std::toupper(static_cast<unsigned char>(ch))); }
+        else if (k == "battleWins") battleWins = iv;
+        else if (k == "battleLosses") battleLosses = iv;
+        else if (k == "battleDraws") battleDraws = iv;
+        else if (k == "battleDuration") battleDuration = iv;
+        else if (k == "battleDifficulty") battleDifficulty = iv;
+        else if (k == "battleModifier") battleModifier = iv;
         else if (k == "modifier") modifier = iv;
         else if (k == "weeklyWeek") weeklyWeek = iv;
         else if (k == "weeklyBest") weeklyBest = iv;
@@ -66,6 +76,12 @@ void Save::load() {
     if (modifier < 0 || modifier > 4) modifier = 0;
     if (colorVision < 0 || colorVision > 2) colorVision = 0;
     if (quality < 0 || quality > 2) quality = 1;
+    if (battleDuration != 60 && battleDuration != 90 && battleDuration != 120 && battleDuration != 180) battleDuration = 120;
+    battleDifficulty = battleDifficulty < 0 ? 0 : battleDifficulty > 3 ? 3 : battleDifficulty;
+    battleModifier = battleModifier < 0 ? 0 : battleModifier > 4 ? 4 : battleModifier;
+    battleWins = std::max(0, battleWins);
+    battleLosses = std::max(0, battleLosses);
+    battleDraws = std::max(0, battleDraws);
     if (fpsIdx < 0 || fpsIdx >= kFpsChoiceCount) fpsIdx = 0;
 }
 
@@ -78,7 +94,9 @@ void Save::store() const {
       << "\ndailyToday=" << dailyToday << "\nfps=" << fpsIdx << "\nshowFps=" << showFps << "\nhaptics=" << haptics
       << "\nguide=" << guide << "\nshake=" << shake << "\nslowmo=" << slowmo << "\ncalm=" << calm << "\nquality=" << quality << "\ncolorVision=" << colorVision
       << "\nhighContrast=" << highContrast << "\nreduceMotion=" << reduceMotion << "\nleftHand=" << leftHand
-      << "\nbigTouch=" << bigTouch << "\naltLang=" << altLang << "\n";
+      << "\nbigTouch=" << bigTouch << "\naltLang=" << altLang << "\nplayerName=" << playerName << "\nbattleWins=" << battleWins
+      << "\nbattleLosses=" << battleLosses << "\nbattleDraws=" << battleDraws << "\nbattleDuration=" << battleDuration
+      << "\nbattleDifficulty=" << battleDifficulty << "\nbattleModifier=" << battleModifier << "\n";
     o << "modifier=" << modifier << "\nweeklyWeek=" << weeklyWeek << "\nweeklyBest=" << weeklyBest << "\nseenModes=" << seenModes << "\npuzzle=";
     for (int i = 0; i < kPuzzleMax; ++i) o << char('0' + puzzleStars[i]);
     o << "\ngamesPlayed=" << gamesPlayed << "\ntotalDrops=" << totalDrops << "\ntotalMerges=" << totalMerges

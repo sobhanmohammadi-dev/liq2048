@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(Liq2048
-    VERSION 1.6.1
+    VERSION 1.7.0
     LANGUAGES C CXX
     DESCRIPTION "Physics-based blob merging puzzle in C++17 and SDL2"
     HOMEPAGE_URL "https://github.com/sobhanmohammadi-dev/Liq2048"
@@ -246,6 +246,9 @@ target_link_libraries(liq_core
         ${LIQ_SDL_TARGET}
         ${LIQ_SDL_TTF_TARGET}
 )
+if(WIN32)
+    target_link_libraries(liq_core PUBLIC ws2_32)  # LAN Battle sockets
+endif()
 
 target_compile_definitions(liq_core
     PUBLIC

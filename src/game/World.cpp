@@ -115,6 +115,58 @@ void World::refresh() {
         }
 }
 
+void World::picture(std::vector<int>& levels, std::vector<int>& counts, std::vector<uint16_t>& pos) const {
+    levels.clear();
+    counts.clear();
+    pos.clear();
+    std::vector<std::vector<int>> byDrop(drops.size());
+    for (size_t i = 0; i < parts.size(); ++i) byDrop[size_t(parts[i].g)].push_back(int(i));
+    auto q = [](float v) { return uint16_t(std::min(65535.f, std::max(0.f, v * 128.f + 0.5f))); };
+    for (size_t g = 0; g < drops.size(); ++g) {
+        if (byDrop[g].empty()) continue;
+        levels.push_back(drops[g].level);
+        counts.push_back(int(byDrop[g].size()));
+        for (int i : byDrop[g]) {
+            pos.push_back(q(parts[size_t(i)].x));
+            pos.push_back(q(parts[size_t(i)].y));
+        }
+    }
+}
+
+void World::setPicture(const std::vector<int>& levels, const std::vector<int>& counts, const std::vector<uint16_t>& pos) {
+    // Same drops as before: glide from the old positions (and keep the number labels where they were).
+    bool same = levels.size() == drops.size();
+    size_t total = 0;
+    for (size_t g = 0; g < levels.size() && same; ++g) same = drops[g].level == levels[g] && drops[g].n == counts[g];
+    for (int n : counts) total += size_t(n);
+    same = same && total == parts.size();
+    std::vector<Drop> oldDrops = drops;
+    std::vector<Particle> old = parts;
+    parts.assign(total, Particle{});
+    drops.assign(levels.size(), Drop{});
+    size_t k = 0;
+    for (size_t g = 0; g < levels.size(); ++g) {
+        drops[g].level = levels[g];
+        drops[g].age = 5.f;
+        if (same) {
+            drops[g].lx = oldDrops[g].lx;
+            drops[g].ly = oldDrops[g].ly;
+            drops[g].lr = oldDrops[g].lr;
+        }
+        for (int j = 0; j < counts[g]; ++j, ++k) {
+            Particle& p = parts[k];
+            p.x = float(pos[k * 2]) / 128.f;
+            p.y = float(pos[k * 2 + 1]) / 128.f;
+            p.g = int(g);
+            p.ox = same ? old[k].x : p.x;
+            p.oy = same ? old[k].y : p.y;
+        }
+    }
+    candValid_ = false;
+    refresh();
+    anchors();
+}
+
 void World::buildPairs(float margin) {
     const float R = cfg::kInteract + margin;
     const float cell = R * 0.5f;

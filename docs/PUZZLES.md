@@ -18,7 +18,9 @@ the level number (rarer solutions, higher par).
 
 ```bash
 cmake -S . -B build -DLIQ_BUILD_TOOLS=ON && cmake --build build --target liq_puzzlegen
-./build/liq_puzzlegen assets/puzzles/pack1.txt 15 24 1     # levels, attempts per candidate, seed
+./build/liq_puzzlegen out.txt 11 60 3 22   # file, levels, attempts per candidate, seed, first level index
+# (several processes can each generate a slice of the ladder; append the verified lines to pack1.txt.
+#  Levels 16-26 of the pack were made this way; the very hardest slice takes too long to find, see the roadmap.)
 ```
 
 Stars are saved per level. A level can be added by appending a line (hand-made levels are welcome; check them in the

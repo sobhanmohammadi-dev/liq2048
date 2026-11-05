@@ -8,6 +8,26 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.7.0]
+
+### Added
+- **Battle mode.** Two players get the identical drop queue and play in their own pots for a fixed time (60, 90, 120
+  or 180 s); the higher score wins, a tie goes to the higher droplet level. Modifiers (low gravity, heavy, thick,
+  bonus drops) apply to both pots.
+- **Versus Bot** with four difficulties: Easy, Medium, Hard and Adaptive (adjusts to how well you play).
+- **Versus Human over the local network (LAN):** *Host a game* opens a waiting screen; on another device the game
+  appears in *Browse games*; the guest taps it and the host is told a player joined and presses *Start*.
+- **View Opponent** button: shows the opponent's pot live (about 10 updates a second, smoothed). It is a toggle; the
+  opponent is never shown permanently next to your pot, on phones or on desktop.
+- Result screen with both scores, win/loss/draw record (also on the Progress page) and **Rematch**.
+- New main menu: Classic, Battle, Puzzle and Zen are the four big tiles; everything else is under *More modes*.
+- 11 more puzzles (26 in total), solved and verified by the generator.
+- Battle translations in all 8 languages.
+
+### Changed
+- Android declares the network permissions Battle needs; iOS declares a local-network usage description. The game
+  still never contacts the internet: networking starts only when the player opens Battle's LAN screens.
+
 ## [1.6.1]
 
 ### Added

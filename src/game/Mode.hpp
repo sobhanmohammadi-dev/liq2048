@@ -52,6 +52,8 @@ public:
 };
 
 std::unique_ptr<Mode> makeMode(ModeId id, const Save& save, int today, int puzzleLevel = 0);
+// Battle: a timed match with a shared seed and the chosen modifier (see battle/Battle.hpp).
+std::unique_ptr<Mode> makeBattleMode(uint32_t seed, int durationSeconds, int modifier);
 // Week number (Monday-based) for a day number, and the rule that week uses (modifier 1..4).
 inline int weekOf(int dayNumber) { return (dayNumber + 3) / 7; }
 inline int weeklyRuleOf(int week) { return 1 + week % 4; }

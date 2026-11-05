@@ -11,6 +11,7 @@ std::unique_ptr<Scene> makeProgressScene();
 std::unique_ptr<Scene> makeSettingsScene();
 std::unique_ptr<Scene> makePuzzleSelectScene();
 std::unique_ptr<Scene> makeCreditsScene();
+std::unique_ptr<Scene> makeBattleScene();
 std::unique_ptr<Scene> makeGameScene(Ctx& c);
 std::unique_ptr<Scene> makeBrandScene();  // dev: renders logo / banner images for docs
 std::unique_ptr<Scene> makeScene(SceneId id, Ctx& c);

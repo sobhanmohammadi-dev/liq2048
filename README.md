@@ -27,7 +27,7 @@ purchases, no tracking.**
 ## Features
 
 - **Satisfying physics:** stable position-based circle dynamics, merge-on-contact, squash and pop feedback, particles, chain multipliers
-- **Nine modes:** Classic · Time Attack · Target (256 → 512 → 1024) · Daily Challenge · Zen · Endless Rain · Rising Tide · Weekly Challenge · 15 Puzzles, plus gravity/viscosity/bonus modifiers
+- **Ten modes:** Classic · Battle (vs bot or a friend on your Wi-Fi) · Time Attack · Target (256 → 512 → 1024) · Daily Challenge · Zen · Endless Rain · Rising Tide · Weekly Challenge · 26 Puzzles, plus gravity/viscosity/bonus modifiers
 - **Healthy progression:** per-mode best scores, 9 achievements, a non-punitive daily streak, themes you earn by playing
 - **Polished UX:** skippable tutorial, aim guide, undo (Classic and Zen), haptics on phones, Calm mode, auto-pause, pause menu, smooth transitions, touch + mouse + keyboard
 - **Localization:** 8 languages with an in-game picker, true RTL layout and Arabic-script shaping; JSON string tables are easy to extend

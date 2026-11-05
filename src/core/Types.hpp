@@ -31,8 +31,8 @@ constexpr Color unpack(uint32_t p) {
 
 inline int luminance(Color c) { return (c.r * 299 + c.g * 587 + c.b * 114) / 1000; }
 
-enum class ModeId { Classic = 0, Timed, Target, Daily, Zen, Rain, Tide, Weekly, Puzzle };
-constexpr int kModeCount = 9;
+enum class ModeId { Classic = 0, Timed, Target, Daily, Zen, Rain, Tide, Weekly, Puzzle, Battle };
+constexpr int kModeCount = 10;
 
 enum class Align { Left, Center, Right };
 

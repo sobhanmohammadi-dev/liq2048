@@ -3,13 +3,16 @@
 #define SDL_MAIN_HANDLED
 #include <cmath>
 #include <cstdio>
+#include <chrono>
 #include <functional>
+#include <thread>
 #include <string>
 #include <vector>
 
 #include "core/Json.hpp"
 #include "core/Util.hpp"
 #include "audio/Audio.hpp"
+#include "battle/Battle.hpp"
 #include "core/Access.hpp"
 #include "gfx/ArabicShaper.hpp"
 #include "gfx/PixelFont.hpp"
@@ -300,6 +303,148 @@ TEST(arabic_shaping_joins_letters_and_orders_visually) {
     CHECK(shapeArabicVisual("FPS 60") == "FPS 60");
     const auto m = cps(shapeArabicVisual("\xD8\xA7 60"));  // alef + space + 60
     CHECK((m == std::vector<unsigned>{'6', '0', ' ', 0xFE8D}));
+}
+
+TEST(battle_queue_is_identical_for_both_players_and_grows) {
+    int big = 0, small = 0;
+    for (int i = 0; i < 400; ++i) {
+        CHECK(liq::battle::battleLevel(77u, i, 0) == liq::battle::battleLevel(77u, i, 0));
+        const int l = liq::battle::battleLevel(77u, i, 0);
+        CHECK(l >= 0 && l <= 5);
+        (i < 12 ? small : big) += l;
+    }
+    CHECK(double(big) / 388.0 > double(small) / 12.0);  // later drops are bigger on average
+    CHECK(liq::battle::battleLevel(1u, 5, 4) >= 1);     // bonus-drops modifier never gives the smallest drop
+}
+
+TEST(battle_protocol_roundtrips_and_rejects_damage) {
+    using namespace liq::battle;
+    Frame f;
+    f.score = 4242;
+    f.maxLevel = 7;
+    f.drops = 31;
+    f.flags = 2;
+    f.snap.aimX = 5000;
+    f.snap.heldLevel = 3;
+    f.snap.drops = {{2, 3}, {5, 2}};
+    f.snap.pos = {100, 200, 300, 400, 500, 600, 700, 800, 900, 1000};
+    Frame g;
+    CHECK(decode(encode(f), g));
+    CHECK(g.score == 4242 && g.maxLevel == 7 && g.flags == 2 && g.snap.pos == f.snap.pos && g.snap.drops.size() == 2);
+    auto bad = encode(f);
+    bad.pop_back();
+    CHECK(!decode(bad, g));
+    Welcome w;
+    w.seed = 99;
+    w.modifier = 3;
+    w.duration = 90;
+    w.hostName = "HOST";
+    Welcome w2;
+    CHECK(decode(encode(w), w2) && w2.seed == 99 && w2.hostName == "HOST");
+    Announce a;
+    a.tcpPort = 4000;
+    a.hostName = "X";
+    Announce a2;
+    CHECK(decode(encode(a), a2) && a2.tcpPort == 4000);
+    liq::net::Bytes junk{1, 2, 3};
+    CHECK(!decode(junk, g) && !decode(junk, w2) && !decode(junk, a2));
+    // Fuzz: random damage never crashes the decoders.
+    Rng r;
+    r.seed(5u);
+    for (int i = 0; i < 3000; ++i) {
+        auto m = encode(f);
+        for (int k = 0; k < 4; ++k) m[size_t(r.range(0, int(m.size()) - 1))] = uint8_t(r.range(0, 255));
+        if (r.range(0, 3) == 0) m.resize(size_t(r.range(0, int(m.size()))));
+        (void)decode(m, g);
+    }
+}
+
+TEST(battle_bot_plays_and_harder_bots_score_more) {
+    using namespace liq::battle;
+    auto play = [](Difficulty d) {
+        MatchConfig c;
+        c.seed = 12345;
+        c.duration = 30;
+        c.difficulty = d;
+        auto bot = makeBot(c);
+        SelfInfo me;
+        for (int i = 0; i < 60 * 31 && !bot->finished(); ++i) bot->update(1.f / 60.f, me);
+        CHECK(bot->finished());
+        return bot->score();
+    };
+    const int easy = play(Difficulty::Easy), hard = play(Difficulty::Hard);
+    CHECK(easy > 0);
+    CHECK(hard > easy);
+}
+
+TEST(battle_lan_lobby_and_match_over_loopback) {
+    using namespace liq::battle;
+    liq::net::init();
+    MatchConfig c;
+    c.seed = 4321;
+    c.modifier = 2;
+    c.duration = 77;
+    c.myName = "HOST";
+    HostLobby host;
+    CHECK(host.start(c));
+    Browser browser;
+    const bool browsing = browser.start();  // port may be busy on a shared machine; discovery is then skipped
+    Peer p;
+    p.ip = 0x7F000001u;
+    p.info.tcpPort = host.port();
+    JoinLobby join;
+    join.start(p, "GUEST");
+    auto pump = [&](const std::function<bool()>& done) {
+        for (int i = 0; i < 1500 && !done(); ++i) {
+            host.update(0.01f);
+            join.update(0.01f);
+            browser.update(0.01f);
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+        return done();
+    };
+    CHECK(pump([&] { return host.hasGuest() && join.state() == JoinLobby::State::Waiting; }));
+    CHECK(host.guestName() == "GUEST");
+    CHECK(join.config().seed == 4321u && join.config().modifier == 2 && join.config().duration == 77 && join.config().oppName == "HOST");
+    if (browsing) {
+        bool seen = false;
+        for (const Peer& g : browser.games()) seen = seen || g.info.tcpPort == host.port();
+        CHECK(seen || !pump([&] { return false; }));  // announcements arrive within the first rounds
+    }
+    auto hostLink = host.begin();
+    CHECK(hostLink != nullptr);
+    CHECK(pump([&] { return join.state() == JoinLobby::State::Started; }));
+    auto a = makeNetOpponent(hostLink);        // what the host sees of the guest
+    auto b = makeNetOpponent(join.take());     // what the guest sees of the host
+    World wh;
+    wh.spawn(100.f, 300.f, 2);
+    wh.spawn(160.f, 250.f, 3);
+    for (int i = 0; i < 90; ++i) wh.step(1.f / 60.f, 600.f);
+    SelfInfo hostInfo;
+    hostInfo.score = 900;
+    hostInfo.maxLevel = 3;
+    hostInfo.world = &wh;
+    hostInfo.aimX = 120.f;
+    hostInfo.heldLevel = 2;
+    SelfInfo guestInfo;
+    guestInfo.score = 55;
+    for (int i = 0; i < 400 && !(b->score() == 900 && a->score() == 55); ++i) {
+        a->update(0.016f, hostInfo);  // NB: `a` publishes the HOST's pot (it lives in the host process)
+        b->update(0.016f, guestInfo);
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    CHECK(b->score() == 900);  // guest sees the host's score...
+    CHECK(a->score() == 55);   // ...and the host sees the guest's
+    CHECK(b->world().parts.size() == wh.parts.size());
+    CHECK(b->heldLevel() == 2 && std::fabs(b->aimX() - 120.f) < 0.1f);
+    hostInfo.finished = true;
+    a->sendFinal(hostInfo);
+    for (int i = 0; i < 200 && !b->finished(); ++i) {
+        b->update(0.016f, guestInfo);
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    CHECK(b->finished() && !b->disconnected());
+    a->leave();
 }
 
 TEST(rng_is_deterministic_per_seed) {

@@ -58,9 +58,18 @@ public:
             c.save.weeklyWeek = weekOf(today_);
             c.save.weeklyBest = 0;
         }
-        st_ = c.save.tutorialDone || replaying_ ? St::Playing : St::Tutorial;
+        battle_ = mid_ == ModeId::Battle;
+        if (battle_) {  // the Battle menus prepared the match (rules + opponent)
+            bcfg_ = c.battle.cfg;
+            opp_ = c.battle.link ? battle::makeNetOpponent(c.battle.link) : battle::makeBot(bcfg_);
+            c.battle.link.reset();
+        }
+        st_ = c.save.tutorialDone || replaying_ || battle_ ? St::Playing : St::Tutorial;
         c.in.focusLost = false;
         start(c);
+    }
+    ~GameScene() override {
+        if (opp_) opp_->leave();  // closes a LAN link politely
     }
 
     void frame(Ctx& c, float dt) override {
@@ -76,7 +85,8 @@ public:
         }
         if (slowT_ > 0.f) slowT_ = std::max(0.f, slowT_ - dt);
         const float slow = c.save.effSlowmo() && slowT_ > 0.f ? 1.f - 0.6f * std::min(1.f, slowT_ * 4.f) : 1.f;
-        if (st_ == St::Playing) simulate(c, std::min(dt, 0.05f) * slow);
+        if (battle_) battleFrame(c, dt, slow);
+        else if (st_ == St::Playing) simulate(c, std::min(dt, 0.05f) * slow);
         updateAudio(c, dt);
         if (!paused) {
             updateFx(dt);
@@ -90,7 +100,8 @@ public:
         }
 
         g.drawBackdrop(*c.theme, c.save.reduceMotion ? 0.f : c.time);
-        drawNextPanel(c);
+        const bool spec = viewing();
+        if (!spec) drawNextPanel(c);
         int sx = 0, sy = 0;
         if (shake_ > 0.05f && !paused && c.save.effShake()) {
             sx = int(std::lround(rngFx_.uni(-shake_, shake_)));
@@ -99,14 +110,15 @@ public:
         g.setOffset(sx, sy);
         g.drawTankBg();
         drawBubbles(c);
-        drawDeadLine(c, world_.overflow() > 0.2f, deadY_);
-        drawGuide(c);
+        drawDeadLine(c, !spec && world_.overflow() > 0.2f, spec ? cfg::kDeadY + 22.f : deadY_);
+        if (!spec) drawGuide(c);
         drawBlobs(c, sx, sy);
         drawTankFrame(c);
-        drawFx(c);
+        if (!spec) drawFx(c);
         g.setOffset(0, 0);
         drawHud(c);
-        drawHistory(c);
+        if (battle_) drawViewButton(c);
+        else drawHistory(c);
         drawToast(c);
         drawHint(c, paused);
         if (replaying_ && st_ != St::Over) c.gfx.text(c.loc.tr("replay.banner"), cfg::kW / 2.f, 78, 1, c.theme->accent, Align::Center, TextFx::Outline, c.theme->ink);
@@ -121,6 +133,7 @@ public:
             case St::Over: overlay(c); break;
             default: break;
         }
+        if (battle_ && countdown_ > 0.f) drawCountdown(c);
     }
 
 private:
@@ -149,6 +162,15 @@ private:
         bool valid = false;
     } snap_;
     int undos_ = 1;
+    // Battle (v1.7.0)
+    bool battle_ = false;
+    battle::MatchConfig bcfg_;
+    std::unique_ptr<battle::Opponent> opp_;
+    float countdown_ = 0.f;
+    bool viewOpp_ = false, myDone_ = false, toppedOut_ = false, resultSet_ = false, oppLeft_ = false;
+    enum class Result { None, Win, Loss, Draw } result_ = Result::None;
+    int lastTick_ = 0;
+    bool viewing() const { return battle_ && viewOpp_ && opp_; }
     // Replay (v1.4.1): a finished run can be watched again; playback never touches saves or achievements.
     Replay rec_;
     uint32_t simStep_ = 0;
@@ -230,6 +252,7 @@ private:
             if (q >= 0) return q;
             if (mode_->puzzle()) return 0;  // queue used up
         }
+        if (mid_ == ModeId::Battle) return battle::battleLevel(bcfg_.seed, queueIdx_++, mod_);
         const int r = rng_.range(0, 99);
         if (mod_ == 4) return r < 15 ? 1 : r < 45 ? 2 : r < 80 ? 3 : 4;
         if (mid_ == ModeId::Zen) return r < 40 ? 0 : r < 70 ? 1 : r < 90 ? 2 : 3;  // Zen stays relaxed
@@ -243,19 +266,23 @@ private:
     }
 
     void start(Ctx& c) {
-        mode_ = makeMode(mid_, c.save, today_, c.puzzleLevel);
+        mode_ = mid_ == ModeId::Battle ? makeBattleMode(bcfg_.seed, bcfg_.duration, bcfg_.modifier) : makeMode(mid_, c.save, today_, c.puzzleLevel);
         mod_ = mode_->fixedModifier() >= 0 ? mode_->fixedModifier()
                : (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle) ? 0 : c.save.modifier;
         world_.clear();
         world_.viscScale = mod_ == 3 ? 3.f : 1.f;
         // Daily and Puzzle must play identically for everyone, so they always use the reference quality.
-        world_.substeps = (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle) ? 2 : c.save.quality + 1;
+        world_.substeps = (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle || mid_ == ModeId::Battle) ? 2 : c.save.quality + 1;
         if (replaying_) {
             mod_ = rec_.modifier;
             world_.viscScale = mod_ == 3 ? 3.f : 1.f;
             world_.substeps = rec_.substeps;
         }
         replayTail_ = 0;
+        countdown_ = battle_ ? 3.4f : 0.f;
+        lastTick_ = 0;
+        viewOpp_ = myDone_ = toppedOut_ = resultSet_ = oppLeft_ = false;
+        result_ = Result::None;
         deadY_ = deadBase();
         tideRelief_ = autoT_ = autoFill_ = 0.f;
         queueIdx_ = runMerges_ = runChain_ = stars_ = 0;
@@ -304,8 +331,9 @@ private:
 
     // The first time a mode is played (and for rules that change), show a short hint inside the pot.
     void introHint(Ctx& c) {
+        if (mid_ == ModeId::Battle) return;
         static const char* desc[kModeCount] = {"mode.classic.desc", "mode.timed.desc", "mode.target.desc", "mode.daily.desc",
-                                               "mode.zen.desc", "mode.rain.desc", "mode.tide.desc", "mode.weekly.desc", "mode.puzzle.desc"};
+                                               "mode.zen.desc", "mode.rain.desc", "mode.tide.desc", "mode.weekly.desc", "mode.puzzle.desc", "mode.battle.desc"};
         static const char* modKey[5] = {"mod.none", "mod.lowg", "mod.heavy", "mod.thick", "mod.bonus"};
         const uint32_t bit = 1u << int(mid_);
         std::string s;
@@ -438,8 +466,13 @@ private:
         c.audio.setIntensity(tension_);
     }
 
-    void simulate(Ctx& c, float dt) {
-        Input& in = c.in;
+    void simulate(Ctx& c, float dt, bool locked = false) {
+        Input in = c.in;  // a copy: the pause menu (drawn later) still sees the real clicks
+        if (locked) in.pressed = in.down = in.released = in.drop = in.left = in.right = in.undo = in.esc = false;
+        if (viewing()) {  // looking at the other pot: no aiming or dropping, the clock keeps running
+            in.pressed = in.down = in.released = in.drop = false;
+            aiming_ = false;
+        }
         if (in.esc) {
             st_ = St::Paused;
             c.ui.resetFocus();
@@ -449,7 +482,7 @@ private:
         if (replaying_) in.pressed = in.down = in.released = in.drop = in.left = in.right = false;
         // Aiming: drag with mouse/finger, release to drop. Keys: arrows + space/down.
         const float rad = World::radiusFor(cur_);
-        if (in.pressed && in.my > 64) aiming_ = true;
+        if (in.pressed && in.my > 64 && !(battle_ && in.my > 446)) aiming_ = true;
         if (aiming_ && (in.down || in.released)) aimX_ = in.mx;
         if (in.left) aimX_ -= cfg::kAimSpeed * dt;
         if (in.right) aimX_ += cfg::kAimSpeed * dt;
@@ -536,7 +569,7 @@ private:
             if (sv.streak >= 3) grant(c, kStreak3);
             if (mod_ != 0 && mid_ != ModeId::Weekly && score_ >= 1000) grant(c, kModded);
         }
-        if (mid_ != ModeId::Puzzle) {
+        if (mid_ != ModeId::Puzzle && mid_ != ModeId::Battle) {
             const bool counts = mod_ == 0 || mid_ == ModeId::Weekly;  // modifiers keep their own, unranked, runs
             int& best = mid_ == ModeId::Weekly ? c.save.weeklyBest : c.save.best[int(mid_)];
             newBest_ = counts && score_ > best;
@@ -552,6 +585,15 @@ private:
         overT_ = 0;
         if (replaying_) {  // watching only: no stats, bests, stars or achievements
             c.audio.play(Sfx::Success);
+            return;
+        }
+        if (battle_) {  // my run is over; the opponent decides the result
+            myDone_ = true;
+            toppedOut_ = o == Outcome::Lost;
+            opp_->sendFinal(selfInfo());
+            commit(c);
+            c.audio.play(toppedOut_ ? Sfx::Fail : Sfx::Success);
+            buzz(c, 0.5f, 60);
             return;
         }
         if (o == Outcome::Won && mid_ == ModeId::Target) {
@@ -570,6 +612,161 @@ private:
         commit(c);
         c.audio.play(o == Outcome::Lost ? Sfx::Fail : Sfx::Success);
         buzz(c, o == Outcome::Lost ? 0.7f : 0.5f, o == Outcome::Lost ? 140 : 60);
+    }
+
+    // ----- Battle -----
+    battle::SelfInfo selfInfo() const {
+        battle::SelfInfo me;
+        me.score = score_;
+        me.maxLevel = maxLevel_;
+        me.drops = drops_;
+        me.finished = myDone_;
+        me.toppedOut = toppedOut_;
+        me.elapsed = elapsed_;
+        me.world = &world_;
+        me.aimX = aimX_;
+        me.heldLevel = cur_;
+        return me;
+    }
+
+    void battleFrame(Ctx& c, float dt, float slow) {
+        const bool lan = opp_->isLan();
+        const bool menuUp = st_ == St::Paused || st_ == St::Settings;
+        if (countdown_ > 0.f) {  // 3, 2, 1, GO
+            if (!menuUp || lan) countdown_ -= dt;
+            const int n = int(std::ceil(countdown_));
+            if (n != lastTick_ && n >= 0) {
+                lastTick_ = n;
+                c.audio.play(n > 0 ? Sfx::Click : Sfx::Swipe);
+            }
+            if (lan) opp_->update(dt, selfInfo());  // keep the link alive
+            return;
+        }
+        if (!menuUp || lan) {  // a bot match really pauses; a LAN match cannot
+            opp_->fastForward(myDone_);
+            opp_->update(dt, selfInfo());
+        }
+        if (st_ == St::Playing) simulate(c, std::min(dt, 0.05f) * slow);
+        else if (menuUp && lan) simulate(c, std::min(dt, 0.05f) * slow, true);
+        if (!resultSet_) {
+            if (opp_->disconnected()) {
+                oppLeft_ = true;
+                if (!myDone_) {
+                    myDone_ = true;
+                    outcome_ = Outcome::Finished;
+                    st_ = St::Over;
+                    overT_ = 0;
+                    commit(c);
+                }
+                setResult(c);
+            } else if (myDone_ && opp_->finished()) {
+                setResult(c);
+            }
+        }
+    }
+
+    void setResult(Ctx& c) {
+        resultSet_ = true;
+        const int mine = score_, theirs = opp_->score();
+        if (oppLeft_ || mine > theirs) result_ = Result::Win;
+        else if (mine < theirs) result_ = Result::Loss;
+        else if (maxLevel_ != opp_->maxLevel()) result_ = maxLevel_ > opp_->maxLevel() ? Result::Win : Result::Loss;
+        else result_ = Result::Draw;
+        if (result_ == Result::Win) ++c.save.battleWins;
+        else if (result_ == Result::Loss) ++c.save.battleLosses;
+        else ++c.save.battleDraws;
+        c.save.store();
+        c.audio.play(result_ == Result::Loss ? Sfx::Fail : Sfx::Unlock);
+        overT_ = 0;
+    }
+
+    void rematch(Ctx& c) {  // bot matches only: new seed, fresh bot
+        bcfg_.seed = bcfg_.seed * 1664525u + 1013904223u;
+        opp_ = battle::makeBot(bcfg_);
+        start(c);
+        st_ = St::Playing;
+    }
+
+    void drawViewButton(Ctx& c) {
+        if (resultSet_ && viewOpp_ == false && st_ == St::Over) {
+            // still offered after the result, so the opponent's final pot can be inspected
+        }
+        const bool can = st_ == St::Playing || st_ == St::Over || countdown_ > 0.f;
+        const std::string label = c.loc.tr(viewOpp_ ? "battle.back" : "battle.view");
+        if (c.ui.button(label, 22, 450, 226, 22, can, can, viewOpp_ ? BtnStyle::Primary : BtnStyle::Normal)) viewOpp_ = !viewOpp_;
+    }
+
+    void drawCountdown(Ctx& c) {
+        Gfx& g = c.gfx;
+        const Theme& t = *c.theme;
+        g.dim(t, 0);
+        const float frac = countdown_ - std::floor(countdown_);
+        const int n = int(std::ceil(countdown_));
+        const int scale = 8 + (c.save.reduceMotion ? 0 : int(frac * 4.f));
+        if (n >= 1 && n <= 3) g.number(std::to_string(n), cfg::kW / 2.f, 230, scale, t.accent, Align::Center, TextFx::Outline, t.ink);
+        else g.text(c.loc.tr("battle.go"), cfg::kW / 2.f, 230, 5, t.accent, Align::Center, TextFx::Outline, t.ink);
+        g.text(opp_->name(), cfg::kW / 2.f, 290, 1, t.text, Align::Center, TextFx::Outline, t.ink);
+        g.text("VS", cfg::kW / 2.f, 276, 1, t.dim, Align::Center);
+    }
+
+    void battleOverlay(Ctx& c) {
+        if (viewing()) return;  // the opponent's pot is on screen; the button below leads back
+        Gfx& g = c.gfx;
+        Ui& ui = c.ui;
+        const Theme& t = *c.theme;
+        Loc& L = c.loc;
+        g.dim(t, 0);
+        const float slide = std::min(1.f, overT_ * 4.f);
+        const float oy = std::floor((1.f - slide) * -60.f);
+        const float px = 25, pw = 220, py = 96 + oy;
+        ui.panel(px, py, pw, 330);
+        const float cx = cfg::kW / 2.f;
+        if (!resultSet_) {
+            g.text(L.tr("battle.waitopp"), cx, py + 26, 1, t.accent, Align::Center);
+            const int dots = int(c.time * 3.f) % 4;  // small spinner
+            for (int i = 0; i < 4; ++i) g.rect(cx - 15.f + float(i) * 10.f, py + 44.f, 6, 6, i == dots ? t.accent : t.panelLo);
+        } else {
+            const bool win = result_ == Result::Win, loss = result_ == Result::Loss;
+            g.text(L.tr(win ? "battle.victory" : loss ? "battle.defeat" : "battle.draw"), cx, py + 28, 2, win ? t.accent : loss ? t.danger : t.text,
+                   Align::Center, TextFx::Outline, t.ink);
+            if (oppLeft_) g.text(L.tr("battle.oppleft"), cx, py + 50, 1, t.dim, Align::Center);
+            else if (toppedOut_) g.text(L.tr("battle.toppedout"), cx, py + 50, 1, t.dim, Align::Center);
+            else if (opp_->toppedOut()) g.text(L.tr("battle.oppout"), cx, py + 50, 1, t.dim, Align::Center);
+        }
+        // Two columns: you and the opponent, with the biggest droplet each reached.
+        const float lx = px + 56, rx = px + pw - 56;
+        g.rect(cx, py + 74, 1, 96, t.panelLo);
+        g.text("VS", cx, py + 122, 1, t.dim, Align::Center);
+        auto column = [&](float x, const std::string& name, int score, int level, bool winner) {
+            g.text(name, x, py + 80, 1, t.dim, Align::Center);
+            g.number(std::to_string(score), x, py + 108, 2, winner ? t.accent : t.text, Align::Center, TextFx::Outline, t.ink);
+            g.disc(x, py + 142, 11, t.ink);
+            g.disc(x, py + 142, 10, t.blob[std::min(std::max(level, 0), 11)]);
+            g.number(std::to_string(1 << std::min(std::max(level, 0), 11)), x, py + 142, 1, t.label, Align::Center);
+            if (winner) g.icon(IconId::Crown, x - 5.f, py + 160.f, t.accent);
+        };
+        const bool mineWins = resultSet_ && result_ == Result::Win, theirsWin = resultSet_ && result_ == Result::Loss;
+        column(lx, L.tr("battle.you"), score_, maxLevel_, mineWins);
+        column(rx, opp_->name(), opp_->score(), opp_->maxLevel(), theirsWin);
+        g.rect(px + 14, py + 186, pw - 28, 1, t.panelLo);
+        g.text(L.tr(modName(mod_)), cx, py + 200, 1, t.dim, Align::Center);
+        float y = py + 222;
+        if (resultSet_) {
+            if (!opp_->isLan()) {
+                if (ui.button(L.tr("battle.rematch"), px + 20, y, pw - 40, 26, true, true, BtnStyle::Primary)) rematch(c);
+                y += 34;
+            }
+            if (ui.button(L.tr("battle.menu"), px + 20, y, pw - 40, 26, true, true, opp_->isLan() ? BtnStyle::Primary : BtnStyle::Normal)) c.go(SceneId::Battle);
+            y += 34;
+            if (ui.button(L.tr("over.menu"), px + 20, y, pw - 40, 26) || c.in.esc) c.go(SceneId::Menu);
+        } else {
+            if (ui.button(L.tr("pause.quit"), px + 20, y + 20, pw - 40, 26)) c.go(SceneId::Battle);
+        }
+    }
+
+    static const char* modName(int m) {
+        static const char* k[5] = {"mod.none", "mod.lowg", "mod.heavy", "mod.thick", "mod.bonus"};
+        return k[std::min(std::max(m, 0), 4)];
     }
 
     // ----- effects -----
@@ -654,9 +851,11 @@ private:
 
     void drawBlobs(Ctx& c, int sx, int sy) {
         const float alpha = clampv(acc_ / cfg::kStep, 0.f, 1.f);
+        const bool spec = viewing();
+        const World& W = spec ? opp_->world() : world_;
         std::vector<BlobSprite> pile, labels;
-        world_.particleSprites(st_ == St::Playing ? alpha : 1.f, kParticleDraw, pile);
-        world_.labelSprites(labels);
+        W.particleSprites(spec ? opp_->viewAlpha() : (st_ == St::Playing ? alpha : 1.f), kParticleDraw, pile);
+        W.labelSprites(labels);
         for (auto& s : pile) {
             s.x += float(sx);
             s.y += float(sy);
@@ -671,7 +870,11 @@ private:
 
         // The blob you are about to drop (its own group, so it never fuses with the pile).
         const int lim = mode_->dropLimit();
-        if (st_ != St::Over && (lim < 0 || drops_ < lim)) {
+        if (spec) {  // the opponent's hovering drop
+            std::vector<BlobSprite> held{plainSprite(opp_->aimX() + float(sx), cfg::kSpawnY + float(sy), opp_->heldLevel())};
+            c.raster.drawField(held, *c.theme);
+            c.raster.drawLabels(held, *c.theme);
+        } else if (st_ != St::Over && (lim < 0 || drops_ < lim)) {
             const float br = 1.f + vis::kBreath * std::sin(c.time * 6.2831853f * vis::kBreathHz);
             // After a release the next drop swells up from nothing while the cooldown runs out.
             float fill = clampv(1.f - std::max(0.f, cooldown_) / cfg::kDropCooldown, 0.f, 1.f);
@@ -683,6 +886,10 @@ private:
             if (held[0].ra < 2.f) held.clear();
             c.raster.drawField(held, *c.theme);
             c.raster.drawLabels(held, *c.theme);
+        }
+        if (spec) {
+            c.gfx.raster(c.raster);
+            return;
         }
         // Next-blob preview inside its HUD panel (unshaken).
         std::vector<BlobSprite> nxt{popped(plainSprite(c.ui.mx(8, 44) + 22.f, 36.f, next_), nextPop_.x)};
@@ -706,9 +913,15 @@ private:
         Loc& L = c.loc;
         const bool play = st_ == St::Playing;
 
-        // Score (counts up) + best.
-        g.number(std::to_string(int(std::lround(dispScore_))), cfg::kW / 2.f, 24, 3, t.text, Align::Center, TextFx::Outline, t.ink);
-        if (mid_ != ModeId::Puzzle) {
+        // Score (counts up) + best. In Battle: the opponent's score under yours (or yours under theirs while watching).
+        const bool vw = viewing();
+        g.number(std::to_string(vw ? opp_->score() : int(std::lround(dispScore_))), cfg::kW / 2.f, 24, 3, vw ? t.accent : t.text, Align::Center,
+                 TextFx::Outline, t.ink);
+        if (battle_) {
+            const std::string line = vw ? L.tr("battle.you") + " " + std::to_string(score_) : "VS " + opp_->name() + " " + std::to_string(opp_->score());
+            const bool behind = !vw && opp_->score() > score_;
+            g.text(line, cfg::kW / 2.f, 48, 1, behind ? t.danger : t.dim, Align::Center);
+        } else if (mid_ != ModeId::Puzzle) {
             const std::string best = L.tr("hud.best") + " " + std::to_string(std::max(bestFor(c), score_));
             const float bw = float(g.textW(best, 1));
             g.icon(IconId::Crown, cfg::kW / 2.f - bw / 2.f - 13.f, 45.f, t.accent);
@@ -733,7 +946,8 @@ private:
 
         // Mode, status, segmented progress bar.
         const Stats s = stats();
-        g.text(L.tr(mode_->nameKey()), cfg::kW / 2.f, 64, 1, t.accent, Align::Center);
+        if (vw) g.text(opp_->name() + " - " + L.tr("battle.viewing"), cfg::kW / 2.f, 64, 1, t.danger, Align::Center);
+        else g.text(L.tr(mode_->nameKey()), cfg::kW / 2.f, 64, 1, t.accent, Align::Center);
         const std::string status = mode_->status(L, s);
         if (!status.empty()) g.text(status, cfg::kW / 2.f, 77, 1, t.text, Align::Center);
         const float pg = mode_->progress(s);
@@ -863,18 +1077,32 @@ private:
         const Theme& t = *c.theme;
         Loc& L = c.loc;
         g.dim(t, 1);
-        ui.panel(55, 170, 160, 168);
+        ui.panel(55, 170, 160, battle_ ? 138 : 168);
         g.text(L.tr("pause.title"), cfg::kW / 2.f, 192, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
         if (ui.button(L.tr("pause.resume"), 70, 214, 130, 24, true, true, BtnStyle::Primary) || c.in.esc) st_ = St::Playing;
-        if (ui.button(L.tr("pause.restart"), 70, 244, 130, 24)) {
-            commit(c);
-            start(c);
-            st_ = St::Playing;
+        float by = 244;
+        if (!battle_) {
+            if (ui.button(L.tr("pause.restart"), 70, by, 130, 24)) {
+                commit(c);
+                start(c);
+                st_ = St::Playing;
+            }
+            by += 30;
         }
-        if (ui.button(L.tr("pause.settings"), 70, 274, 130, 24)) st_ = St::Settings;
-        if (ui.button(L.tr("pause.quit"), 70, 304, 130, 24)) {
-            commit(c);
-            c.go(mid_ == ModeId::Puzzle ? SceneId::Puzzle : SceneId::Menu);
+        if (ui.button(L.tr("pause.settings"), 70, by, 130, 24)) st_ = St::Settings;
+        by += 30;
+        if (ui.button(L.tr("pause.quit"), 70, by, 130, 24)) {
+            if (battle_) {  // leaving a LAN match counts as a forfeit
+                if (opp_->isLan() && !resultSet_) {
+                    ++c.save.battleLosses;
+                    resultSet_ = true;
+                }
+                c.save.store();
+                c.go(SceneId::Battle);
+            } else {
+                commit(c);
+                c.go(mid_ == ModeId::Puzzle ? SceneId::Puzzle : SceneId::Menu);
+            }
         }
     }
 
@@ -913,6 +1141,10 @@ private:
     }
 
     void overlay(Ctx& c) {
+        if (mid_ == ModeId::Battle) {
+            battleOverlay(c);
+            return;
+        }
         Gfx& g = c.gfx;
         Ui& ui = c.ui;
         const Theme& t = *c.theme;
@@ -948,7 +1180,7 @@ private:
             }
             if (ui.button(L.tr("over.copyres"), 137, 360 + oy, 78, 20)) {
                 static const char* names[kModeCount] = {"mode.classic", "mode.timed", "mode.target", "mode.daily", "mode.zen",
-                                                        "mode.rain", "mode.tide", "mode.weekly", "mode.puzzle"};
+                                                        "mode.rain", "mode.tide", "mode.weekly", "mode.puzzle", "mode.battle"};
                 SDL_SetClipboardText(("Liq2048 V" LIQ_VERSION " - " + L.tr(names[int(mid_)]) + ": " + std::to_string(score_) + " pts, " +
                                       std::to_string(drops_) + " drops, chain x" + std::to_string(runChain_)).c_str());
                 toast_ = L.tr("over.copied");

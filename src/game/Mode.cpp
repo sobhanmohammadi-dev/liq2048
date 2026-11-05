@@ -171,7 +171,34 @@ private:
     int number_ = 1;
 };
 
+// Head-to-head: the clock runs for everyone, topping out ends your run early, the opponent decides who won.
+class Battle final : public Mode {
+public:
+    Battle(uint32_t seed, int duration, int modifier)
+        : seed_(seed ? seed : 1u), duration_(float(duration)), left_(float(duration)), modifier_(modifier) {}
+    ModeId id() const override { return ModeId::Battle; }
+    const char* nameKey() const override { return "mode.battle"; }
+    uint32_t seed() const override { return seed_; }
+    int fixedModifier() const override { return modifier_; }
+    void update(float dt) override { left_ -= dt; }
+    Outcome evaluate(const Stats& s) const override {
+        if (s.overflow) return Outcome::Lost;
+        return left_ <= 0 ? Outcome::Finished : Outcome::Running;
+    }
+    std::string status(const Loc& l, const Stats&) const override { return l.tr("hud.time") + " " + mmss(left_); }
+    float progress(const Stats&) const override { return std::max(0.f, left_) / duration_; }
+
+private:
+    uint32_t seed_;
+    float duration_, left_;
+    int modifier_;
+};
+
 }  // namespace
+
+std::unique_ptr<Mode> makeBattleMode(uint32_t seed, int durationSeconds, int modifier) {
+    return std::make_unique<Battle>(seed, durationSeconds, modifier);
+}
 
 std::unique_ptr<Mode> makeMode(ModeId id, const Save& save, int today, int puzzleLevel) {
     switch (id) {

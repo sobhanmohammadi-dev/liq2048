@@ -36,7 +36,7 @@ Random drops are weighted: 1 (40 %), 2 (30 %), 4 (20 %), 8 (10 %).
 - **Themes** (colours only, earned never bought): Default, Mono (first 128), Sunset (chain ×5), Forest (first 512).
 - **Daily streak:** counts consecutive days played. It resets quietly; there are no penalties, notifications or
   expiring rewards.
-- No ads, in-app purchases, paid power-ups, energy timers, loot boxes or tracking. The game never touches the network.
+- No ads, in-app purchases, paid power-ups, energy timers, loot boxes or tracking. The game never touches the internet; the only networking is the optional local-network Battle mode, which starts only when you open its LAN screens.
 
 ## Adding a mode
 
@@ -75,7 +75,13 @@ Open them from **Play → More modes**.
   more for bigger droplets, but never above its start; it glides instead of jumping.
 - **Weekly Challenge:** the same 100 drops for everyone for a whole week (Monday to Sunday, UTC) with that week's
   rule: low gravity, heavy gravity, thick liquid or bonus drops. Own weekly best, reset every week.
-- **Puzzle:** 15 levels. Each starts with a filled pot and a fixed queue of drops; reach the goal droplet before the
+- **Battle:** a timed duel (60, 90, 120 or 180 s). Both players get the identical drop queue in their own pot; the higher
+  score wins, a tie goes to the higher droplet level, otherwise it is a draw. If your pot overflows your run ends early
+  (the opponent keeps playing). Modifiers apply to both pots. Play **vs Bot** (Easy, Medium, Hard, Adaptive) or **vs
+  Human** on the same Wi-Fi: *Host a game*, then on the other device *Browse games* and tap the game; the host sees
+  the player join and presses *Start*. **View Opponent** toggles a live view of the other pot; it is never shown
+  beside yours. If the opponent disconnects you win. Pausing a LAN match does not stop the clock.
+- **Puzzle:** 26 levels. Each starts with a filled pot and a fixed queue of drops; reach the goal droplet before the
   queue runs out. Three stars for the par number of drops, two for par + 2, one for any solution. Pick any level.
   See [PUZZLES.md](PUZZLES.md).
 

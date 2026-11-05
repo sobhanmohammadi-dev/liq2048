@@ -4,6 +4,7 @@
 #include <string>
 
 #include "audio/Audio.hpp"
+#include "battle/Battle.hpp"
 #include "core/Config.hpp"
 #include "core/Themes.hpp"
 #include "game/Replay.hpp"
@@ -16,7 +17,7 @@
 
 namespace liq {
 
-enum class SceneId { Menu, ModeSelect, Progress, Settings, Game, Brand, Puzzle, Credits };
+enum class SceneId { Menu, ModeSelect, Progress, Settings, Game, Brand, Puzzle, Credits, Battle };
 
 struct Ctx {
     Ctx() : raster(cfg::kW, cfg::kH) { ui.bind(this); }
@@ -39,6 +40,11 @@ struct Ctx {
     ModeId mode = ModeId::Classic;
     Replay pendingReplay;       // run code pasted in the menu, picked up by the next game scene
     bool hasPendingReplay = false;
+    // Battle: filled in by the Battle menus, picked up by the next game scene.
+    struct BattleSetup {
+        battle::MatchConfig cfg;
+        std::shared_ptr<battle::Link> link;  // set for LAN matches
+    } battle;
     int puzzleLevel = 0;        // selected puzzle (0-based) when mode == Puzzle
     float time = 0.f;           // seconds since start (animation clock)
     std::string brandVariant;   // dev: which branding image the Brand scene draws

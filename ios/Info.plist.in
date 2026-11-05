@@ -21,6 +21,7 @@
     <key>UILaunchScreen</key><dict><key>UIColorName</key><string></string></dict>
     <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
     <key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationPortrait</string></array>
+    <key>NSLocalNetworkUsageDescription</key><string>Liq2048 uses your local network only to find and play Battle matches with friends on the same Wi-Fi.</string>
     <key>ITSAppUsesNonExemptEncryption</key><false/>
 </dict>
 </plist>
