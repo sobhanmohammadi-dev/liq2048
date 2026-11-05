@@ -116,14 +116,14 @@ Exit: tag `v1.4.0` (a smaller release than planned; the moved items keep their p
 
 Goal: sharing and friendly competition, with zero network code in the game.
 
-- ☐ Share card: export a PNG of the final pot and score (system share sheet on mobile, file on desktop).
+- ◐ Share card: the **player card** (lifetime stats) is saved as a PNG file and its text copied (v1.7.1). The final-pot card and the system share sheet are not done.
 - ✔ Run codes: "Copy code" on the game-over screen puts a short `LQ1-…` code (drops + settings, checksummed) on the clipboard; "Watch run code" in the menu replays it. Racing a code is not done yet.
 - ✔ Result text ("Liq2048 V1.5.0 - Classic: 1024 pts, 38 drops, chain x4") copied with "Copy result". It has no date yet.
 - ☐ Local hot-seat versus mode: two players alternate drops in one pot, score by merges.
 - ☐ **Mirror** mode (two pots, one drop stream, alternate sides; from v1.3.0) and per-mode history charts on the
   Stats tab.
 - ☐ Ghost races against your own best replay.
-- ☐ Import/export of save data as a file (manual backup and moving between devices).
+- ✔ (v1.7.1) Save backup and restore through the clipboard and a backup file in the save folder. A file picker is not done.
 
 Status: partial. Share card PNG, hot-seat versus, Mirror mode, history charts, ghost races and save import/export are moved to v1.5.x. Clipboard use is untested on mobile.
 
@@ -171,6 +171,14 @@ Goal: play against someone, or against the game, for the highest score in a fixe
   network prompt, broadcast on iOS), bot balance with real players, and native-speaker review of the Battle translations.
 
 Exit: a two-player LAN match and a PvE match both play to the end on desktop and Android. Tag `v1.7.0`.
+
+## v1.7.1: Menus and touch
+
+- ✔ Classic main menu (Start, Additional features, Progress, Settings), Additional features screen, scrollable animated mode board.
+- ✔ Player card PNG, player name, save backup and restore.
+- ✔ Touch: buffered drops, tolerant tap release, performance governor (not measured on a device).
+- ☐ Still open from earlier versions: hot-seat versus, Mirror mode, ghost races, history charts, desktop window polish, glyph hints, accessibility
+  labels, reproducible builds and checksums.
 
 ## v1.8.0: Modding and community
 
@@ -251,6 +259,7 @@ saves, replays or mods (with a migration path).
 | v1.6.0 | Craft (first part) | ◐ |
 | v1.6.1 | Fixes: Persian/Arabic, mobile layout, difficulty, Rising Tide, authors page | ☑ |
 | v1.7.0 | Battle (PvP over LAN, PvE) and more puzzles | ✅ (26 of 45 puzzles) |
+| v1.7.1 | Menus and touch | ✅ |
 | v1.8.0 | Modding and community | ☐ |
 | v2.0.0 | Next generation | ☐ |
 

@@ -150,6 +150,8 @@ private:
     int score_ = 0, drops_ = 0, cur_ = 0, next_ = 0, maxLevel_ = 0, tutPage_ = 0;
     float dispScore_ = 0, aimX_ = (cfg::kFieldL + cfg::kFieldR) / 2, holdX_ = aimX_;
     float tension_ = 0.f;
+    float queuedDrop_ = 0, perfEma_ = 1.f / 60.f;
+    bool perfLow_ = false;
     float slowT_ = 0, cooldown_ = 0, quiet_ = 0, elapsed_ = 0, acc_ = 0, shake_ = 0, overT_ = 0, toastT_ = 0, chainT_ = 0;
     int chainShown_ = 0;
     // Undo (Classic and Zen): one step back, charges are earned by chains.
@@ -310,7 +312,7 @@ private:
         rngFx_.seed(99u);
         score_ = drops_ = maxLevel_ = 0;
         dispScore_ = 0;
-        cooldown_ = quiet_ = elapsed_ = acc_ = shake_ = overT_ = toastT_ = chainT_ = slowT_ = 0;
+        queuedDrop_ = 0; cooldown_ = quiet_ = elapsed_ = acc_ = shake_ = overT_ = toastT_ = chainT_ = slowT_ = 0;
         snap_.valid = false;
         undos_ = 1;
         aiming_ = committed_ = newBest_ = false;
@@ -495,6 +497,18 @@ private:
         }
         if (in.drop) want = true;
         cooldown_ -= dt;
+        // Input buffering: a tap that lands while the drop cooldown is running is kept for a moment and fires
+        // as soon as the cooldown ends, instead of being lost (felt like "I have to tap twice").
+        if (want && cooldown_ > 0.f && !replaying_) {
+            queuedDrop_ = 0.45f;
+            want = false;
+        } else if (queuedDrop_ > 0.f) {
+            queuedDrop_ -= dt;
+            if (cooldown_ <= 0.f) {
+                want = true;
+                queuedDrop_ = 0.f;
+            }
+        }
         elapsed_ += dt;
         quiet_ += dt;
         mode_->update(dt);
@@ -517,7 +531,15 @@ private:
         if (mid_ == ModeId::Rain && elapsed_ >= 60.f) grant(c, kRain60);
         if (mid_ == ModeId::Tide && elapsed_ >= 90.f) grant(c, kTide90);
 
-        acc_ += dt;
+        acc_ = std::min(acc_ + dt, cfg::kStep * 3.f);  // never try to catch up more than 3 steps (slow phones)
+        // Performance governor: on a device that cannot hold ~50 fps, halve the liquid substeps in modes where
+        // the physics need not be identical for everyone.
+        if (!replaying_ && mid_ != ModeId::Daily && mid_ != ModeId::Puzzle && mid_ != ModeId::Battle) {
+            perfEma_ += (dt - perfEma_) * 0.04f;
+            if (!perfLow_ && perfEma_ > 0.024f) perfLow_ = true;
+            if (perfLow_ && perfEma_ < 0.017f) perfLow_ = false;
+            world_.substeps = perfLow_ ? 1 : c.save.quality + 1;
+        }
         while (acc_ >= cfg::kStep) {
             while (replaying_ && repIdx_ < rec_.drops.size() && rec_.drops[repIdx_].step <= simStep_) {
                 aimX_ = rec_.drops[repIdx_].x;

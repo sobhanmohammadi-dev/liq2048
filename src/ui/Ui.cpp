@@ -35,8 +35,12 @@ Ui::Hit Ui::hit(float x, float y, float w, float h, bool enabled, bool focusable
     r.hover = enabled && in.mx >= x - m && in.mx < x + w + m && in.my >= y - m && in.my < y + h + m;
     if (focusable && enabled) r.focus = (fidx_++ == focus_);
     if (enabled && in.pressed && r.hover) active_ = id;
-    r.held = enabled && active_ == id && in.down && r.hover;
-    if (enabled && in.released && r.hover && active_ == id) r.click = true;
+    r.held = enabled && active_ == id && in.down;
+    // A tap may roll a few pixels between touch-down and touch-up: on phones the release only has to land near
+    // the button the press started on.
+    const float rs = platform::isMobile() ? m + 10.f : m;
+    const bool nearUp = enabled && in.mx >= x - rs && in.mx < x + w + rs && in.my >= y - rs && in.my < y + h + rs;
+    if (enabled && in.released && nearUp && active_ == id) r.click = true;
     if (enabled && r.focus && in.confirm) r.click = true;
     return r;
 }

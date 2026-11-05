@@ -25,6 +25,9 @@ SceneId sceneFromName(const std::string& n, Ctx& c) {
     if (n == "game") return SceneId::Game;
     if (n == "credits") return SceneId::Credits;
     if (n == "battle") return SceneId::Battle;
+    if (n == "modes") return SceneId::ModeSelect;
+    if (n == "extras") return SceneId::Extras;
+    if (n == "card") return SceneId::Card;
     if (n == "battlegame") {  // dev: a bot match with scripted input
         c.mode = ModeId::Battle;
         c.battle.cfg.seed = 7;
@@ -156,6 +159,7 @@ int App::run(const AppOptions& opt) {
             while (SDL_PollEvent(&e)) {
                 switch (e.type) {
                     case SDL_QUIT: c.quit = true; break;
+                    case SDL_TEXTINPUT: c.in.text += e.text.text; break;
                     case SDL_MOUSEWHEEL: c.in.wheel += float(e.wheel.y) * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.f : 1.f); break;
                     case SDL_CONTROLLERDEVICEADDED:
                         if (SDL_IsGameController(e.cdevice.which))
@@ -205,6 +209,7 @@ int App::run(const AppOptions& opt) {
                         switch (e.key.keysym.scancode) {
                             case SDL_SCANCODE_ESCAPE:
                             case SDL_SCANCODE_AC_BACK: c.in.esc = true; break;
+                            case SDL_SCANCODE_BACKSPACE: c.in.backspace = true; break;
                             case SDL_SCANCODE_RETURN:
                             case SDL_SCANCODE_KP_ENTER: c.in.confirm = true; break;
                             case SDL_SCANCODE_SPACE: c.in.confirm = c.in.drop = true; break;

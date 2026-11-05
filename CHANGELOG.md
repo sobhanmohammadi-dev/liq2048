@@ -8,6 +8,30 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.7.1]
+
+### Added
+- **Additional features** screen (main menu, second button): watch a run code, **player card** (your stats as a PNG,
+  with the text also copied), player name (used in Battle), **back up save** (clipboard + file) and **restore save**
+  (from the clipboard; the previous save is kept as `save-before-restore.txt`), authors, quit.
+- New **mode board**: a scrollable page following the design sketch (wide Battle tile, tall Puzzle tile beside
+  Classic and Zen, then Time Attack, Target, Daily, Rain, Tide and Weekly), each tile with its own live animation
+  (two drops bumping for Battle, three drops drifting for Puzzle, one calm drop and ripples for Zen, a clock for
+  Time Attack, and so on). Drag, mouse wheel, arrow keys and gamepad all scroll or select.
+- Text input support (used for the player name).
+
+### Changed
+- The main menu is the classic one again, now with Start, Additional features, Progress and Settings.
+
+### Fixed (mobile feel)
+- A tap that lands while the 0.4 s drop cooldown is still running is now kept and fires when the cooldown ends,
+  instead of being lost (this felt like having to tap twice).
+- Buttons accept a release a few pixels off the button the touch began on, so a slightly rolling finger still
+  counts as a tap.
+- Performance governor: if the frame time stays above about 24 ms, the liquid drops to one substep (Daily, Puzzle
+  and Battle always keep the reference physics), and the simulation never tries to catch up more than 3 steps.
+  This is untested on a real phone.
+
 ## [1.7.0]
 
 ### Added

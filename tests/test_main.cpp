@@ -1,6 +1,7 @@
 // Dependency-free unit tests (run with `ctest` from the build directory).
 // Logic only: no window, renderer or audio device is created.
 #define SDL_MAIN_HANDLED
+#include "gfx/Png.hpp"
 #include <cmath>
 #include <cstdio>
 #include <chrono>
@@ -700,6 +701,24 @@ TEST(save_game_feel_defaults) {
     CHECK(s.effShake() && s.effSlowmo());
     s.calm = true;  // calm mode overrides shake and slow motion
     CHECK(!s.effShake() && !s.effSlowmo());
+}
+
+TEST(png_writer_makes_a_valid_file) {
+    std::vector<uint8_t> rgb(3 * 5 * 4, 200);
+    const std::string path = "liq_test_card.png";
+    CHECK(writePng(path, 5, 4, rgb));
+    FILE* f = std::fopen(path.c_str(), "rb");
+    CHECK(f != nullptr);
+    if (f) {
+        unsigned char head[16] = {};
+        CHECK(std::fread(head, 1, 16, f) == 16);
+        CHECK(head[1] == 'P' && head[2] == 'N' && head[3] == 'G');
+        CHECK(head[12] == 'I' || head[12] == 0);  // IHDR follows the 8-byte signature and 4-byte length
+        std::fclose(f);
+        std::remove(path.c_str());
+    }
+    CHECK(!writePng(path, 0, 4, rgb));
+    CHECK(!writePng(path, 5, 4, std::vector<uint8_t>(3)));
 }
 
 TEST(world_copy_restores_state) {

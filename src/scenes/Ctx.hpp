@@ -17,7 +17,7 @@
 
 namespace liq {
 
-enum class SceneId { Menu, ModeSelect, Progress, Settings, Game, Brand, Puzzle, Credits, Battle };
+enum class SceneId { Menu, ModeSelect, Progress, Settings, Game, Brand, Puzzle, Credits, Battle, Extras, Card };
 
 struct Ctx {
     Ctx() : raster(cfg::kW, cfg::kH) { ui.bind(this); }

@@ -72,6 +72,7 @@ public:
     void raster(const BlobRaster& r);               // upload + draw the droplet layer
 
     bool screenshot(const std::string& path);
+    bool capturePng(const std::string& path);  // the logical screen only (no bars), as PNG
 
 private:
     struct Face {

@@ -13,6 +13,26 @@ namespace liq {
 
 namespace {
 
+// A row of wobbling droplets that touch and fuse, as a living logo.
+void drawLogoCluster(Ctx& c, float cy) {
+    std::vector<BlobSprite> sp;
+    float total = 0.f;
+    for (int i = 0; i < 7; ++i) total += World::radiusFor(i) * 2.f - 5.f;
+    float x = cfg::kW / 2.f - total / 2.f;
+    for (int i = 0; i < 7; ++i) {
+        const float r = World::radiusFor(i);
+        const float t = c.time;
+        const float px = x + r + std::sin(t * 1.1f + float(i) * 1.3f) * 2.5f;
+        const float py = cy + 12.f - r * 0.55f + std::sin(t * 1.5f + float(i) * 0.9f) * 4.f;
+        sp.push_back(plainSprite(px, py, i, 0.07f + 0.04f * std::sin(t * 1.9f + float(i)), t * 0.7f + float(i)));
+        x += r * 2.f - 5.f;
+    }
+    c.raster.clear();
+    c.raster.drawField(sp, *c.theme);
+    c.raster.drawLabels(sp, *c.theme);
+    c.gfx.raster(c.raster);
+}
+
 class MenuScene final : public Scene {
 public:
     void frame(Ctx& c, float dt) override {
@@ -21,59 +41,19 @@ public:
         Loc& L = c.loc;
         Ui& ui = c.ui;
         g.drawBackdrop(t, c.save.reduceMotion ? 0.f : c.time);
-        drawWordmark(c, cfg::kW / 2.f, 48.f + std::sin(c.time * 1.6f) * 1.f, 5);
-        g.text(L.tr("menu.tagline"), cfg::kW / 2.f, 82.f, 1, t.dim, Align::Center);
+        drawWordmark(c, cfg::kW / 2.f, 70.f + std::sin(c.time * 1.6f) * 1.f, 5);
+        g.text(L.tr("menu.tagline"), cfg::kW / 2.f, 106.f, 1, t.dim, Align::Center);
+        drawLogoCluster(c, 160.f);
 
-        // The four main modes as tiles, each with a living droplet.
-        struct Tile { const char* name; ModeId mode; int lvl; int lvl2; };
-        static const Tile tiles[4] = {{"mode.classic", ModeId::Classic, 2, -1},
-                                      {"mode.battle", ModeId::Battle, 1, 2},
-                                      {"mode.puzzle", ModeId::Puzzle, 3, -1},
-                                      {"mode.zen", ModeId::Zen, 0, -1}};
-        std::vector<BlobSprite> sp;
-        for (int i = 0; i < 4; ++i) {
-            const float x = i % 2 ? 138.f : 14.f, y = 104.f + float(i / 2) * 92.f, w = 118.f, h = 84.f;
-            if (ui.button("", x, y, w, h, true, true, i == 0 ? BtnStyle::Primary : BtnStyle::Normal)) {
-                c.mode = tiles[i].mode;
-                c.go(tiles[i].mode == ModeId::Battle ? SceneId::Battle
-                     : tiles[i].mode == ModeId::Puzzle ? SceneId::Puzzle : SceneId::Game);
-            }
-            const float cx = x + w / 2.f, cy = y + 32.f, ph = float(i) * 1.7f;
-            const float bob = c.save.reduceMotion ? 0.f : std::sin(c.time * 1.5f + ph) * 2.f;
-            const int l1 = tiles[i].lvl, l2 = tiles[i].lvl2;
-            if (l2 < 0) {
-                sp.push_back(plainSprite(cx, cy + bob, l1, 0.07f + 0.03f * std::sin(c.time * 2.f + ph), c.time * 0.6f + ph));
-            } else {
-                sp.push_back(plainSprite(cx - 13.f, cy + 4.f + bob, l1, 0.08f, c.time * 0.6f + ph));
-                sp.push_back(plainSprite(cx + 13.f, cy - 2.f - bob, l2, 0.08f, c.time * 0.7f + ph));
-            }
-            g.text(L.tr(tiles[i].name), cx, y + 66.f, 1, t.text, Align::Center);
-        }
-        c.raster.clear();
-        c.raster.drawField(sp, t);
-        c.raster.drawLabels(sp, t);
-        g.raster(c.raster);
-
-        const float bw = 118, bx1 = 14, bx2 = 138;
-        float y = 292;
-        if (ui.button(L.tr("menu.more"), bx1, y, bw, 26)) c.go(SceneId::ModeSelect);
-        if (ui.button(L.tr("menu.progress"), bx2, y, bw, 26)) c.go(SceneId::Progress);
-        y += 32;
-        if (ui.button(L.tr("menu.runcode"), bx1, y, bw, 26)) {  // watch a friend's run from the clipboard
-            char* txt = SDL_GetClipboardText();
-            Replay r;
-            if (txt && Replay::fromCode(txt, r) && !r.empty()) {
-                c.pendingReplay = r;
-                c.hasPendingReplay = true;
-                c.go(SceneId::Game);
-            } else {
-                badCodeT_ = 2.5f;
-            }
-            if (txt) SDL_free(txt);
-        }
-        if (ui.button(L.tr("menu.settings"), bx2, y, bw, 26)) c.go(SceneId::Settings);
-        y += 32;
-        if (!platform::isMobile() && ui.button(L.tr("menu.quit"), bx1, y, bw, 26)) c.quit = true;
+        const float bw = 150, bx = (cfg::kW - bw) / 2.f;
+        float y = 222;
+        if (ui.button(L.tr("menu.start"), bx, y, bw, 28, true, true, BtnStyle::Primary)) c.go(SceneId::ModeSelect);
+        y += 35;
+        if (ui.button(L.tr("menu.extras"), bx, y, bw, 28)) c.go(SceneId::Extras);
+        y += 35;
+        if (ui.button(L.tr("menu.progress"), bx, y, bw, 28)) c.go(SceneId::Progress);
+        y += 35;
+        if (ui.button(L.tr("menu.settings"), bx, y, bw, 28)) c.go(SceneId::Settings);
         if (badCodeT_ > 0.f) {
             badCodeT_ -= dt;
             g.text(L.tr("menu.badcode"), cfg::kW / 2.f, 416.f, 1, t.danger, Align::Center, TextFx::Outline, t.ink);
@@ -89,62 +69,6 @@ public:
 
 private:
     float badCodeT_ = 0.f;
-};
-
-class ModeSelectScene final : public Scene {
-public:
-    void frame(Ctx& c, float) override {
-        Gfx& g = c.gfx;
-        const Theme& t = *c.theme;
-        Loc& L = c.loc;
-        Ui& ui = c.ui;
-        g.drawBackdrop(t, c.save.reduceMotion ? 0.f : c.time);
-        g.text(L.tr("select.title"), cfg::kW / 2.f, 28, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
-        static const char* names[kModeCount] = {"mode.classic", "mode.timed", "mode.target", "mode.daily", "mode.zen",
-                                                "mode.rain",    "mode.tide",  "mode.weekly", "mode.puzzle", "mode.battle"};
-        static const char* descs[kModeCount] = {"mode.classic.desc", "mode.timed.desc", "mode.target.desc", "mode.daily.desc", "mode.zen.desc",
-                                                "mode.rain.desc",    "mode.tide.desc",  "mode.weekly.desc", "mode.puzzle.desc", "mode.battle.desc"};
-        static const int pageModes[2][5] = {{0, 1, 2, 3, 4}, {5, 6, 7, 8, -1}};
-        const bool rtl = L.rtl();
-        for (int k = 0; k < 5; ++k) {
-            const int i = pageModes[page_][k];
-            if (i < 0) break;
-            const float y = 52.f + float(k) * 64.f, x = 22.f, w = 226.f, h = 58.f;
-            if (ui.button("", x, y, w, h)) {
-                c.mode = ModeId(i);
-                c.go(i == int(ModeId::Puzzle) ? SceneId::Puzzle : SceneId::Game);
-            }
-            g.rect(rtl ? x + w - 7 : x + 2, y + 3, 5, h - 6, t.blob[(i * 2 + 1) % 12]);
-            const float lx = rtl ? x + w - 16 : x + 16, rx = rtl ? x + 12 : x + w - 12;
-            const Align la = ui.start(), ra = rtl ? Align::Left : Align::Right;
-            g.text(L.tr(names[i]), lx, y + 14, 1, t.text, la);
-            ui.paragraph(L.tr(descs[i]), rtl ? x + 12 : x + 16, y + 32, w - 28, 1, t.dim, la);
-            int best = c.save.best[i];
-            if (i == int(ModeId::Daily)) best = c.save.dailyDay == platform::dayNumber() ? c.save.dailyToday : 0;
-            if (i == int(ModeId::Weekly)) best = c.save.weeklyWeek == weekOf(platform::dayNumber()) ? c.save.weeklyBest : 0;
-            if (i == int(ModeId::Puzzle)) best = c.save.puzzlesSolved();
-            if (best > 0) {
-                const std::string b = std::to_string(best);
-                g.number(b, rx, y + 14, 1, t.accent, ra);
-                const float iw = float(g.numberW(b, 1));
-                g.icon(IconId::Crown, rtl ? rx + iw + 4 : rx - iw - 13, y + 11, t.accent);
-            }
-        }
-        // Modifier for the next run (not used by Daily, Weekly and Puzzle, which have fixed rules).
-        static const char* modKey[5] = {"mod.none", "mod.lowg", "mod.heavy", "mod.thick", "mod.bonus"};
-        const Align la = ui.start();
-        g.text(L.tr("mod.label"), rtl ? 244.f : 26.f, 382, 1, t.dim, la);
-        const float cw = 112.f, cx = ui.mx(132.f, cw);
-        if (const int d = ui.stepper(cx, 372, cw, 20, L.tr(modKey[c.save.modifier]))) {
-            c.save.modifier = (c.save.modifier + d + 5) % 5;
-            c.save.store();
-        }
-        if (ui.button(L.tr("common.back"), 22, 408, 100, 26) || c.in.esc) c.go(SceneId::Menu);
-        if (ui.button(L.tr(page_ == 0 ? "select.more" : "select.main"), 148, 408, 100, 26)) page_ ^= 1;
-    }
-
-private:
-    int page_ = 0;
 };
 
 class PuzzleSelectScene final : public Scene {
@@ -296,7 +220,6 @@ public:
 }  // namespace
 
 std::unique_ptr<Scene> makeMenuScene() { return std::make_unique<MenuScene>(); }
-std::unique_ptr<Scene> makeModeSelectScene() { return std::make_unique<ModeSelectScene>(); }
 std::unique_ptr<Scene> makeCreditsScene() { return std::make_unique<CreditsScene>(); }
 std::unique_ptr<Scene> makeProgressScene() { return std::make_unique<ProgressScene>(); }
 std::unique_ptr<Scene> makeSettingsScene() { return std::make_unique<SettingsScene>(); }
@@ -310,6 +233,8 @@ std::unique_ptr<Scene> makeScene(SceneId id, Ctx& c) {
         case SceneId::Puzzle: return makePuzzleSelectScene();
         case SceneId::Credits: return makeCreditsScene();
         case SceneId::Battle: return makeBattleScene();
+        case SceneId::Extras: return makeExtrasScene();
+        case SceneId::Card: return makeCardScene();
         case SceneId::Game: return makeGameScene(c);
         case SceneId::Brand: return makeBrandScene();
         default: return makeMenuScene();

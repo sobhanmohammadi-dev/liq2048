@@ -10,6 +10,7 @@
 #include "core/Platform.hpp"
 #include "core/Util.hpp"
 #include "gfx/BlobRaster.hpp"
+#include "gfx/Png.hpp"
 
 namespace liq {
 
@@ -485,6 +486,39 @@ bool Gfx::screenshot(const std::string& path) {
     const bool read = SDL_RenderReadPixels(r_, &all, SDL_PIXELFORMAT_ARGB8888, s->pixels, s->pitch) == 0;
     SDL_RenderSetLogicalSize(r_, lw, lh);
     const bool ok = read && SDL_SaveBMP(s, path.c_str()) == 0;
+    SDL_FreeSurface(s);
+    return ok;
+}
+
+bool Gfx::capturePng(const std::string& path) {
+    int w = 0, h = 0;
+    SDL_GetRendererOutputSize(r_, &w, &h);
+    SDL_Surface* s = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (!s) return false;
+    float sx = 1.f, sy = 1.f;
+    SDL_RenderGetScale(r_, &sx, &sy);
+    SDL_RenderSetLogicalSize(r_, 0, 0);
+    SDL_Rect all{0, 0, w, h};
+    const bool read = SDL_RenderReadPixels(r_, &all, SDL_PIXELFORMAT_ARGB8888, s->pixels, s->pitch) == 0;
+    SDL_RenderSetLogicalSize(r_, cfg::kW, cfg::kH);
+    bool ok = false;
+    if (read) {
+        const int cw = std::min(w, int(float(cfg::kW) * sx + 0.5f)), ch = std::min(h, int(float(cfg::kH) * sy + 0.5f));
+        const int x0 = (w - cw) / 2, y0 = (h - ch) / 2;
+        std::vector<uint8_t> rgb(size_t(cw) * size_t(ch) * 3);
+        for (int y = 0; y < ch; ++y) {
+            const uint8_t* base = static_cast<const uint8_t*>(s->pixels) + size_t(y0 + y) * size_t(s->pitch);
+            const uint32_t* row = reinterpret_cast<const uint32_t*>(base) + x0;
+            for (int x = 0; x < cw; ++x) {
+                const uint32_t p = row[x];
+                uint8_t* o = &rgb[(size_t(y) * size_t(cw) + size_t(x)) * 3];
+                o[0] = uint8_t(p >> 16);
+                o[1] = uint8_t(p >> 8);
+                o[2] = uint8_t(p);
+            }
+        }
+        ok = writePng(path, cw, ch, rgb);
+    }
     SDL_FreeSurface(s);
     return ok;
 }

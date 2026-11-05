@@ -175,7 +175,7 @@ private:
             m.duration = s.battleDuration;
             m.lan = false;
             m.difficulty = battle::Difficulty(s.battleDifficulty);
-            m.myName = L.tr("battle.you");
+            m.myName = c.save.playerName.empty() ? L.tr("battle.you") : c.save.playerName;
             m.oppName = L.tr(dk[s.battleDifficulty]);
             c.battle.cfg = m;
             c.battle.link.reset();
@@ -218,7 +218,7 @@ private:
             m.modifier = s.battleModifier;
             m.duration = s.battleDuration;
             m.lan = true;
-            m.myName = L.tr("battle.you");
+            m.myName = c.save.playerName.empty() ? L.tr("battle.you") : c.save.playerName;
             host_ = std::make_unique<battle::HostLobby>();
             if (host_->start(m)) {
                 page_ = Page::HostWait;
@@ -289,7 +289,7 @@ private:
             const std::string meta = durText(L, p.info.duration) + "  -  " + L.tr(modKey(p.info.modifier));
             if (card(c, 72.f + float(shown) * 60.f, 54, p.info.hostName, open ? meta : L.tr("battle.full"), 5, open) && open) {
                 join_ = std::make_unique<battle::JoinLobby>();
-                join_->start(p, L.tr("battle.you"));
+                join_->start(p, c.save.playerName.empty() ? L.tr("battle.you") : c.save.playerName);
                 if (browser_) browser_->stop();
                 browser_.reset();
                 page_ = Page::JoinWait;
