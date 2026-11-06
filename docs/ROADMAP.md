@@ -177,8 +177,18 @@ Exit: a two-player LAN match and a PvE match both play to the end on desktop and
 - ✔ Classic main menu (Start, Additional features, Progress, Settings), Additional features screen, scrollable animated mode board.
 - ✔ Player card PNG, player name, save backup and restore.
 - ✔ Touch: buffered drops, tolerant tap release, performance governor (not measured on a device).
-- ☐ Still open from earlier versions: hot-seat versus, Mirror mode, ghost races, history charts, desktop window polish, glyph hints, accessibility
-  labels, reproducible builds and checksums.
+- ➜ Everything not built so far moved to v1.7.2.
+
+## v1.7.2: Everything still open
+
+- ✔ Pass-and-play versus (two players alternate drops in one pot).
+- ✔ Ghost pace against your best run (a score-pace readout, not a second pot).
+- ✔ History charts (last 12 scores per mode).
+- ✔ Share image of the final pot (file only; no system share sheet).
+- ✔ Desktop: borderless fullscreen (F11 / setting) and integer scaling already existed; key hints added to the pause menu.
+- ✔ `SHA256SUMS` in release CI (unverified until the next tagged release runs).
+- ☐ Not built, moved to v1.8.0: **Mirror** mode (needs two pots in one scene), a real ghost replay drawn in the pot,
+  large-text option and notch/safe-area handling, the remaining 19 puzzles (26 of 45), screen-reader labels, controller glyph art.
 
 ## v1.8.0: Modding and community
 
@@ -260,6 +270,7 @@ saves, replays or mods (with a migration path).
 | v1.6.1 | Fixes: Persian/Arabic, mobile layout, difficulty, Rising Tide, authors page | ☑ |
 | v1.7.0 | Battle (PvP over LAN, PvE) and more puzzles | ✅ (26 of 45 puzzles) |
 | v1.7.1 | Menus and touch | ✅ |
+| v1.7.2 | Everything still open | ✅ (partly; see above) |
 | v1.8.0 | Modding and community | ☐ |
 | v2.0.0 | Next generation | ☐ |
 

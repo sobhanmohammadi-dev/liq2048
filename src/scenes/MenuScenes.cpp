@@ -147,10 +147,10 @@ public:
         ui.panel(14, 44, 242, 360);
 
         // Tabs: scores, awards, statistics.
-        static const char* tabs[3] = {"tab.scores", "tab.awards", "tab.stats"};
-        for (int i = 0; i < 3; ++i) {
-            const float bx = ui.mx(20.f + float(i) * 78.f, 74.f);
-            if (ui.button(L.tr(tabs[i]), bx, 52, 74, 20, true, true, tab_ == i ? BtnStyle::Primary : BtnStyle::Normal)) tab_ = i;
+        static const char* tabs[4] = {"tab.scores", "tab.awards", "tab.stats", "tab.history"};
+        for (int i = 0; i < 4; ++i) {
+            const float bx = ui.mx(14.f + float(i) * 59.f, 56.f);
+            if (ui.button(L.tr(tabs[i]), bx, 52, 56, 20, true, true, tab_ == i ? BtnStyle::Primary : BtnStyle::Normal)) tab_ = i;
         }
         const bool rtl = L.rtl();
         const float lx = rtl ? 244.f : 26.f, rx = rtl ? 26.f : 244.f;
@@ -186,6 +186,26 @@ public:
                 const float ix = rtl ? 244.f - 7.f : 26.f;
                 g.icon(got ? IconId::Check : IconId::Lock, ix, y - 3.f, got ? t.accent : t.dim);
                 g.text(L.tr(achKey(i)), rtl ? 230.f : 42.f, y, 1, got ? t.text : t.dim, la);
+            }
+        } else if (tab_ == 3) {
+            static const ModeId hm[6] = {ModeId::Classic, ModeId::Timed, ModeId::Rain, ModeId::Tide, ModeId::Zen, ModeId::Target};
+            static const char* hn[6] = {"mode.classic", "mode.timed", "mode.rain", "mode.tide", "mode.zen", "mode.target"};
+            for (int r = 0; r < 6; ++r) {
+                const float y0 = 88.f + float(r) * 54.f;
+                const std::vector<int>& h = c.save.hist[int(hm[r])];
+                g.text(L.tr(hn[r]), lx, y0 + 4, 1, t.text, la);
+                int mx = 1;
+                for (int v : h) mx = std::max(mx, v);
+                if (!h.empty()) g.number(std::to_string(mx), rx, y0 + 4, 1, t.accent, ra);
+                const float base = y0 + 46.f;
+                g.rect(22, base, 226, 1, t.panelLo);
+                for (size_t k = 0; k < h.size(); ++k) {
+                    const float bh = std::max(1.f, 30.f * float(h[k]) / float(mx));
+                    const float bx = rtl ? 248.f - 17.f - float(k) * 18.f : 24.f + float(k) * 18.f;
+                    const bool last = k + 1 == h.size();
+                    g.rect(bx, base - bh, 14, bh, last ? t.accent : mix(t.dim, t.sky[3], 0.4f));
+                }
+                if (h.empty()) g.text("-", 26, base - 12, 1, t.dim, Align::Left);
             }
         } else {
             const Save& sv = c.save;

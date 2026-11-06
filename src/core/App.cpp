@@ -25,6 +25,11 @@ SceneId sceneFromName(const std::string& n, Ctx& c) {
     if (n == "game") return SceneId::Game;
     if (n == "credits") return SceneId::Credits;
     if (n == "battle") return SceneId::Battle;
+    if (n == "hotseat") {
+        c.mode = ModeId::Classic;
+        c.hotseat = true;
+        return SceneId::Game;
+    }
     if (n == "modes") return SceneId::ModeSelect;
     if (n == "extras") return SceneId::Extras;
     if (n == "card") return SceneId::Card;

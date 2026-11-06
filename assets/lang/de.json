@@ -241,5 +241,15 @@
   "card.streak": "Tage in Folge",
   "card.save": "Bild speichern",
   "card.saved": "Bild gespeichert (Text kopiert)",
-  "extras.name.desc": "-"
+  "extras.name.desc": "-",
+  "hud.ghost": "Geist",
+  "tab.history": "Verlauf",
+  "hot.title": "Weitergeben",
+  "hot.desc": "Zwei Spieler, ein Topf, abwechselnd.",
+  "hot.p1": "Spieler 1",
+  "hot.p2": "Spieler 2",
+  "hot.turn": "{0} ist dran",
+  "hot.wins": "{0} gewinnt!",
+  "hot.draw": "Unentschieden",
+  "card.shareimg": "Ergebnisbild speichern"
 }

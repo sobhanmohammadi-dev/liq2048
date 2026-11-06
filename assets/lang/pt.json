@@ -241,5 +241,15 @@
   "card.streak": "Dias seguidos",
   "card.save": "Salvar imagem",
   "card.saved": "Imagem salva (texto copiado)",
-  "extras.name.desc": "-"
+  "extras.name.desc": "-",
+  "hud.ghost": "Fantasma",
+  "tab.history": "Historico",
+  "hot.title": "Passa e joga",
+  "hot.desc": "Dois jogadores, uma panela, por turnos.",
+  "hot.p1": "Jogador 1",
+  "hot.p2": "Jogador 2",
+  "hot.turn": "Vez de {0}",
+  "hot.wins": "{0} vence!",
+  "hot.draw": "Empate",
+  "card.shareimg": "Salvar imagem"
 }

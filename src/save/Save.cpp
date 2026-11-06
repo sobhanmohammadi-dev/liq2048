@@ -22,7 +22,18 @@ void Save::load() {
         std::string k = line.substr(0, eq), v = line.substr(eq + 1);
         if (!v.empty() && v.back() == '\r') v.pop_back();
         int iv = std::atoi(v.c_str());
-        if (k.rfind("best", 0) == 0) {
+        if (k.rfind("hist", 0) == 0 || k.rfind("ghost", 0) == 0) {
+            const bool isHist = k[0] == 'h';
+            const int m = std::atoi(k.c_str() + (isHist ? 4 : 5));
+            if (m >= 0 && m < kModeCount) {
+                std::vector<int>& dst = isHist ? hist[m] : ghost[m];
+                dst.clear();
+                std::istringstream nums(v);
+                int x;
+                const size_t cap = size_t(isHist ? kHistMax : kGhostMax);
+                while (nums >> x && dst.size() < cap) dst.push_back(std::max(0, x));
+            }
+        } else if (k.rfind("best", 0) == 0) {
             int m = std::atoi(k.c_str() + 4);
             if (m >= 0 && m < kModeCount) best[m] = iv;
         } else if (k == "music") musicVol = float(std::atof(v.c_str()));
@@ -51,7 +62,7 @@ void Save::load() {
         else if (k == "leftHand") leftHand = iv != 0;
         else if (k == "bigTouch") bigTouch = iv != 0;
         else if (k == "altLang") altLang = v;
-        else if (k == "playerName") { playerName.clear(); for (char ch : v) if (std::isalnum(static_cast<unsigned char>(ch)) && playerName.size() < 12) playerName += char(std::toupper(static_cast<unsigned char>(ch))); }
+        else if (k == "playerName") { playerName.clear(); for (char ch : v) if ((std::isalnum(static_cast<unsigned char>(ch)) || ch == ' ' || ch == '-' || ch == '_') && playerName.size() < 12) playerName += char(std::toupper(static_cast<unsigned char>(ch))); }
         else if (k == "battleWins") battleWins = iv;
         else if (k == "battleLosses") battleLosses = iv;
         else if (k == "battleDraws") battleDraws = iv;
@@ -101,6 +112,18 @@ void Save::store() const {
     for (int i = 0; i < kPuzzleMax; ++i) o << char('0' + puzzleStars[i]);
     o << "\ngamesPlayed=" << gamesPlayed << "\ntotalDrops=" << totalDrops << "\ntotalMerges=" << totalMerges
       << "\nlongestChain=" << longestChain << "\nhighestLevel=" << highestLevel << "\nplaySeconds=" << playSeconds << "\n";
+    for (int i = 0; i < kModeCount; ++i) {
+        if (!hist[i].empty()) {
+            o << "hist" << i << "=";
+            for (int x : hist[i]) o << x << " ";
+            o << "\n";
+        }
+        if (!ghost[i].empty()) {
+            o << "ghost" << i << "=";
+            for (int x : ghost[i]) o << x << " ";
+            o << "\n";
+        }
+    }
     platform::writeFile(path(), o.str());
 }
 

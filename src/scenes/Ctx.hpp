@@ -45,6 +45,7 @@ struct Ctx {
         battle::MatchConfig cfg;
         std::shared_ptr<battle::Link> link;  // set for LAN matches
     } battle;
+    bool hotseat = false;       // next Classic game is a two-player pass-and-play match
     int puzzleLevel = 0;        // selected puzzle (0-based) when mode == Puzzle
     float time = 0.f;           // seconds since start (animation clock)
     std::string brandVariant;   // dev: which branding image the Brand scene draws

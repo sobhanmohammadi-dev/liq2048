@@ -49,6 +49,8 @@ public:
             replaying_ = true;
             c.puzzleLevel = rec_.puzzle;
         }
+        hot_ = c.hotseat && mid_ == ModeId::Classic && !c.hasPendingReplay;
+        c.hotseat = false;
         today_ = platform::dayNumber();
         if (mid_ == ModeId::Daily && c.save.dailyDay != today_) {
             c.save.dailyDay = today_;
@@ -130,7 +132,14 @@ public:
                 g.dim(*c.theme, 1);
                 if (drawSettings(c, 72) || c.in.esc) st_ = St::Paused;
                 break;
-            case St::Over: overlay(c); break;
+            case St::Over:
+                if (shotPending_) {
+                    shotPending_ = false;
+                    captureCard(c);
+                } else {
+                    overlay(c);
+                }
+                break;
             default: break;
         }
         if (battle_ && countdown_ > 0.f) drawCountdown(c);
@@ -150,6 +159,10 @@ private:
     int score_ = 0, drops_ = 0, cur_ = 0, next_ = 0, maxLevel_ = 0, tutPage_ = 0;
     float dispScore_ = 0, aimX_ = (cfg::kFieldL + cfg::kFieldR) / 2, holdX_ = aimX_;
     float tension_ = 0.f;
+    bool shotPending_ = false;
+    bool hot_ = false;  // pass-and-play: two players alternate drops in one pot
+    int hs_[2] = {0, 0}, turn_ = 0, lastDropper_ = 0;
+    std::vector<int> trail_;  // score before every drop (ghost pace)
     float queuedDrop_ = 0, perfEma_ = 1.f / 60.f;
     bool perfLow_ = false;
     float slowT_ = 0, cooldown_ = 0, quiet_ = 0, elapsed_ = 0, acc_ = 0, shake_ = 0, overT_ = 0, toastT_ = 0, chainT_ = 0;
@@ -195,7 +208,7 @@ private:
         hint_ = s;
         hintT_ = t;
     }
-    bool undoAllowed() const { return mid_ == ModeId::Classic || mid_ == ModeId::Zen; }
+    bool undoAllowed() const { return !hot_ && (mid_ == ModeId::Classic || mid_ == ModeId::Zen); }
 
     void buzz(Ctx& c, float strength, int ms) const {
         if (c.save.haptics) platform::vibrate(strength, ms);
@@ -271,6 +284,8 @@ private:
         mode_ = mid_ == ModeId::Battle ? makeBattleMode(bcfg_.seed, bcfg_.duration, bcfg_.modifier) : makeMode(mid_, c.save, today_, c.puzzleLevel);
         mod_ = mode_->fixedModifier() >= 0 ? mode_->fixedModifier()
                : (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle) ? 0 : c.save.modifier;
+        hs_[0] = hs_[1] = 0;
+        turn_ = lastDropper_ = 0;
         world_.clear();
         world_.viscScale = mod_ == 3 ? 3.f : 1.f;
         // Daily and Puzzle must play identically for everyone, so they always use the reference quality.
@@ -312,7 +327,7 @@ private:
         rngFx_.seed(99u);
         score_ = drops_ = maxLevel_ = 0;
         dispScore_ = 0;
-        queuedDrop_ = 0; cooldown_ = quiet_ = elapsed_ = acc_ = shake_ = overT_ = toastT_ = chainT_ = slowT_ = 0;
+        trail_.clear(); queuedDrop_ = 0; cooldown_ = quiet_ = elapsed_ = acc_ = shake_ = overT_ = toastT_ = chainT_ = slowT_ = 0;
         snap_.valid = false;
         undos_ = 1;
         aiming_ = committed_ = newBest_ = false;
@@ -376,12 +391,18 @@ private:
         const int lvl = levelOverride >= 0 ? levelOverride : cur_;
         aimX_ = quantX(aimX_);  // run codes store positions in 1/128 px
         if (!replaying_) rec_.drops.push_back({simStep_, aimX_, lvl});
+        if (!replaying_ && trail_.size() < size_t(Save::kGhostMax)) trail_.push_back(score_);
         world_.spawn(aimX_, cfg::kSpawnY, lvl);
         ++drops_;
         cur_ = next_;
         next_ = roll();
         cooldown_ = cfg::kDropCooldown;
         quiet_ = 0;
+        if (hot_) {
+            lastDropper_ = turn_;
+            turn_ ^= 1;
+            setHint(c.loc.fmt("hot.turn", c.loc.tr(turn_ ? "hot.p2" : "hot.p1")), 1.6f);
+        }
         holdPop_ = Spring{-0.5f, 8.f};
         nextPop_ = Spring{-0.45f, 7.f};
         c.audio.play(Sfx::Drop);
@@ -413,6 +434,7 @@ private:
         }
         if (e.chain >= 7) grant(c, kChain7);
         score_ += value * e.chain;
+        if (hot_) hs_[lastDropper_] += value * e.chain;
         quiet_ = 0;
         maxLevel_ = std::max(maxLevel_, e.level);
         c.audio.play(Sfx::Merge, 0.5f, e.level, e.chain);
@@ -591,11 +613,20 @@ private:
             if (sv.streak >= 3) grant(c, kStreak3);
             if (mod_ != 0 && mid_ != ModeId::Weekly && score_ >= 1000) grant(c, kModded);
         }
-        if (mid_ != ModeId::Puzzle && mid_ != ModeId::Battle) {
+        if (mid_ != ModeId::Puzzle && mid_ != ModeId::Battle && !hot_) {
             const bool counts = mod_ == 0 || mid_ == ModeId::Weekly;  // modifiers keep their own, unranked, runs
             int& best = mid_ == ModeId::Weekly ? c.save.weeklyBest : c.save.best[int(mid_)];
             newBest_ = counts && score_ > best;
             if (newBest_) best = score_;
+            if (counts && !replaying_) {
+                std::vector<int>& h = c.save.hist[int(mid_)];
+                h.push_back(score_);
+                if (h.size() > size_t(Save::kHistMax)) h.erase(h.begin(), h.end() - Save::kHistMax);
+                if (newBest_ && ghostMode()) {
+                    trail_.push_back(score_);
+                    c.save.ghost[int(mid_)] = trail_;
+                }
+            }
             if (mid_ == ModeId::Daily && score_ > c.save.dailyToday) c.save.dailyToday = score_;
         }
         c.save.store();
@@ -928,6 +959,25 @@ private:
         c.gfx.text(c.loc.tr("hud.next"), nx + 22, 15, 1, t.dim, Align::Center);
     }
 
+    // Share card: the final pot with a caption, saved as a PNG next to the save file (the overlay is hidden for it).
+    void captureCard(Ctx& c) {
+        Gfx& g = c.gfx;
+        const Theme& t = *c.theme;
+        Loc& L = c.loc;
+        c.ui.panel(35, 190, 200, 70);
+        g.text(L.tr(mode_->nameKey()), cfg::kW / 2.f, 206, 1, t.accent, Align::Center);
+        g.number(std::to_string(score_), cfg::kW / 2.f, 230, 2, t.text, Align::Center, TextFx::Outline, t.ink);
+        g.text("LIQ2048 V" LIQ_VERSION, cfg::kW / 2.f, 250, 1, t.dim, Align::Center);
+        const bool ok = g.capturePng(platform::prefPath() + "liq2048-result.png");
+        toast_ = L.tr(ok ? "card.saved" : "extras.fail");
+        toastT_ = 2.5f;
+    }
+
+    bool ghostMode() const {
+        return !hot_ && mod_ == 0 && (mid_ == ModeId::Classic || mid_ == ModeId::Timed || mid_ == ModeId::Rain || mid_ == ModeId::Tide ||
+                             mid_ == ModeId::Zen);
+    }
+
     void drawHud(Ctx& c) {
         Gfx& g = c.gfx;
         const Theme& t = *c.theme;
@@ -943,8 +993,20 @@ private:
             const std::string line = vw ? L.tr("battle.you") + " " + std::to_string(score_) : "VS " + opp_->name() + " " + std::to_string(opp_->score());
             const bool behind = !vw && opp_->score() > score_;
             g.text(line, cfg::kW / 2.f, 48, 1, behind ? t.danger : t.dim, Align::Center);
+        } else if (hot_) {  // two scores, the player on turn highlighted
+            for (int p = 0; p < 2; ++p) {
+                const bool on = turn_ == p && st_ == St::Playing;
+                const float x = p ? 190.f : 80.f;
+                g.text((on ? "> " : "") + L.tr(p ? "hot.p2" : "hot.p1"), x, 48, 1, on ? t.accent : t.dim, Align::Center);
+                g.number(std::to_string(hs_[p]), x, 60, 1, on ? t.text : t.dim, Align::Center);
+            }
         } else if (mid_ != ModeId::Puzzle) {
-            const std::string best = L.tr("hud.best") + " " + std::to_string(std::max(bestFor(c), score_));
+            std::string best = L.tr("hud.best") + " " + std::to_string(std::max(bestFor(c), score_));
+            const std::vector<int>& gh = c.save.ghost[int(mid_)];
+            if (ghostMode() && !replaying_ && !gh.empty() && st_ != St::Over) {  // pace against your best run
+                const int d = score_ - gh[std::min(size_t(drops_), gh.size() - 1)];
+                best += "  " + L.tr("hud.ghost") + " " + (d >= 0 ? "+" : "-") + std::to_string(std::abs(d));
+            }
             const float bw = float(g.textW(best, 1));
             g.icon(IconId::Crown, cfg::kW / 2.f - bw / 2.f - 13.f, 45.f, t.accent);
             g.text(best, cfg::kW / 2.f + 5.f, 48, 1, t.dim, Align::Center);
@@ -1101,6 +1163,7 @@ private:
         g.dim(t, 1);
         ui.panel(55, 170, 160, battle_ ? 138 : 168);
         g.text(L.tr("pause.title"), cfg::kW / 2.f, 192, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
+        if (!platform::isMobile()) g.text("ESC  SPACE  U  F11", cfg::kW / 2.f, 170 + (battle_ ? 138 : 168) + 10, 1, t.dim, Align::Center);
         if (ui.button(L.tr("pause.resume"), 70, 214, 130, 24, true, true, BtnStyle::Primary) || c.in.esc) st_ = St::Playing;
         float by = 244;
         if (!battle_) {
@@ -1174,9 +1237,26 @@ private:
         g.dim(t, 0);
         const float slide = std::min(1.f, overT_ * 4.f);
         const float oy = std::floor((1.f - slide) * -60.f);
-        ui.panel(35, 140 + oy, 200, 248);
+        ui.panel(35, 140 + oy, 200, mid_ == ModeId::Puzzle || hot_ ? 248 : 272);
         if (mid_ == ModeId::Puzzle) {
             puzzleOverlay(c, oy);
+            return;
+        }
+        if (hot_) {
+            const bool draw = hs_[0] == hs_[1];
+            const int w = hs_[0] > hs_[1] ? 0 : 1;
+            g.text(draw ? L.tr("hot.draw") : L.fmt("hot.wins", L.tr(w ? "hot.p2" : "hot.p1")), cfg::kW / 2.f, 170 + oy, 1, t.accent, Align::Center,
+                   TextFx::Outline, t.ink);
+            for (int p = 0; p < 2; ++p) {
+                const float y = 206.f + float(p) * 34.f + float(oy);
+                g.text(L.tr(p ? "hot.p2" : "hot.p1"), 52, y, 1, t.dim, Align::Left);
+                g.number(std::to_string(hs_[p]), 218, y, 2, !draw && w == p ? t.accent : t.text, Align::Right, TextFx::Outline, t.ink);
+            }
+            if (ui.button(L.tr("battle.rematch"), 55, 290 + oy, 160, 24, true, true, BtnStyle::Primary)) {
+                start(c);
+                st_ = St::Playing;
+            }
+            if (ui.button(L.tr("over.menu"), 55, 322 + oy, 160, 22) || c.in.esc) c.go(SceneId::Menu);
             return;
         }
         const char* key = outcome_ == Outcome::Won ? "over.won" : outcome_ == Outcome::Lost ? "over.lost" : "over.finished";
@@ -1209,6 +1289,7 @@ private:
                 toastT_ = 2.f;
             }
         }
+        if (!replaying_ && ui.button(L.tr("card.shareimg"), 55, 384 + oy, 160, 20)) shotPending_ = true;
         if (ui.button(L.tr("over.restart"), 55, 280 + oy, 160, 24, true, true, BtnStyle::Primary)) {
             replaying_ = false;
             start(c);

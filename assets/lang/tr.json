@@ -241,5 +241,15 @@
   "card.streak": "Gunluk seri",
   "card.save": "Resmi kaydet",
   "card.saved": "Resim kaydedildi (metin kopyalandi)",
-  "extras.name.desc": "-"
+  "extras.name.desc": "-",
+  "hud.ghost": "Hayalet",
+  "tab.history": "Gecmis",
+  "hot.title": "Sirayla oyna",
+  "hot.desc": "Iki oyuncu tek kapta sirayla oynar.",
+  "hot.p1": "Oyuncu 1",
+  "hot.p2": "Oyuncu 2",
+  "hot.turn": "Sira {0} oyuncusunda",
+  "hot.wins": "{0} kazandi!",
+  "hot.draw": "Beraberlik",
+  "card.shareimg": "Sonuc resmini kaydet"
 }

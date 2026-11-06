@@ -241,5 +241,15 @@
   "card.streak": "Day streak",
   "card.save": "Save image",
   "card.saved": "Image saved (text copied)",
-  "extras.name.desc": "-"
+  "extras.name.desc": "-",
+  "hud.ghost": "Ghost",
+  "tab.history": "History",
+  "hot.title": "Pass and play",
+  "hot.desc": "Two players share one pot and take turns.",
+  "hot.p1": "Player 1",
+  "hot.p2": "Player 2",
+  "hot.turn": "{0}: your turn",
+  "hot.wins": "{0} wins!",
+  "hot.draw": "Draw",
+  "card.shareimg": "Save result image"
 }

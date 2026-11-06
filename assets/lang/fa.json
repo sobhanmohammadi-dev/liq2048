@@ -241,5 +241,15 @@
   "card.streak": "روزهای پیاپی",
   "card.save": "ذخیرهٔ تصویر",
   "card.saved": "تصویر ذخیره شد (متن کپی شد)",
-  "extras.name.desc": "-"
+  "extras.name.desc": "-",
+  "hud.ghost": "روح",
+  "tab.history": "تاریخچه",
+  "hot.title": "نوبتی",
+  "hot.desc": "دو بازیکن، یک ظرف، به‌نوبت.",
+  "hot.p1": "بازیکن ۱",
+  "hot.p2": "بازیکن ۲",
+  "hot.turn": "نوبت {0}",
+  "hot.wins": "{0} برنده شد!",
+  "hot.draw": "مساوی",
+  "card.shareimg": "ذخیرهٔ تصویر نتیجه"
 }

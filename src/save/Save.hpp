@@ -2,6 +2,7 @@
 // Persistent progress + settings, stored as simple key=value text in the pref dir.
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "core/Types.hpp"
 #include "save/Achievements.hpp"
@@ -65,6 +66,10 @@ public:
     int battleDuration = 120;   // seconds: 60, 90, 120 or 180
     int battleDifficulty = 1;   // 0 easy .. 3 adaptive
     int battleModifier = 0;
+    // v1.7.2: recent scores per mode (oldest first, at most kHistMax) and the best run's score after every drop (ghost)
+    static constexpr int kHistMax = 12, kGhostMax = 400;
+    std::vector<int> hist[kModeCount];
+    std::vector<int> ghost[kModeCount];
     std::string altLang;        // language the quick toggle switches to (besides English)
     bool effShake() const { return shake && !calm && !reduceMotion; }
     bool effSlowmo() const { return slowmo && !calm && !reduceMotion; }

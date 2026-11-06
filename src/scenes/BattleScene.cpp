@@ -136,9 +136,14 @@ private:
         }
         if (card(c, 150, 62, L.tr("battle.vsbot"), L.tr("battle.vsbot.desc"), 3)) page_ = Page::Bot;
         if (card(c, 220, 62, L.tr("battle.vshuman"), L.tr("battle.vshuman.desc"), 7)) page_ = Page::Human;
+        if (card(c, 290, 62, L.tr("hot.title"), L.tr("hot.desc"), 10)) {
+            c.mode = ModeId::Classic;
+            c.hotseat = true;
+            c.go(SceneId::Game);
+        }
         c.gfx.text(L.fmt("battle.record", std::to_string(c.save.battleWins) + " - " + std::to_string(c.save.battleLosses) +
                                               " - " + std::to_string(c.save.battleDraws)),
-                   cfg::kW / 2.f, 304, 1, t.dim, Align::Center);
+                   cfg::kW / 2.f, 372, 1, t.dim, Align::Center);
         if (c.ui.button(L.tr("common.back"), 22, 430, 100, 26)) c.go(SceneId::Menu);
     }
 

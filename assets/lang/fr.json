@@ -241,5 +241,15 @@
   "card.streak": "Jours de suite",
   "card.save": "Enregistrer l'image",
   "card.saved": "Image enregistree (texte copie)",
-  "extras.name.desc": "-"
+  "extras.name.desc": "-",
+  "hud.ghost": "Fantome",
+  "tab.history": "Histor.",
+  "hot.title": "Chacun son tour",
+  "hot.desc": "Deux joueurs, une cuve, chacun son tour.",
+  "hot.p1": "Joueur 1",
+  "hot.p2": "Joueur 2",
+  "hot.turn": "Au tour de {0}",
+  "hot.wins": "{0} gagne !",
+  "hot.draw": "Egalite",
+  "card.shareimg": "Enregistrer l'image"
 }

@@ -241,5 +241,15 @@
   "card.streak": "أيام متتالية",
   "card.save": "حفظ الصورة",
   "card.saved": "تم حفظ الصورة (ونسخ النص)",
-  "extras.name.desc": "-"
+  "extras.name.desc": "-",
+  "hud.ghost": "الشبح",
+  "tab.history": "السجل",
+  "hot.title": "تناوب اللعب",
+  "hot.desc": "لاعبان في وعاء واحد بالتناوب.",
+  "hot.p1": "اللاعب 1",
+  "hot.p2": "اللاعب 2",
+  "hot.turn": "دور {0}",
+  "hot.wins": "فاز {0}!",
+  "hot.draw": "تعادل",
+  "card.shareimg": "حفظ صورة النتيجة"
 }

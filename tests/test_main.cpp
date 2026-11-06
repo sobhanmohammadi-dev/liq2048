@@ -686,9 +686,14 @@ TEST(save_roundtrip_new_fields) {
     Save a;
     a.modifier = 3; a.weeklyBest = 777; a.puzzleStars[0] = 3; a.puzzleStars[7] = 1; a.totalDrops = 1234; a.longestChain = 6;
     CHECK(a.puzzlesSolved() == 2);
+    a.hist[0] = {5, 9, 2};
+    a.ghost[4] = {0, 10, 30};
+    a.playerName = "ANA-2";
     a.store();
     Save b;
     b.load();
+    CHECK(b.hist[0].size() == 3 && b.hist[0][1] == 9 && b.ghost[4].size() == 3 && b.ghost[4][2] == 30 && b.hist[1].empty());
+    CHECK(b.playerName == "ANA-2");
     CHECK(b.modifier == 3 && b.weeklyBest == 777 && b.puzzleStars[0] == 3 && b.puzzleStars[7] == 1 && b.puzzleStars[1] == 0);
     CHECK(b.totalDrops == 1234 && b.longestChain == 6);
     Save::pathOverride().clear();

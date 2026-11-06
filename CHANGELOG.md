@@ -8,6 +8,16 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.7.2]
+
+### Added
+- **Pass and play** (Battle menu): two players share one Classic pot and alternate drops; merges score for whoever
+  dropped last; the pot overflowing ends the match; result screen with rematch.
+- **Ghost pace:** in Classic, Time Attack, Rain, Tide and Zen the HUD shows how far ahead or behind you are of your best run.
+- **History** tab on Progress: bar charts of your last 12 scores per mode.
+- **Save result image** button on the game-over screen (PNG of the final pot, saved next to the save file).
+- Pause menu lists the desktop keys; release builds publish a `SHA256SUMS` file.
+
 ## [1.7.1]
 
 ### Added
