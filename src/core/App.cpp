@@ -33,6 +33,7 @@ SceneId sceneFromName(const std::string& n, Ctx& c) {
     if (n == "modes") return SceneId::ModeSelect;
     if (n == "extras") return SceneId::Extras;
     if (n == "card") return SceneId::Card;
+    if (n == "themeeditor") return SceneId::ThemeEditor;
     if (n == "battlegame") {  // dev: a bot match with scripted input
         c.mode = ModeId::Battle;
         c.battle.cfg.seed = 7;
@@ -137,6 +138,7 @@ int App::run(const AppOptions& opt) {
             }
         }
         if (shot) setSettingsPage(opt.shotPage);
+        c.loadCustom();
         c.setTheme(c.save.theme);
         if (!shot) {
             c.audio.init();
@@ -165,6 +167,12 @@ int App::run(const AppOptions& opt) {
                 switch (e.type) {
                     case SDL_QUIT: c.quit = true; break;
                     case SDL_TEXTINPUT: c.in.text += e.text.text; break;
+                    case SDL_DROPFILE:
+                        if (e.drop.file) {
+                            if (c.in.dropped.size() < 8) c.in.dropped.push_back(e.drop.file);
+                            SDL_free(e.drop.file);
+                        }
+                        break;
                     case SDL_MOUSEWHEEL: c.in.wheel += float(e.wheel.y) * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.f : 1.f); break;
                     case SDL_CONTROLLERDEVICEADDED:
                         if (SDL_IsGameController(e.cdevice.which))

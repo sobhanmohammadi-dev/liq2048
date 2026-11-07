@@ -17,12 +17,18 @@ namespace liq::audiogen {
 enum class Sound { Drop, Splash, Merge, Chain, Click, Swipe, Fail, Success, Unlock, Count };
 enum class MusicMood { Off, Menu, Game };
 
-// One full chord cycle: 128 sixteenth-notes at 84 BPM = 22.857 s. Music renders as seamless loops of this length.
-inline constexpr int kLoopSamples = 128 * 7875;  // at 44.1 kHz
+// The four built-in sound palettes, one per colour theme (same order as the themes in the game).
+//   Night  : the original: sine bells and plucks in A minor, 84 BPM, big soft reverb.
+//   Steel  : metallic and industrial: inharmonic triangle "bars", D minor, 100 BPM, dry and punchy, ticking hats.
+//   Sunset : warm and slow: mellow sine marimba and wide pads in F major, 72 BPM, long echoes, no hard percussion.
+//   Jungle : wooden and rhythmic: log-drum plucks, bongos and shakers in E minor, 96 BPM, bird-like chirps.
+enum class Style { Night, Steel, Sunset, Jungle };
+
+// One full chord cycle is 128 sixteenth-notes; the length in samples depends on the style's tempo.
 
 class Synth {
 public:
-    explicit Synth(int sampleRate = 44100);
+    explicit Synth(int sampleRate = 44100, Style style = Style::Night);
     ~Synth();
     Synth(const Synth&) = delete;
     Synth& operator=(const Synth&) = delete;
@@ -35,6 +41,7 @@ public:
     void setSfxVolume(float v);
     void render(float* interleavedStereo, int frames);
     int sampleRate() const { return sr_; }
+    int loopSamples() const;  // length of one seamless music loop
 
 private:
     struct Impl;

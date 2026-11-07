@@ -8,6 +8,19 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.7.3]
+
+### Added
+- **Custom theme** (Settings, below the theme selector): an editor for the name, all 34 colours and the sound of every slot (3 music loops and 9 effect groups). A sound can come from any built-in palette or from your own WAV/OGG file. The English name is required, names in other languages are optional and English is used where a language has none.
+- **Export theme / Import theme** in Additional features. The `.liqtheme` file holds the names, colours, music and sound effects. Import also reads a file dropped on the window (desktop), the themes folder, or text from the clipboard (themes without audio files, handy on phones).
+- Each built-in theme (Default, Steel, Sunset, Forest) now has its own music and sound effects.
+
+### Changed
+- Sounds are now in `assets/sounds/<palette>/` and `assets/music/<palette>/` as optimized OGG; the full-quality 24-bit FLAC masters are in `original_assets/audio/`.
+- The pixel fonts are no longer embedded in the code: they are the BDF files `assets/fonts/pixel-5x7.bdf` and `pixel-3x5.bdf` (also in `original_assets/fonts/`).
+- Licences: code MIT; sounds, music and the Liq Pixel fonts CC BY 4.0; Vazirmatn keeps its own SIL OFL 1.1.
+- Additional features has two more rows, so the rows are more compact.
+
 ## [1.7.2]
 
 ### Added

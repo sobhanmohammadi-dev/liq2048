@@ -4,6 +4,7 @@
 #include <string>
 
 #include "audio/Audio.hpp"
+#include "core/CustomTheme.hpp"
 #include "battle/Battle.hpp"
 #include "core/Config.hpp"
 #include "core/Themes.hpp"
@@ -17,7 +18,7 @@
 
 namespace liq {
 
-enum class SceneId { Menu, ModeSelect, Progress, Settings, Game, Brand, Puzzle, Credits, Battle, Extras, Card };
+enum class SceneId { Menu, ModeSelect, Progress, Settings, Game, Brand, Puzzle, Credits, Battle, Extras, Card, ThemeEditor };
 
 struct Ctx {
     Ctx() : raster(cfg::kW, cfg::kH) { ui.bind(this); }
@@ -34,6 +35,10 @@ struct Ctx {
     Ui ui;
     Theme themeStore = themeAt(0);  // the active theme with accessibility options applied
     const Theme* theme = &themeStore;
+    CustomTheme custom;             // the player's own theme (theme index 4)
+    bool customReady = false;       // it has been saved or imported, so it can be selected
+    int customRev = 0;              // bumped on every edit so the audio is rebuilt
+    int audioKey = -1, audioRev = -1;
     bool quit = false;
     bool hasNext = false;
     SceneId next = SceneId::Menu;
@@ -57,6 +62,11 @@ struct Ctx {
     void refreshTheme() { setTheme(save.theme); }  // after changing colour vision / contrast
     void cycleTheme(int dir = 1);               // next/previous unlocked theme
     bool themeUnlocked(int i) const;
+    std::string themeName(int i) const;         // localized name of theme i (custom: its own name)
+    void loadCustom();                          // reads <pref>/custom.liqtheme
+    bool saveCustom();                          // writes it and marks it ready
+    void applyAudioPreview() { audio.setPack(custom.pack); audioKey = -1; }  // hear the custom sounds while editing
+    void applyAudioTheme(bool force = false);   // switches the sounds to the active theme
 };
 
 class Scene {

@@ -6,7 +6,9 @@
 #include <atomic>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <map>
+#include <mutex>
 #include <string>
 #include <thread>
 
@@ -56,11 +58,98 @@ Clip decodeOgg(const unsigned char* data, int size) {
     return c;
 }
 
+namespace {
+uint32_t rd32(const unsigned char* p) { return uint32_t(p[0]) | uint32_t(p[1]) << 8 | uint32_t(p[2]) << 16 | uint32_t(p[3]) << 24; }
+uint16_t rd16(const unsigned char* p) { return uint16_t(p[0] | p[1] << 8); }
+constexpr int kMaxFrames = kRate * 60;
+
+// Linear resampling of interleaved stereo; rate > 1 plays faster (higher).
+Clip resample(const Clip& in, double rate) {
+    Clip o;
+    if (in.frames < 2 || rate <= 0.01) return o;
+    const double outLen = double(in.frames - 1) / rate;
+    if (outLen < 2 || outLen > kMaxFrames) return o;
+    o.frames = int(outLen);
+    o.pcm.resize(size_t(o.frames) * 2);
+    for (int i = 0; i < o.frames; ++i) {
+        const double p = double(i) * rate;
+        const int a = std::min(int(p), in.frames - 2);
+        const float f = float(p - a);
+        for (int c = 0; c < 2; ++c) {
+            const float x = float(in.pcm[size_t(a) * 2 + c]), y = float(in.pcm[size_t(a + 1) * 2 + c]);
+            o.pcm[size_t(i) * 2 + c] = int16_t(std::lrint(x + (y - x) * f));
+        }
+    }
+    return o;
+}
+
+Clip decodeWav(const unsigned char* d, int size) {
+    Clip none;
+    if (size < 44 || std::memcmp(d, "RIFF", 4) != 0 || std::memcmp(d + 8, "WAVE", 4) != 0) return none;
+    int fmtTag = 0, ch = 0, bits = 0, rate = 0;
+    const unsigned char* data = nullptr;
+    uint32_t dlen = 0;
+    size_t pos = 12;
+    while (pos + 8 <= size_t(size)) {
+        const uint32_t len = rd32(d + pos + 4);
+        const size_t body = pos + 8;
+        if (std::memcmp(d + pos, "fmt ", 4) == 0 && len >= 16 && body + 16 <= size_t(size)) {
+            fmtTag = rd16(d + body);
+            ch = rd16(d + body + 2);
+            rate = int(rd32(d + body + 4));
+            bits = rd16(d + body + 14);
+            if (fmtTag == 0xFFFE && len >= 26 && body + 26 <= size_t(size)) fmtTag = rd16(d + body + 24);  // extensible
+        } else if (std::memcmp(d + pos, "data", 4) == 0) {
+            data = d + body;
+            dlen = uint32_t(std::min<size_t>(len, size_t(size) - body));
+            break;
+        }
+        pos = body + size_t(len) + (len & 1u);
+        if (pos < body) return none;
+    }
+    if (!data || ch < 1 || ch > 2 || rate < 3000 || rate > 192000) return none;
+    const bool pcm = fmtTag == 1 && (bits == 8 || bits == 16 || bits == 24 || bits == 32);
+    const bool flt = fmtTag == 3 && bits == 32;
+    if (!pcm && !flt) return none;
+    const size_t bps = size_t(bits / 8), frameBytes = bps * size_t(ch);
+    const size_t n = dlen / frameBytes;
+    if (n < 2 || double(n) * double(kRate) / double(rate) > kMaxFrames) return none;
+    Clip src;
+    src.frames = int(n);
+    src.pcm.resize(n * 2);
+    auto sample = [&](const unsigned char* q) -> float {
+        if (flt) { float f; std::memcpy(&f, q, 4); return std::isfinite(f) ? std::clamp(f, -1.f, 1.f) : 0.f; }
+        switch (bits) {
+            case 8: return (float(q[0]) - 128.f) / 128.f;
+            case 16: return float(int16_t(rd16(q))) / 32768.f;
+            case 24: { int32_t v = int32_t(uint32_t(q[0]) << 8 | uint32_t(q[1]) << 16 | uint32_t(q[2]) << 24); return float(v >> 8) / 8388608.f; }
+            default: return float(int32_t(rd32(q))) / 2147483648.f;
+        }
+    };
+    for (size_t i = 0; i < n; ++i) {
+        const unsigned char* q = data + i * frameBytes;
+        const float l = sample(q), r = ch == 2 ? sample(q + bps) : l;
+        src.pcm[i * 2] = int16_t(std::lrint(std::clamp(l, -1.f, 1.f) * 32767.f));
+        src.pcm[i * 2 + 1] = int16_t(std::lrint(std::clamp(r, -1.f, 1.f) * 32767.f));
+    }
+    return rate == kRate ? src : resample(src, double(rate) / double(kRate));
+}
+}  // namespace
+
+Clip decodeAudio(const unsigned char* data, int size) {
+    if (!data || size < 12 || size > 24 * 1024 * 1024) return Clip{};
+    Clip c = std::memcmp(data, "RIFF", 4) == 0 ? decodeWav(data, size) : decodeOgg(data, size);
+    if (c.frames > kMaxFrames) return Clip{};
+    return c;
+}
+
 struct Audio::Impl {
     SDL_AudioDeviceID dev = 0;
-    std::map<std::string, Clip> sounds;  // filled before the device starts, read-only afterwards
+    std::map<std::string, Clip> sounds;  // swapped as a whole (under the device lock) by setPack
     Track menu, calm, intense;
     std::thread loader;
+    std::mutex packMutex;
+    AudioPack wanted;  // last requested pack (applied by init when it was requested before the device existed)
     Voice voices[kVoices];
     int nextVoice = 0;
     uint32_t rng = 12345u;
@@ -150,11 +239,11 @@ struct Audio::Impl {
 Audio::Audio() : impl_(new Impl) {}
 
 Audio::~Audio() {
+    if (impl_->loader.joinable()) impl_->loader.join();
     if (impl_->dev) {
         SDL_CloseAudioDevice(impl_->dev);
         impl_->dev = 0;
     }
-    if (impl_->loader.joinable()) impl_->loader.join();
 }
 
 void Audio::init() {
@@ -163,15 +252,6 @@ void Audio::init() {
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
         SDL_Log("Audio unavailable: %s", SDL_GetError());
         return;
-    }
-    // Sound effects are small: decode them right away. Music loops decode on a background thread.
-    static const char* names[] = {"drop_0", "drop_1", "splash_0", "splash_1", "splash_2", "click", "swipe", "fail", "success", "unlock",
-                                  "chain_2", "chain_3", "chain_4", "chain_5", "chain_6"};
-    for (const char* n : names) m.sounds[n] = Impl::load(std::string("sounds/") + n + ".ogg");
-    for (int l = 0; l <= 11; ++l) {
-        char n[16];
-        std::snprintf(n, sizeof n, "merge_%02d", l);
-        m.sounds[n] = Impl::load(std::string("sounds/") + n + ".ogg");
     }
     SDL_AudioSpec want{}, have{};
     want.freq = kRate;
@@ -187,15 +267,93 @@ void Audio::init() {
         SDL_Log("Audio unavailable: %s", SDL_GetError());
         return;
     }
-    m.loader = std::thread([&m] {
-        Track* ts[3] = {&m.menu, &m.calm, &m.intense};
-        const char* fs[3] = {"music/menu.ogg", "music/game_calm.ogg", "music/game_intense.ogg"};
+    setPack(AudioPack(m.wanted));
+    SDL_PauseAudioDevice(m.dev, 0);
+}
+
+namespace {
+const char* const kPaletteDir[4] = {"default", "steel", "sunset", "jungle"};
+const char* const kMusicFile[3] = {"menu", "game_calm", "game_intense"};
+
+struct Built {
+    std::map<std::string, Clip> sounds;
+    Clip music[3];
+};
+
+Built buildPack(const AudioPack& pk, Clip (*loadRel)(const std::string&)) {
+    Built b;
+    auto put = [&](const std::string& n, Clip c) { if (c.frames > 0) b.sounds[n] = std::move(c); };
+    for (int s = 0; s < kAudioSlots; ++s) {
+        const SlotSource& src = pk.slot[s];
+        const bool custom = !src.data.empty();
+        const std::string pal = kPaletteDir[std::clamp(src.palette, 0, 3)];
+        Clip base;
+        if (custom) {
+            base = decodeAudio(src.data.data(), int(src.data.size()));
+            if (base.frames == 0) continue;  // unreadable file: that slot stays silent
+        }
+        auto fileSfx = [&](const std::string& n) { put(n, loadRel("sounds/" + pal + "/" + n + ".ogg")); };
+        switch (s) {
+            case kSlotMenu: case kSlotCalm: case kSlotIntense:
+                b.music[s] = custom ? std::move(base) : loadRel("music/" + pal + "/" + kMusicFile[s] + ".ogg");
+                break;
+            case kSlotDrop:
+                if (!custom) { fileSfx("drop_0"); fileSfx("drop_1"); }
+                else { put("drop_0", resample(base, 1.0)); put("drop_1", resample(base, 1.12)); }
+                break;
+            case kSlotSplash:
+                if (!custom) { fileSfx("splash_0"); fileSfx("splash_1"); fileSfx("splash_2"); }
+                else { put("splash_0", resample(base, 1.12)); put("splash_1", resample(base, 1.0)); put("splash_2", resample(base, 0.88)); }
+                break;
+            case kSlotMerge:
+                for (int l = 0; l <= 11; ++l) {
+                    char n[16];
+                    std::snprintf(n, sizeof n, "merge_%02d", l);
+                    if (!custom) fileSfx(n);
+                    else put(n, resample(base, std::pow(2.0, double(l - 5) * 2.0 / 12.0)));
+                }
+                break;
+            case kSlotChain:
+                for (int c = 2; c <= 6; ++c) {
+                    char n[16];
+                    std::snprintf(n, sizeof n, "chain_%d", c);
+                    if (!custom) fileSfx(n);
+                    else put(n, resample(base, std::pow(2.0, double(c - 2) * 2.0 / 12.0)));
+                }
+                break;
+            default: {
+                static const char* const one[] = {"click", "swipe", "fail", "success", "unlock"};
+                const char* n = one[s - kSlotClick];
+                if (!custom) fileSfx(n);
+                else put(n, std::move(base));
+            }
+        }
+    }
+    return b;
+}
+}  // namespace
+
+void Audio::setPack(const AudioPack& pack) {
+    Impl& m = *impl_;
+    m.wanted = pack;
+    if (!m.dev) return;
+    std::lock_guard<std::mutex> g(m.packMutex);
+    if (m.loader.joinable()) m.loader.join();
+    Impl* im = &m;
+    m.loader = std::thread([im, pack] {
+        Built b = buildPack(pack, &Impl::load);
+        SDL_LockAudioDevice(im->dev);
+        for (Voice& v : im->voices) v.clip = nullptr;
+        im->sounds.swap(b.sounds);
+        Track* ts[3] = {&im->menu, &im->calm, &im->intense};
         for (int i = 0; i < 3; ++i) {
-            ts[i]->clip = Impl::load(fs[i]);
+            ts[i]->ready.store(false, std::memory_order_release);
+            ts[i]->clip = std::move(b.music[i]);
+            ts[i]->pos = 0;
             ts[i]->ready.store(true, std::memory_order_release);
         }
+        SDL_UnlockAudioDevice(im->dev);
     });
-    SDL_PauseAudioDevice(m.dev, 0);
 }
 
 #define LIQ_LOCKED(stmt)                       \

@@ -190,6 +190,11 @@ Exit: a two-player LAN match and a PvE match both play to the end on desktop and
 - ☐ Not built, moved to v1.8.0: **Mirror** mode (needs two pots in one scene), a real ghost replay drawn in the pot,
   large-text option and notch/safe-area handling, the remaining 19 puzzles (26 of 45), screen-reader labels, controller glyph art.
 
+## v1.7.3: Custom themes and sound ☑ released
+- ☑ Custom theme editor (name, colours, sounds), `.liqtheme` import and export.
+- ☑ Own music and sound effects for each built-in theme; masters in `original_assets/`, optimized OGG in `assets/`.
+- ☑ Fonts loaded from external files; sounds and Liq Pixel under CC BY 4.0.
+
 ## v1.8.0: Modding and community
 
 Goal: let players and artists extend the game with no code.

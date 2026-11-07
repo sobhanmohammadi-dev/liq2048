@@ -104,5 +104,6 @@ Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE) © 2026 Sobhan Mohammadi. Built with [SDL2](https://www.libsdl.org/) and SDL2_ttf
+Code: [MIT](LICENSE). Sounds, music and the Liq Pixel fonts: [CC BY 4.0](assets/sounds/LICENSE-CC-BY-4.0.txt).
+The Persian font Vazirmatn keeps its own SIL OFL 1.1 licence. © 2026 Sobhan Mohammadi. Built with [SDL2](https://www.libsdl.org/) and SDL2_ttf
 (zlib license). The game concept is inspired by Suika-style merge puzzles; all code and art here are original.

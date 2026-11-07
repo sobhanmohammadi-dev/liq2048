@@ -130,7 +130,7 @@ public:
             case St::Paused: pauseMenu(c); break;
             case St::Settings:
                 g.dim(*c.theme, 1);
-                if (drawSettings(c, 72) || c.in.esc) st_ = St::Paused;
+                if (drawSettings(c, 72, false) || c.in.esc) st_ = St::Paused;
                 break;
             case St::Over:
                 if (shotPending_) {

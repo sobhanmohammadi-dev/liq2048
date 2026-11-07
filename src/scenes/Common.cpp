@@ -91,7 +91,7 @@ void drawDeadLine(Ctx& c, bool warn, float lineY) {
 static int g_page = 0;  // 0 = general, 1 = game feel, 2 = accessibility
 void setSettingsPage(int p) { g_page = p < 0 || p > 2 ? 0 : p; }
 
-bool drawSettings(Ctx& c, float y0) {
+bool drawSettings(Ctx& c, float y0, bool allowCustom) {
     int& page = g_page;
     Gfx& g = c.gfx;
     Ui& ui = c.ui;
@@ -231,11 +231,14 @@ bool drawSettings(Ctx& c, float y0) {
 
     // Theme (unlock by playing)
     label("settings.theme");
-    if (const int d = ui.stepper(cx, y, cw, 20, L.tr(themeAt(c.save.theme).key))) {
+    if (const int d = ui.stepper(cx, y, cw, 20, c.themeName(c.save.theme))) {
         c.cycleTheme(d);
         c.save.store();
     }
     y += rowH;
+
+    // Custom theme editor
+    if (allowCustom && ui.button(L.tr("ct.title"), 26, y, 218, 20)) c.go(SceneId::ThemeEditor);
 
     if (!g.hasPersianFont() && !rtl) g.text(L.tr("settings.nofont"), 135, y - 4, 1, t.dim, Align::Center);
 

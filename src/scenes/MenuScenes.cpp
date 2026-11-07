@@ -255,6 +255,7 @@ std::unique_ptr<Scene> makeScene(SceneId id, Ctx& c) {
         case SceneId::Battle: return makeBattleScene();
         case SceneId::Extras: return makeExtrasScene();
         case SceneId::Card: return makeCardScene();
+        case SceneId::ThemeEditor: return makeThemeEditorScene();
         case SceneId::Game: return makeGameScene(c);
         case SceneId::Brand: return makeBrandScene();
         default: return makeMenuScene();

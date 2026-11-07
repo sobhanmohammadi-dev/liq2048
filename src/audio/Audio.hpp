@@ -1,7 +1,8 @@
 #pragma once
-// Audio: plays the OGG files from assets/sounds (effects) and assets/music (loops). Nothing is synthesized in
-// the game; the files are produced offline by tools/audiogen. Without an audio device (headless CI) or without
-// the files, every call is a harmless no-op.
+// Audio: plays the OGG files from assets/sounds/<palette>/ (effects) and assets/music/<palette>/ (loops), where
+// palette is default, steel, sunset or jungle. Nothing is synthesized in the game; the files are produced offline
+// by tools/audiogen. A custom theme can replace any slot with its own WAV or OGG file. Without an audio device
+// (headless CI) or without the files, every call is a harmless no-op.
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -18,6 +19,20 @@ struct Clip {
 };
 // Decodes an OGG Vorbis file held in memory (any channel count, converted to stereo; 44.1 kHz expected).
 Clip decodeOgg(const unsigned char* data, int size);
+// Decodes a WAV (8/16/24/32-bit PCM or 32-bit float, mono or stereo, any rate) or an OGG file; the result is
+// 44.1 kHz stereo, at most 60 seconds. Anything malformed or too large gives an empty clip.
+Clip decodeAudio(const unsigned char* data, int size);
+
+// The sound slots of a theme: three music loops and nine effect groups.
+enum AudioSlot { kSlotMenu, kSlotCalm, kSlotIntense, kSlotDrop, kSlotSplash, kSlotMerge, kSlotChain, kSlotClick,
+                 kSlotSwipe, kSlotFail, kSlotSuccess, kSlotUnlock, kAudioSlots };
+struct SlotSource {
+    int palette = 0;                    // 0 default, 1 steel, 2 sunset, 3 jungle (used when `data` is empty)
+    std::vector<unsigned char> data;    // a custom WAV or OGG file
+};
+struct AudioPack {
+    SlotSource slot[kAudioSlots];
+};
 
 class Audio {
 public:
@@ -31,6 +46,8 @@ public:
     void setMusicVolume(float v);
     void setSfxVolume(float v);
     void pause(bool paused);  // app in background
+    // Switches every sound to the given pack; decoding happens on a background thread, the old sounds play until then.
+    void setPack(const AudioPack& pack);
 
 private:
     struct Impl;

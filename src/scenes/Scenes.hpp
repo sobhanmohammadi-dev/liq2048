@@ -14,13 +14,14 @@ std::unique_ptr<Scene> makeCreditsScene();
 std::unique_ptr<Scene> makeBattleScene();
 std::unique_ptr<Scene> makeExtrasScene();
 std::unique_ptr<Scene> makeCardScene();
+std::unique_ptr<Scene> makeThemeEditorScene();
 std::unique_ptr<Scene> makeGameScene(Ctx& c);
 std::unique_ptr<Scene> makeBrandScene();  // dev: renders logo / banner images for docs
 std::unique_ptr<Scene> makeScene(SceneId id, Ctx& c);
 
 // ---- shared widgets and drawing helpers (Common.cpp) ----
 void setSettingsPage(int page);     // dev: choose the page shown next
-bool drawSettings(Ctx& c, float y0);  // settings panel; returns true when Back is pressed
+bool drawSettings(Ctx& c, float y0, bool allowCustom = true);  // settings panel; returns true when Back is pressed
 void drawTankFrame(Ctx& c);           // walls, rivets and floor of the tank
 void drawDeadLine(Ctx& c, bool warn, float y = cfg::kDeadY);
 void drawWordmark(Ctx& c, float cx, float cy, int scale);  // LIQ2048 title lettering

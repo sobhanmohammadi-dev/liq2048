@@ -1,48 +1,54 @@
 # Assets
 
-The repository ships **no font files** (audio is shipped as OGG, see Sound). All graphics are drawn in code, and the game is fully
-playable without any asset. Drop files in and they are picked up on the next launch. Files are searched in
-`<executable dir>/assets/`, then `./assets/` (and on Android, inside the APK).
+All graphics are drawn in code. Sounds and fonts are **external files** that the game loads at run time; nothing is
+embedded in the executable. Files are searched in `<executable dir>/assets/`, then `./assets/` (and on Android, inside the APK).
 
 ```
-assets/
-  fonts/    pixel.ttf, fa.ttf
-  sounds/   merge, drop, chain, click, fail, success   (.wav or .ogg)
-  music/    theme.ogg                                  (.ogg or .mp3)
-  ui/       reserved for future images
-  lang/     en.json, fa.json
+assets/                      what the game loads (optimized)
+  fonts/    pixel-5x7.bdf, pixel-3x5.bdf (Liq Pixel, CC BY 4.0), fa.ttf (Vazirmatn, SIL OFL 1.1)
+  sounds/<palette>/*.ogg     27 effects per palette
+  music/<palette>/*.ogg      menu, game_calm, game_intense per palette
+  lang/     en.json, fa.json, ...
+original_assets/             the full-quality sources
+  audio/<palette>/{sounds,music}/*.flac    24-bit lossless masters
+  fonts/                     the same font files as assets/fonts
 ```
 
-## Fonts (SDL_ttf)
+`<palette>` is `default`, `steel`, `sunset` or `jungle`: each built-in theme has its own music and sound effects.
+
+## Licences
+
+| What | Licence |
+|------|---------|
+| Code | MIT (`LICENSE`) |
+| Sounds and music (`assets/sounds`, `assets/music`, `original_assets/audio`) | CC BY 4.0 (`LICENSE-CC-BY-4.0.txt` in each folder) |
+| Liq Pixel fonts (`pixel-5x7.bdf`, `pixel-3x5.bdf`) | CC BY 4.0 |
+| Vazirmatn (`fa.ttf`) | SIL OFL 1.1, by its authors (`LICENSE-vazirmatn.txt`). It is third-party, so it keeps its own licence. |
+
+## Fonts
 
 | File | Used for |
 |------|----------|
-| `fonts/pixel.ttf` | Optional Latin pixel font. Without it the built-in 5×7 bitmap font is used. Pixel fonts look best at multiples of 8 px. |
-| `fonts/fa.ttf` | Persian and Arabic text: Vazirmatn Regular (SIL OFL, licence in `fonts/LICENSE-vazirmatn.txt`), bundled in the repository. |
-
-Latin text, scores and droplet numerals use the built-in pixel font family (5×7 text, 3×5 digits) defined in `src/gfx/PixelFont.cpp`. Only Persian/Arabic (and an optional `pixel.ttf`) uses TTF, thresholded to hard edges. Arabic-script text is shaped by the game itself (`src/gfx/ArabicShaper.cpp`), so it looks the same on every platform.
+| `fonts/pixel-5x7.bdf` | Latin text (BDF bitmap font, read by a small loader in `src/gfx/PixelFont.cpp`). |
+| `fonts/pixel-3x5.bdf` | Digits and small labels. |
+| `fonts/fa.ttf` | Persian and Arabic text (Vazirmatn Regular), thresholded to hard edges. Arabic-script text is shaped by the game itself (`src/gfx/ArabicShaper.cpp`). |
 
 ## Sound
 
-Audio lives in `assets/sounds/*.ogg` (27 effects: drops, splashes, 12 merge pitches, chains, UI, fail/success/unlock)
-and `assets/music/*.ogg` (`menu`, `game_calm`, `game_intense`, seamless loops; the game cross-fades calm and intense
-as the pot fills). The files are generated, not recorded: `tools/audiogen` synthesizes them and ffmpeg encodes OGG:
+Every effect and loop is generated, not recorded: `tools/audiogen` synthesizes four palettes, writes 24-bit lossless
+masters to `original_assets/audio` (FLAC) and ffmpeg encodes the optimized OGG files (quality 3 effects, 4 music) into `assets/`:
 
 ```bash
 cmake -S . -B build -DLIQ_BUILD_TOOLS=ON && cmake --build build --target liq_audiogen
-python3 tools/audiogen/build_audio.py        # needs ffmpeg with libvorbis; rewrites assets/sounds and assets/music
+python3 tools/audiogen/build_audio.py        # needs ffmpeg with libvorbis and flac
 ```
 
-To use your own audio, drop OGG Vorbis files (44.1 kHz stereo or mono) with the same names into those folders.
-Missing files are simply silent.
-
+A custom theme (Settings, Custom theme) can replace any sound with its own WAV or OGG file. Missing files are silent.
 Music and sound-effect volumes are separate settings and are saved.
 
 ## Licensing your assets
 
-Only add assets you have the rights to, and keep their licenses next to them (for example
-`assets/fonts/LICENSE-vazirmatn.txt`). The `.gitignore` has commented lines if you prefer to keep binary assets
-out of git.
+Only add assets you have the rights to, and keep their licences next to them.
 
 ## Branding
 

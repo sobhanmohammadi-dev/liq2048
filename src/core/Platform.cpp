@@ -2,8 +2,11 @@
 
 #include <SDL.h>
 
+#include <algorithm>
 #include <cstring>
 #include <ctime>
+#include <filesystem>
+#include <system_error>
 
 namespace liq::platform {
 
@@ -42,6 +45,26 @@ bool writeFile(const std::string& path, const std::string& data) {
     SDL_RWwrite(f, data.data(), 1, data.size());
     SDL_RWclose(f);
     return true;
+}
+
+bool ensureDir(const std::string& path) {
+    std::error_code ec;
+    std::filesystem::create_directories(path, ec);
+    return !ec && std::filesystem::is_directory(path, ec);
+}
+
+std::vector<std::string> listFiles(const std::string& dir, const std::string& ext, int max) {
+    std::vector<std::string> out;
+    std::error_code ec;
+    for (std::filesystem::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
+        std::error_code e2;
+        if (!it->is_regular_file(e2)) continue;
+        const std::string n = it->path().filename().string();
+        if (n.size() > ext.size() && n.compare(n.size() - ext.size(), ext.size(), ext) == 0) out.push_back(n);
+    }
+    std::sort(out.begin(), out.end());
+    if (int(out.size()) > max) out.resize(size_t(max));
+    return out;
 }
 
 std::string prefPath() {

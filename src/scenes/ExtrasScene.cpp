@@ -4,6 +4,7 @@
 #include <string>
 
 #include "core/Config.hpp"
+#include "core/CustomTheme.hpp"
 #include "core/Platform.hpp"
 #include "core/Version.hpp"
 #include "game/Mode.hpp"
@@ -40,18 +41,25 @@ public:
             edit(c);
             return;
         }
+        if (importing_) {
+            importList(c, dt);
+            return;
+        }
+        for (const std::string& f : c.in.dropped)
+            if (f.size() > 9 && f.compare(f.size() - 9, 9, ".liqtheme") == 0) importFile(c, f);
 
         struct Row { const char* head; const char* desc; int colour; };
         const Row rows[] = {{"menu.runcode", "extras.runcode.desc", 2},  {"extras.card", "extras.card.desc", 5},
-                            {"extras.name", "extras.name.desc", 9},       {"extras.backup", "extras.backup.desc", 7},
+                            {"extras.name", "extras.name.desc", 9},       {"extras.export", "extras.export.desc", 6},
+                            {"extras.import", "extras.import.desc", 3},   {"extras.backup", "extras.backup.desc", 7},
                             {"extras.restore", "extras.restore.desc", 4}, {"menu.authors", "extras.authors.desc", 10},
                             {"menu.quit", "extras.quit.desc", 0}};
-        const int n = platform::isMobile() ? 6 : 7;
+        const int n = platform::isMobile() ? 8 : 9;
         for (int i = 0; i < n; ++i) {
-            const float y = 54.f + float(i) * 50.f;
+            const float y = 48.f + float(i) * 38.f;
             std::string desc = L.tr(rows[i].desc);
             if (i == 2) desc = c.save.playerName.empty() ? L.tr("battle.you") : c.save.playerName;
-            if (!card(c, y, 44, L.tr(rows[i].head), desc, rows[i].colour)) continue;
+            if (!card(c, y, 34, L.tr(rows[i].head), desc, rows[i].colour)) continue;
             switch (i) {
                 case 0: runCode(c); break;
                 case 1: c.go(SceneId::Card); break;
@@ -60,10 +68,12 @@ public:
                     name_ = c.save.playerName;
                     SDL_StartTextInput();
                     break;
-                case 3: backup(c); break;
-                case 4: restore(c); break;
-                case 5: c.go(SceneId::Credits); break;
-                case 6: c.quit = true; break;
+                case 3: exportTheme(c); break;
+                case 4: importing_ = true; files_ = platform::listFiles(themeDir(), ".liqtheme", 40); page_ = 0; break;
+                case 5: backup(c); break;
+                case 6: restore(c); break;
+                case 7: c.go(SceneId::Credits); break;
+                case 8: c.quit = true; break;
             }
         }
         if (msgT_ > 0.f) {
@@ -82,8 +92,8 @@ private:
         const bool hit = c.ui.button("", x, y, w, h);
         g.rect(rtl ? x + w - 7 : x + 2, y + 3, 5, h - 6, t.blob[colour % 12]);
         const Align la = c.ui.start();
-        g.text(head, rtl ? x + w - 16 : x + 16, y + 13, 1, t.text, la);
-        g.text(desc, rtl ? x + w - 16 : x + 16, y + 30, 1, t.dim, la);
+        g.text(head, rtl ? x + w - 16 : x + 16, y + 10, 1, t.text, la);
+        g.text(desc, rtl ? x + w - 16 : x + 16, y + 23, 1, t.dim, la);
         return hit;
     }
 
@@ -104,6 +114,95 @@ private:
             say(c, "menu.badcode", true);
         }
         if (txt) SDL_free(txt);
+    }
+
+    static std::string themeDir() { return platform::prefPath() + "themes"; }
+
+    static std::string safeName(const std::string& n) {
+        std::string o;
+        for (char ch : n) o += ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')) ? ch : '_';
+        return o.empty() ? "theme" : o;
+    }
+
+    // Exports the active theme (the custom one, or a built-in) as <pref>/themes/<name>.liqtheme and, when it has
+    // no audio files, as text on the clipboard (handy on phones, where the folder is hard to reach).
+    void exportTheme(Ctx& c) {
+        CustomTheme t;
+        if (c.save.theme == kCustomTheme) t = c.custom;
+        else t.fromBuiltin(c.save.theme, true);
+        const auto b = t.serialize();
+        platform::ensureDir(themeDir());
+        const std::string path = themeDir() + "/" + safeName(t.nameEn) + ".liqtheme";
+        if (!platform::writeFile(path, std::string(b.begin(), b.end()))) {
+            say(c, "extras.fail", true);
+            return;
+        }
+        const std::string clip = t.toClipboard();
+        if (!clip.empty()) SDL_SetClipboardText(clip.c_str());
+        say(c, clip.empty() ? "extras.export.ok" : "extras.export.okclip");
+    }
+
+    bool adopt(Ctx& c, CustomTheme&& t) {
+        c.custom = std::move(t);
+        ++c.customRev;
+        c.saveCustom();
+        c.setTheme(kCustomTheme);
+        c.applyAudioTheme(true);
+        c.save.store();
+        return true;
+    }
+
+    void importFile(Ctx& c, const std::string& path) {
+        const auto d = platform::readFile(path);
+        CustomTheme t;
+        if (!d.empty() && CustomTheme::parse(d.data(), d.size(), t)) {
+            adopt(c, std::move(t));
+            say(c, "extras.import.ok");
+            importing_ = false;
+        } else {
+            say(c, "extras.import.bad", true);
+        }
+    }
+
+    void importList(Ctx& c, float dt) {
+        Gfx& g = c.gfx;
+        const Theme& t = *c.theme;
+        Loc& L = c.loc;
+        g.text(L.tr("extras.import"), cfg::kW / 2.f, 56, 1, t.dim, Align::Center);
+        float y = 72;
+        const char* clip = SDL_HasClipboardText() ? SDL_GetClipboardText() : nullptr;
+        CustomTheme fromClip;
+        const bool hasClip = clip && CustomTheme::fromClipboard(clip, fromClip);
+        if (clip) SDL_free((void*)clip);
+        if (hasClip && c.ui.button(L.tr("extras.import.clip") + ": " + fromClip.displayName(L.code()), 22, y, 226, 24, true, true, BtnStyle::Primary)) {
+            adopt(c, std::move(fromClip));
+            say(c, "extras.import.ok");
+            importing_ = false;
+            return;
+        }
+        if (hasClip) y += 30;
+        const int per = hasClip ? 6 : 7, pages = std::max(1, (int(files_.size()) + per - 1) / per);
+        page_ = std::clamp(page_, 0, pages - 1);
+        for (int i = 0; i < per; ++i) {
+            const size_t k = size_t(page_ * per + i);
+            if (k >= files_.size()) break;
+            std::string label = files_[k].substr(0, files_[k].size() - 9);
+            if (label.size() > 24) label.resize(24);
+            if (c.ui.button(label, 22, y + float(i) * 28.f, 226, 24)) {
+                importFile(c, themeDir() + "/" + files_[k]);
+                return;
+            }
+        }
+        if (files_.empty()) c.ui.paragraph(L.tr("extras.import.none"), 22, y + 4, 226, 1, t.dim, c.ui.start());
+        if (pages > 1)
+            if (const int d = c.ui.stepper(22, 380, 226, 18, std::to_string(page_ + 1) + "/" + std::to_string(pages), true)) page_ = (page_ + d + pages) % pages;
+        c.ui.paragraph(L.fmt("extras.import.where", themeDir()), 22, 322, 226, 1, t.dim, c.ui.start());
+        if (msgT_ > 0.f) {
+            msgT_ -= dt;
+            g.text(msg_, cfg::kW / 2.f, 408.f, 1, msgBad_ ? t.danger : t.accent, Align::Center, TextFx::Outline, t.ink);
+        }
+        for (const std::string& f : c.in.dropped) importFile(c, f);
+        if (c.ui.button(L.tr("common.back"), 22, 430, 226, 26) || c.in.esc) importing_ = false;
     }
 
     void backup(Ctx& c) {
@@ -169,7 +268,9 @@ private:
         }
     }
 
-    bool editing_ = false, msgBad_ = false;
+    bool editing_ = false, importing_ = false, msgBad_ = false;
+    std::vector<std::string> files_;
+    int page_ = 0;
     std::string name_, msg_;
     float msgT_ = 0.f;
 };

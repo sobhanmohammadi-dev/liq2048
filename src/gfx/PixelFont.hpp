@@ -1,6 +1,6 @@
 #pragma once
-// Built-in bitmap fonts. No font files are needed: the glyphs are drawn from string art
-// in PixelFont.cpp. Two faces:
+// Bitmap fonts, loaded from assets/fonts/pixel-5x7.bdf and pixel-3x5.bdf (BDF text files, CC BY 4.0, see
+// LICENSE-CC-BY-4.0.txt) the first time a glyph is needed. Two faces:
 //   Text5x7   proportional caps/digits/punctuation with 1px strokes (UI, titles, labels)
 //   Digits3x5 tiny numerals for small blobs
 // Lower-case input is shown as upper-case. Accented Latin letters fold to their base letters (all-caps

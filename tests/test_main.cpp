@@ -13,6 +13,8 @@
 #include "core/Json.hpp"
 #include "core/Util.hpp"
 #include "audio/Audio.hpp"
+#include "core/CustomTheme.hpp"
+#include "core/CustomTheme.hpp"
 #include "battle/Battle.hpp"
 #include "core/Access.hpp"
 #include "gfx/ArabicShaper.hpp"
@@ -274,7 +276,7 @@ TEST(fuzz_smoke_parsers_survive_damaged_input) {
     Save::pathOverride().clear();
     std::remove("liq_fuzz_save.txt");
 
-    const std::string ogg = slurp("assets/sounds/chain_2.ogg");
+    const std::string ogg = slurp("assets/sounds/default/chain_2.ogg");
     CHECK(!ogg.empty());
     for (int i = 0; i < 40; ++i) {
         const std::string m = mutate(ogg, r);
@@ -740,11 +742,19 @@ TEST(world_copy_restores_state) {
 
 TEST(audio_assets_decode) {
     // Every shipped OGG must decode to audible, finite, 44.1 kHz stereo audio (tests run from the repo root).
-    const char* names[] = {"sounds/drop_0", "sounds/splash_2", "sounds/merge_00", "sounds/merge_11", "sounds/chain_6",
-                           "sounds/click", "sounds/swipe", "sounds/fail", "sounds/success", "sounds/unlock",
-                           "music/menu", "music/game_calm", "music/game_intense"};
-    for (const char* n : names) {
-        auto file = liq::platform::readAsset(std::string(n) + ".ogg");
+    const char* pals[] = {"default", "steel", "sunset", "jungle"};
+    const char* base[] = {"sounds/drop_0", "sounds/splash_2", "sounds/merge_00", "sounds/merge_11", "sounds/chain_6",
+                          "sounds/click", "sounds/swipe", "sounds/fail", "sounds/success", "sounds/unlock",
+                          "music/menu", "music/game_calm", "music/game_intense"};
+    std::vector<std::string> names;
+    for (const char* p : pals)
+        for (const char* b : base) {
+            std::string n = b;
+            n.insert(n.find('/') + 1, std::string(p) + "/");
+            names.push_back(n);
+        }
+    for (const std::string& n : names) {
+        auto file = liq::platform::readAsset(n + ".ogg");
         CHECK(!file.empty());
         Clip c = decodeOgg(file.data(), int(file.size()));
         CHECK(c.frames > 1000);
@@ -757,6 +767,86 @@ TEST(audio_assets_decode) {
     a.play(Sfx::Merge, 0.5f, 3, 4);
     a.setMood(MusicMood::Game);
     a.setIntensity(0.5f);
+}
+
+TEST(custom_theme_format) {
+    CustomTheme t;
+    t.nameEn = "Ocean Test";
+    t.names["fa"] = "\xD8\xA7\xD9\x82\xDB\x8C\xD8\xA7\xD9\x86\xD9\x88\xD8\xB3";
+    CustomTheme::colorAt(t.theme, 7) = rgb(0x123456);
+    CustomTheme::colorAt(t.theme, 33) = rgb(0xabcdef);
+    t.pack.slot[3].palette = 2;
+    // A tiny valid WAV as a custom sound.
+    std::string wav = "RIFF";
+    auto le32 = [&](uint32_t v) { for (int i = 0; i < 4; ++i) wav += char((v >> (8 * i)) & 255); };
+    const uint32_t n = 200;
+    le32(36 + n * 2); wav += "WAVEfmt "; le32(16); wav += std::string("\x01\x00\x01\x00", 4); le32(44100); le32(88200);
+    wav += std::string("\x02\x00\x10\x00", 4); wav += "data"; le32(n * 2);
+    for (uint32_t i = 0; i < n; ++i) { const int16_t v = int16_t(8000 * std::sin(double(i) * 0.2)); wav += char(v & 255); wav += char((v >> 8) & 255); }
+    t.pack.slot[5].data.assign(wav.begin(), wav.end());
+    t.fileName[5] = "pling.wav";
+
+    const auto bytes = t.serialize();
+    CustomTheme r;
+    CHECK(CustomTheme::parse(bytes.data(), bytes.size(), r));
+    CHECK(r.nameEn == "Ocean Test");
+    CHECK(r.displayName("fa") == t.names["fa"]);
+    CHECK(r.displayName("de") == "Ocean Test");  // no translation: English
+    CHECK(pack(CustomTheme::colorAt(r.theme, 7)) == pack(rgb(0x123456)));
+    CHECK(pack(CustomTheme::colorAt(r.theme, 33)) == pack(rgb(0xabcdef)));
+    CHECK(r.pack.slot[3].palette == 2 && r.pack.slot[5].data == t.pack.slot[5].data && r.fileName[5] == "pling.wav");
+    CHECK(r.serialize() == bytes);  // stable
+
+    // The WAV decodes to 44.1 kHz stereo.
+    Clip c = decodeAudio(r.pack.slot[5].data.data(), int(r.pack.slot[5].data.size()));
+    CHECK(c.frames == int(n));
+
+    // Clipboard form only for themes without files.
+    CHECK(t.toClipboard().empty());
+    CustomTheme small;
+    small.nameEn = "Tiny";
+    CustomTheme back;
+    CHECK(CustomTheme::fromClipboard(small.toClipboard(), back) && back.nameEn == "Tiny");
+
+    // Rejections: truncation, bit flips, wrong magic, bad names.
+    CustomTheme keep;
+    keep.nameEn = "Keep";
+    for (size_t cut : {size_t(0), size_t(5), size_t(19), bytes.size() / 2, bytes.size() - 1}) CHECK(!CustomTheme::parse(bytes.data(), cut, keep));
+    CHECK(keep.nameEn == "Keep");
+    Rng rr;
+    rr.seed(7);
+    for (int i = 0; i < 300; ++i) {
+        auto m = bytes;
+        for (int k = 0; k < 1 + i % 4; ++k) m[size_t(rr.range(0, int(m.size()) - 1))] ^= (unsigned char)(1u << rr.range(0, 7));
+        CustomTheme o;
+        (void)CustomTheme::parse(m.data(), m.size(), o);  // must not crash; a CRC-valid result is possible only by luck
+    }
+    // A forged file with a valid CRC but nonsense inside is still rejected.
+    {
+        std::vector<unsigned char> f = {'L','I','Q','T','H','E','M','E',1,0,0,0, 5,0,0,0, 'x','=','y','\n','z'};
+        const uint32_t crc = crc32(f.data(), f.size());
+        for (int i = 0; i < 4; ++i) f.push_back((unsigned char)((crc >> (8 * i)) & 255));
+        CustomTheme o;
+        CHECK(!CustomTheme::parse(f.data(), f.size(), o));
+    }
+    CHECK(CustomTheme::cleanEnglish("  Hi\x01 there  ") == "Hi there");
+    CHECK(CustomTheme::cleanEnglish(std::string(60, 'a')).size() == 24);
+    CHECK(CustomTheme::cleanLocal("ab\xD8").size() == 2);  // half character cut
+    // Malformed audio never crashes the decoder.
+    unsigned char junk[64] = {'R','I','F','F'};
+    CHECK(decodeAudio(junk, 64).frames == 0);
+    CHECK(decodeAudio(junk, 3).frames == 0);
+}
+
+TEST(base64_roundtrip) {
+    for (int n = 0; n < 20; ++n) {
+        std::vector<unsigned char> v;
+        for (int i = 0; i < n; ++i) v.push_back((unsigned char)(i * 37 + 11));
+        std::vector<unsigned char> o;
+        CHECK(base64Decode(base64Encode(v.data(), v.size()), o) && o == v);
+    }
+    std::vector<unsigned char> o;
+    CHECK(!base64Decode("ab$d", o));
 }
 
 }  // namespace
