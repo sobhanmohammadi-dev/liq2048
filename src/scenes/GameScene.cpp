@@ -1,4 +1,7 @@
 // The in-game scene: shared run loop for all modes (mode rules come from Mode).
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <algorithm>
 #include <cmath>
 #include <string>
