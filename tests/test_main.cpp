@@ -1,5 +1,6 @@
 // Dependency-free unit tests (run with `ctest` from the build directory).
 // Logic only: no window, renderer or audio device is created.
+#define _CRT_SECURE_NO_WARNINGS
 #define SDL_MAIN_HANDLED
 #include "gfx/Png.hpp"
 #include <cmath>
