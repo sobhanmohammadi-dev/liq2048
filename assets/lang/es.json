@@ -308,5 +308,8 @@
   "extras.import.bad": "Archivo .liqtheme no valido",
   "extras.import.none": "No hay archivos .liqtheme",
   "extras.import.clip": "Pegar del portapapeles",
-  "extras.import.where": "Pon los archivos .liqtheme en: {0}"
+  "extras.import.where": "Pon los archivos .liqtheme en: {0}",
+  "pause.copycode": "Copiar codigo",
+  "replay.paused": "EN PAUSA",
+  "replay.older": "Codigo de una version anterior: puede diferir"
 }

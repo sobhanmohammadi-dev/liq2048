@@ -8,6 +8,22 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.7.4]
+
+### Fixed
+- **Watching a run code:** you can now pause (play/pause button, 1x/2x/4x speed and a progress bar), and a replay always plays to the end of the recorded run instead of stopping early. Replays were drifting from the original because the performance mode, the Zen drain and the Rising Tide line depended on frame time; they are now tied to physics steps, and the run code records the end step and the performance-mode switches.
+- **Rising Tide:** the line stopped moving after about 2:24, when it had sunk its full 230 px. It now keeps moving as a swell (up and down by 22 px every 12 s).
+- Hint box and undo button no longer show while watching a replay.
+
+### Changed
+- **Liquid physics:** much closer to water. Viscosity 300 to 60, almost no artificial damping, walls are nearly free-slip, no surface tension for a drop at rest (a settled pool is flat, with travelling waves), higher terminal speed (splashes), velocity spikes capped. Merge reach was widened so merge rates stay the same.
+- Run codes are now `LQ2-` (older `LQ1-` codes still load, with a warning that the liquid may differ because of the new physics).
+
+### Added
+- **Copy run code** in the pause menu: the run from the first drop to the pause.
+- Run codes for puzzles (result screen: Copy code and Watch replay).
+- `docs/GDD.md`, a complete game design document.
+
 ## [1.7.3]
 
 ### Added

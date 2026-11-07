@@ -122,8 +122,9 @@ public:
         if (battle_) drawViewButton(c);
         else drawHistory(c);
         drawToast(c);
-        drawHint(c, paused);
-        if (replaying_ && st_ != St::Over) c.gfx.text(c.loc.tr("replay.banner"), cfg::kW / 2.f, 78, 1, c.theme->accent, Align::Center, TextFx::Outline, c.theme->ink);
+        if (!replaying_) drawHint(c, paused);
+        if (replaying_ && st_ == St::Playing) replayBar(c);
+        if (replaying_ && st_ != St::Over) c.gfx.text(c.loc.tr(replayPaused_ ? "replay.paused" : "replay.banner"), cfg::kW / 2.f, 78, 1, c.theme->accent, Align::Center, TextFx::Outline, c.theme->ink);
 
         switch (st_) {
             case St::Tutorial: tutorial(c); break;
@@ -165,6 +166,11 @@ private:
     std::vector<int> trail_;  // score before every drop (ghost pace)
     float queuedDrop_ = 0, perfEma_ = 1.f / 60.f;
     bool perfLow_ = false;
+    int wantSub_ = 2;               // liquid substeps the governor asks for (applied on a step boundary)
+    size_t subIdx_ = 0;             // replay: next recorded substep change
+    bool olderShown_ = false;
+    bool replayPaused_ = false;     // watching a run: paused with the bar button
+    int replaySpeed_ = 1;           // 1, 2 or 4
     float slowT_ = 0, cooldown_ = 0, quiet_ = 0, elapsed_ = 0, acc_ = 0, shake_ = 0, overT_ = 0, toastT_ = 0, chainT_ = 0;
     int chainShown_ = 0;
     // Undo (Classic and Zen): one step back, charges are earned by chains.
@@ -208,7 +214,7 @@ private:
         hint_ = s;
         hintT_ = t;
     }
-    bool undoAllowed() const { return !hot_ && (mid_ == ModeId::Classic || mid_ == ModeId::Zen); }
+    bool undoAllowed() const { return !hot_ && !replaying_ && (mid_ == ModeId::Classic || mid_ == ModeId::Zen); }
 
     void buzz(Ctx& c, float strength, int ms) const {
         if (c.save.haptics) platform::vibrate(strength, ms);
@@ -295,6 +301,11 @@ private:
             world_.viscScale = mod_ == 3 ? 3.f : 1.f;
             world_.substeps = rec_.substeps;
         }
+        wantSub_ = world_.substeps;
+        subIdx_ = 0;
+        replayPaused_ = false;
+        olderShown_ = false;
+        replaySpeed_ = 1;
         replayTail_ = 0;
         countdown_ = battle_ ? 3.4f : 0.f;
         lastTick_ = 0;
@@ -323,6 +334,7 @@ private:
             rec_.gravity = gravityNow();
             rec_.seed = seed;
             rec_.puzzle = c.puzzleLevel;
+            rec_.physics = cfg::kPhysicsVersion;
         }
         rngFx_.seed(99u);
         score_ = drops_ = maxLevel_ = 0;
@@ -531,7 +543,7 @@ private:
                 queuedDrop_ = 0.f;
             }
         }
-        elapsed_ += dt;
+        if (!(replaying_ && replayPaused_)) elapsed_ += dt;
         quiet_ += dt;
         mode_->update(dt);
         if (want && mode_->manualDrop()) tryDrop(c);
@@ -543,26 +555,28 @@ private:
                 tryDrop(c, true);
             }
         }
-        if (mid_ == ModeId::Tide) {
-            const float shift = mode_->deadLineShift(elapsed_);
-            tideRelief_ = std::min(tideRelief_, shift);
-            // The line sinks all the time; merges lift it, but never above where it started. Eased, so it glides.
-            const float target = cfg::kDeadY + shift - tideRelief_;
-            deadY_ += clampv(target - deadY_, -50.f * dt, 50.f * dt);
-        }
         if (mid_ == ModeId::Rain && elapsed_ >= 60.f) grant(c, kRain60);
         if (mid_ == ModeId::Tide && elapsed_ >= 90.f) grant(c, kTide90);
 
-        acc_ = std::min(acc_ + dt, cfg::kStep * 3.f);  // never try to catch up more than 3 steps (slow phones)
+        const bool frozen = replaying_ && replayPaused_;
+        if (!frozen) acc_ = std::min(acc_ + dt * float(replaying_ ? replaySpeed_ : 1), cfg::kStep * 3.f * float(replaying_ ? replaySpeed_ : 1));  // never catch up more than 3 steps (slow phones)
         // Performance governor: on a device that cannot hold ~50 fps, halve the liquid substeps in modes where
         // the physics need not be identical for everyone.
         if (!replaying_ && mid_ != ModeId::Daily && mid_ != ModeId::Puzzle && mid_ != ModeId::Battle) {
             perfEma_ += (dt - perfEma_) * 0.04f;
             if (!perfLow_ && perfEma_ > 0.024f) perfLow_ = true;
             if (perfLow_ && perfEma_ < 0.017f) perfLow_ = false;
-            world_.substeps = perfLow_ ? 1 : c.save.quality + 1;
+            wantSub_ = perfLow_ ? 1 : c.save.quality + 1;
         }
-        while (acc_ >= cfg::kStep) {
+        while (!frozen && acc_ >= cfg::kStep) {
+            // Everything that touches the physics happens on a step boundary and is a function of the step count,
+            // never of frame time, so a recorded run replays exactly (also on a different frame rate).
+            if (replaying_) {
+                while (subIdx_ < rec_.subs.size() && rec_.subs[subIdx_].first <= simStep_) world_.substeps = rec_.subs[subIdx_++].second;
+            } else if (wantSub_ != world_.substeps) {
+                world_.substeps = wantSub_;
+                rec_.subs.push_back({simStep_, uint8_t(wantSub_)});
+            }
             while (replaying_ && repIdx_ < rec_.drops.size() && rec_.drops[repIdx_].step <= simStep_) {
                 aimX_ = rec_.drops[repIdx_].x;
                 tryDrop(c, true, rec_.drops[repIdx_].level);
@@ -575,14 +589,55 @@ private:
             world_.events.clear();
             for (const auto& im : world_.impacts) onImpact(c, im);
             world_.impacts.clear();
+            if (mid_ == ModeId::Tide) {
+                const float shift = mode_->deadLineShift(float(simStep_) * cfg::kStep);
+                tideRelief_ = std::min(tideRelief_, shift);
+                // The line keeps moving all game (see Tide::deadLineShift); merges lift it, but never above its start.
+                const float target = cfg::kDeadY + shift - tideRelief_;
+                deadY_ += clampv(target - deadY_, -50.f * cfg::kStep, 50.f * cfg::kStep);
+            }
+            world_.updateOverflow(deadY_, cfg::kStep);
+            if (!mode_->failable() && world_.overflow() > 1.5f) popOverflow(c);
+            if (replaying_ && rec_.endStep && simStep_ >= rec_.endStep) break;
         }
-        world_.updateOverflow(deadY_, dt);
 
-        if (!mode_->failable() && world_.overflow() > 1.5f) popOverflow(c);
-
+        if (replaying_ && rec_.endStep) {  // a code that knows where the run ended plays exactly to that point
+            if (simStep_ >= rec_.endStep && repIdx_ >= rec_.drops.size()) {
+                finish(c, rec_.outcome == 1 ? Outcome::Won : rec_.outcome == 2 ? Outcome::Lost : Outcome::Finished);
+                return;
+            }
+            return;
+        }
         const Outcome o = mode_->evaluate(stats());
         if (o != Outcome::Running) finish(c, o);
         else if (replaying_ && repIdx_ >= rec_.drops.size() && ++replayTail_ > 60u * 4u) finish(c, Outcome::Finished);
+    }
+
+    // Controls while watching a run code: pause / play, speed, and how far the replay is.
+    void replayBar(Ctx& c) {
+        Gfx& g = c.gfx;
+        Ui& ui = c.ui;
+        const Theme& t = *c.theme;
+        const float y = 452.f;
+        if (ui.iconButton(replayPaused_ ? IconId::Play : IconId::Pause, 22, y, 30, 24, true, true)) replayPaused_ = !replayPaused_;
+        static const int speeds[3] = {1, 2, 4};
+        if (ui.button(std::to_string(replaySpeed_) + "x", 58, y, 36, 24)) {
+            int k = 0;
+            while (k < 2 && speeds[k] != replaySpeed_) ++k;
+            replaySpeed_ = speeds[(k + 1) % 3];
+        }
+        const uint32_t total = rec_.endStep ? rec_.endStep : (rec_.drops.empty() ? 1u : rec_.drops.back().step + 240u);
+        const float f = clampv(float(simStep_) / float(std::max(1u, total)), 0.f, 1.f);
+        const float bx = 102.f, bw = 146.f;
+        g.rect(bx - 1, y + 8, bw + 2, 10, t.ink);
+        g.rect(bx, y + 9, bw, 8, t.panelLo);
+        g.rect(bx, y + 9, bw * f, 8, t.accent);
+        if (c.in.pressed && c.in.mx >= 22 && c.in.mx <= 94 && c.in.my >= y && c.in.my <= y + 24) c.audio.play(Sfx::Click);
+        if (rec_.physics != cfg::kPhysicsVersion && !olderShown_) {
+            olderShown_ = true;
+            toast_ = c.loc.tr("replay.older");
+            toastT_ = 4.f;
+        }
     }
 
     // Zen has no fail state: liquid that settles above the line drains away harmlessly.
@@ -634,6 +689,10 @@ private:
 
     void finish(Ctx& c, Outcome o) {
         outcome_ = o;
+        if (!replaying_) {
+            rec_.endStep = simStep_;
+            rec_.outcome = o == Outcome::Won ? 1 : o == Outcome::Lost ? 2 : 3;
+        }
         st_ = St::Over;
         overT_ = 0;
         if (replaying_) {  // watching only: no stats, bests, stars or achievements
@@ -1161,16 +1220,31 @@ private:
         const Theme& t = *c.theme;
         Loc& L = c.loc;
         g.dim(t, 1);
-        ui.panel(55, 170, 160, battle_ ? 138 : 168);
+        const bool canCopy = !battle_ && !rec_.empty();
+        const float ph = battle_ ? 138.f : (canCopy && !replaying_) ? 198.f : 168.f;
+        ui.panel(55, 170, 160, ph);
         g.text(L.tr("pause.title"), cfg::kW / 2.f, 192, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
-        if (!platform::isMobile()) g.text("ESC  SPACE  U  F11", cfg::kW / 2.f, 170 + (battle_ ? 138 : 168) + 10, 1, t.dim, Align::Center);
+        if (!platform::isMobile()) g.text("ESC  SPACE  U  F11", cfg::kW / 2.f, 170 + ph + 10, 1, t.dim, Align::Center);
         if (ui.button(L.tr("pause.resume"), 70, 214, 130, 24, true, true, BtnStyle::Primary) || c.in.esc) st_ = St::Playing;
         float by = 244;
-        if (!battle_) {
+        if (!battle_ && !replaying_) {
             if (ui.button(L.tr("pause.restart"), 70, by, 130, 24)) {
                 commit(c);
                 start(c);
                 st_ = St::Playing;
+            }
+            by += 30;
+        }
+        if (canCopy) {  // the run so far, from the first drop to this moment
+            if (ui.button(L.tr("pause.copycode"), 70, by, 130, 24)) {
+                Replay part = rec_;
+                if (!replaying_) {
+                    part.endStep = simStep_;
+                    part.outcome = 0;
+                }
+                SDL_SetClipboardText(part.toCode().c_str());
+                toast_ = L.tr("over.copied");
+                toastT_ = 2.f;
             }
             by += 30;
         }
@@ -1207,6 +1281,14 @@ private:
         }
         g.text(L.tr("hud.drops") + " " + std::to_string(drops_) + "  " + L.fmt("puzzle.par", std::to_string(pz->par)), cfg::kW / 2.f,
                236.f + oy, 1, t.text, Align::Center);
+        if (replaying_) {  // watching a code: only watch again or leave
+            if (ui.button(L.tr("over.replay"), 55, 270 + oy, 160, 24, true, true, BtnStyle::Primary)) {
+                start(c);
+                st_ = St::Playing;
+            }
+            if (ui.button(L.tr("over.menu"), 55, 300 + oy, 160, 24) || c.in.esc) c.go(SceneId::Menu);
+            return;
+        }
         const bool hasNext = won && c.puzzleLevel + 1 < int(puzzlePack().size());
         float y = 258.f + oy;
         if (hasNext) {
@@ -1223,6 +1305,19 @@ private:
         }
         y += 30.f;
         if (ui.button(L.tr("over.levels"), 55, y, 160, 24) || c.in.esc) c.go(SceneId::Puzzle);
+        y += 30.f;
+        if (!rec_.empty()) {  // share or rewatch the solution
+            if (ui.button(L.tr("over.copycode"), 55, y, 78, 20)) {
+                SDL_SetClipboardText(rec_.toCode().c_str());
+                toast_ = L.tr("over.copied");
+                toastT_ = 2.f;
+            }
+            if (ui.button(L.tr("over.replay"), 137, y, 78, 20)) {
+                replaying_ = true;
+                start(c);
+                st_ = St::Playing;
+            }
+        }
     }
 
     void overlay(Ctx& c) {

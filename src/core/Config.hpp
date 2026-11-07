@@ -25,20 +25,21 @@ inline constexpr float kRadiusGrowth = 1.15f;
 inline constexpr float kStep = 1.f / 60.f;
 inline constexpr int kSubsteps = 2;
 inline constexpr float kGravity = 600.f;
-inline constexpr float kMaxSpeed = 300.f;
+inline constexpr float kMaxSpeed = 520.f;
 inline constexpr float kSpacing = 4.4f;       // rest distance between particles (px)
 inline constexpr float kInteract = 9.6f;      // interaction radius (px)
 inline constexpr float kStiff = 8000.f;       // pressure stiffness
 inline constexpr float kStiffNear = 9000.f;   // near-pressure (anti-clumping)
-inline constexpr float kViscSigma = 300.f;     // linear viscosity
+inline constexpr float kViscSigma = 60.f;      // linear viscosity (water-like; the Thick modifier triples it)
 inline constexpr float kViscBeta = 0.f;       // quadratic viscosity
-inline constexpr float kCohesion = 0.8f;     // pull toward same-drop neighbours
+inline constexpr float kCohesion = 0.4f;     // surface tension of a drop in motion
 inline constexpr float kHold = 0.06f;        // weak pull toward drop centroid (shape while falling)
-inline constexpr float kDamp = 0.995f;          // velocity kept per substep (settles the liquid)
-inline constexpr float kCohRange = 1.0f;       // cohesion acts beyond this multiple of the spacing
-inline constexpr float kSleepV = 50.f;          // below this speed (px/s) extra damping applies
-inline constexpr float kSleepF = 0.9f;          // ... by this factor per substep
-inline constexpr float kWallDrag = 0.5f;     // velocity kept per step while touching floor/walls
+inline constexpr float kDamp = 0.9995f;         // velocity kept per substep
+inline constexpr float kHardSpeed = 900.f;     // absolute velocity cap after position corrections (px/s)
+inline constexpr int kPhysicsVersion = 2;      // stored in run codes: replays only match on the same physics
+inline constexpr float kSleepV = 25.f;          // below this speed (px/s) extra damping applies
+inline constexpr float kSleepF = 0.97f;         // ... by this factor per substep
+inline constexpr float kWallDrag = 0.97f;    // velocity kept per step while touching floor/walls (water slips along walls)
 
 // ---- Gameplay ---------------------------------------------------------------
 inline constexpr float kDropCooldown = 0.40f;
@@ -51,6 +52,8 @@ inline constexpr int kDailyDrops = 60;
 inline constexpr int kWeeklyDrops = 100;
 inline constexpr float kTideMaxShift = 230.f;   // how far the Rising Tide line can sink (px)
 inline constexpr float kTideRate = 1.6f;        // px per second
+inline constexpr float kTideSwell = 22.f;       // after the line has sunk fully it swells up and down by this much (px)
+inline constexpr float kTideSwellPeriod = 12.f; // seconds per swell
 
 }  // namespace liq::cfg
 

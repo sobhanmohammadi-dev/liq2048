@@ -111,7 +111,14 @@ class Tide final : public Mode {
 public:
     ModeId id() const override { return ModeId::Tide; }
     const char* nameKey() const override { return "mode.tide"; }
-    float deadLineShift(float elapsed) const override { return std::min(cfg::kTideMaxShift, elapsed * cfg::kTideRate); }
+    // The line sinks at a steady rate until it is kTideMaxShift lower; from then on it keeps moving like a swell
+    // (up and down, slowly growing to +-kTideSwell), so the tide never looks stuck and the pressure stays on.
+    float deadLineShift(float elapsed) const override {
+        const float raw = elapsed * cfg::kTideRate;
+        if (raw < cfg::kTideMaxShift) return raw;
+        const float t = (raw - cfg::kTideMaxShift) / cfg::kTideRate;
+        return cfg::kTideMaxShift + cfg::kTideSwell * std::min(1.f, t / 6.f) * std::sin(t * 6.2831853f / cfg::kTideSwellPeriod);
+    }
     std::string status(const Loc& l, const Stats& s) const override { return l.tr("hud.time") + " " + mmss(s.elapsed - 0.999f); }
 };
 

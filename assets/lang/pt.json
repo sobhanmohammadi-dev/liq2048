@@ -308,5 +308,8 @@
   "extras.import.bad": "Arquivo .liqtheme invalido",
   "extras.import.none": "Nenhum arquivo .liqtheme",
   "extras.import.clip": "Colar da area de transferencia",
-  "extras.import.where": "Coloque os arquivos .liqtheme em: {0}"
+  "extras.import.where": "Coloque os arquivos .liqtheme em: {0}",
+  "pause.copycode": "Copiar codigo",
+  "replay.paused": "PAUSADO",
+  "replay.older": "Codigo de versao antiga: pode diferir"
 }

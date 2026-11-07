@@ -651,7 +651,9 @@ TEST(new_modes_rules) {
     auto tide = makeMode(ModeId::Tide, sv, 20000);
     CHECK(tide->deadLineShift(0.f) == 0.f);
     CHECK(tide->deadLineShift(30.f) > 0.f);
-    CHECK(tide->deadLineShift(1e6f) <= cfg::kTideMaxShift);
+    CHECK(tide->deadLineShift(1e6f) <= cfg::kTideMaxShift + cfg::kTideSwell + 0.01f);
+    // The line must never look stuck: after it has sunk fully it keeps moving (swell), at any later time.
+    for (float t0 : {150.f, 200.f, 400.f, 900.f}) CHECK(std::fabs(tide->deadLineShift(t0 + 2.f) - tide->deadLineShift(t0)) > 0.01f || std::fabs(tide->deadLineShift(t0 + 3.f) - tide->deadLineShift(t0)) > 0.01f);
     auto wk = makeMode(ModeId::Weekly, sv, 20000);
     CHECK(wk->fixedModifier() >= 1 && wk->fixedModifier() <= 4);
     CHECK(wk->seed() == makeMode(ModeId::Weekly, sv, 20000 + 1)->seed());   // same week -> same seed (20000 and 20001 share a week)
@@ -836,6 +838,29 @@ TEST(custom_theme_format) {
     unsigned char junk[64] = {'R','I','F','F'};
     CHECK(decodeAudio(junk, 64).frames == 0);
     CHECK(decodeAudio(junk, 3).frames == 0);
+}
+
+TEST(replay_v2_code) {
+    Replay r;
+    r.mode = 8; r.puzzle = 3; r.seed = 1234; r.gravity = 600.f; r.substeps = 2; r.outcome = 1; r.endStep = 4321;
+    r.subs = {{100, 1}, {700, 2}};
+    r.drops = {{10, 50.5f, 0}, {95, 120.f, 3}, {300, 200.25f, 11}};
+    Replay b;
+    CHECK(Replay::fromCode(r.toCode(), b));
+    CHECK(b.endStep == 4321 && b.outcome == 1 && b.physics == r.physics && b.puzzle == 3 && b.mode == 8);
+    CHECK(b.subs == r.subs && b.drops.size() == 3 && b.drops[2].level == 11);
+    CHECK(b.toCode() == r.toCode());
+    // A code copied while paused: only the recorded part, outcome 0.
+    r.outcome = 0;
+    CHECK(Replay::fromCode(r.toCode(), b) && b.outcome == 0);
+    // Substep changes alter the physics, so the checksum has to follow them.
+    Replay a = r;
+    a.subs.clear();
+    CHECK(replayChecksum(a, 60) != replayChecksum(r, 60));
+    // Garbage in the new fields is rejected, not trusted.
+    std::string code = r.toCode();
+    code[10] = code[10] == 'A' ? 'B' : 'A';
+    CHECK(!Replay::fromCode(code, b));
 }
 
 TEST(base64_roundtrip) {

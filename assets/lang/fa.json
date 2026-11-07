@@ -308,5 +308,8 @@
   "extras.import.bad": "فایل .liqtheme معتبر نیست",
   "extras.import.none": "فایل .liqtheme پیدا نشد",
   "extras.import.clip": "چسباندن از کلیپ‌بورد",
-  "extras.import.where": "فایل‌های .liqtheme را اینجا بگذارید: {0}"
+  "extras.import.where": "فایل‌های .liqtheme را اینجا بگذارید: {0}",
+  "pause.copycode": "کپی کد بازی",
+  "replay.paused": "متوقف",
+  "replay.older": "کد نسخه قدیمی: بازپخش ممکن است فرق کند"
 }

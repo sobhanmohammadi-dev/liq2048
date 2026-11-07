@@ -373,8 +373,8 @@ void World::substep(float h, float g, bool last) {
         parts[i].y -= hy;
     }
 
-    // 4. cohesion inside a drop keeps each colour together
-    // Strong surface tension while a drop is falling or splashing; relaxed once it rests (no shimmer).
+    // 4. surface tension keeps a falling or splashing drop together. A drop at rest has none: the liquid then
+    // flows and levels like water (a flat surface, waves that travel and fade) instead of staying in lumps.
     moving_.resize(drops.size());
     for (size_t g2 = 0; g2 < drops.size(); ++g2) {
         const Drop& dr = drops[g2];
@@ -384,7 +384,7 @@ void World::substep(float h, float g, bool last) {
         Particle &a = parts[size_t(pr.i)], &b = parts[size_t(pr.j)];
         if (a.g != b.g) continue;
         const float d = pr.q * cfg::kInteract;
-        if (d <= cfg::kSpacing * (moving_[size_t(a.g)] ? 1.0f : cfg::kCohRange)) continue;
+        if (!moving_[size_t(a.g)] || d <= cfg::kSpacing) continue;  // surface tension only while the drop is in motion
         const float pull = cfg::kCohesion * (1.f - pr.q) * 0.5f;
         a.x += pull * pr.nx;
         a.y += pull * pr.ny;
@@ -415,6 +415,12 @@ void World::substep(float h, float g, bool last) {
         }
         p.vx *= cfg::kDamp;
         p.vy *= cfg::kDamp;
+        const float sp2 = p.vx * p.vx + p.vy * p.vy;  // position corrections can spike: keep the velocity sane
+        if (sp2 > cfg::kHardSpeed * cfg::kHardSpeed) {
+            const float k = cfg::kHardSpeed / std::sqrt(sp2);
+            p.vx *= k;
+            p.vy *= k;
+        }
         if (p.vx * p.vx + p.vy * p.vy < cfg::kSleepV * cfg::kSleepV) {  // slow liquid settles instead of jittering
             p.vx *= cfg::kSleepF;
             p.vy *= cfg::kSleepF;
@@ -429,7 +435,7 @@ void World::substep(float h, float g, bool last) {
     for (const auto& pr : pairs_) {
         const int ga = parts[size_t(pr.i)].g, gb = parts[size_t(pr.j)].g;
         if (ga == gb || drops[size_t(ga)].level != drops[size_t(gb)].level || drops[size_t(ga)].level >= cfg::kMaxLevel) continue;
-        if (pr.q * cfg::kInteract > cfg::kSpacing * 2.0f) continue;
+        if (pr.q * cfg::kInteract > cfg::kSpacing * 2.6f) continue;
         const int lo = std::min(ga, gb), hi = std::max(ga, gb);
         bool found = false;
         for (auto& c : contacts)

@@ -34,6 +34,18 @@ SceneId sceneFromName(const std::string& n, Ctx& c) {
     if (n == "extras") return SceneId::Extras;
     if (n == "card") return SceneId::Card;
     if (n == "themeeditor") return SceneId::ThemeEditor;
+    if (n == "replaygame") {  // dev: watch a made-up run code
+        Replay r;
+        r.mode = int(ModeId::Classic);
+        r.seed = 5;
+        r.gravity = cfg::kGravity;
+        r.endStep = 1500;
+        r.outcome = 3;
+        for (uint32_t i = 0; i < 30; ++i) r.drops.push_back({i * 40u + 10u, 40.f + float((i * 53u) % 180u), int(i % 3u)});
+        c.pendingReplay = r;
+        c.hasPendingReplay = true;
+        return SceneId::Game;
+    }
     if (n == "battlegame") {  // dev: a bot match with scripted input
         c.mode = ModeId::Battle;
         c.battle.cfg.seed = 7;

@@ -308,5 +308,8 @@
   "extras.import.bad": "Fichier .liqtheme invalide",
   "extras.import.none": "Aucun fichier .liqtheme",
   "extras.import.clip": "Coller depuis le presse-papiers",
-  "extras.import.where": "Mettez les fichiers .liqtheme dans : {0}"
+  "extras.import.where": "Mettez les fichiers .liqtheme dans : {0}",
+  "pause.copycode": "Copier le code",
+  "replay.paused": "PAUSE",
+  "replay.older": "Code d'une ancienne version : le replay peut differer"
 }

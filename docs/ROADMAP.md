@@ -195,6 +195,11 @@ Exit: a two-player LAN match and a PvE match both play to the end on desktop and
 - ☑ Own music and sound effects for each built-in theme; masters in `original_assets/`, optimized OGG in `assets/`.
 - ☑ Fonts loaded from external files; sounds and Liq Pixel under CC BY 4.0.
 
+## v1.7.4: Replay and water ☑ released
+- ☑ Replay viewer: pause, speed, progress, exact full playback; step-based, deterministic timing.
+- ☑ Rising Tide keeps moving; water-like liquid physics; copy run code from the pause menu; puzzle run codes.
+- ☑ Game design document (`docs/GDD.md`).
+
 ## v1.8.0: Modding and community
 
 Goal: let players and artists extend the game with no code.

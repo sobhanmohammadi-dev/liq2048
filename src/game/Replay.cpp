@@ -62,6 +62,28 @@ static uint16_t crc16(const std::vector<uint8_t>& b) {
     return c;
 }
 
+static void putVar(std::vector<uint8_t>& b, uint32_t v) {
+    while (v >= 0x80) {
+        b.push_back(uint8_t(v | 0x80));
+        v >>= 7;
+    }
+    b.push_back(uint8_t(v));
+}
+
+static bool getVar(const std::vector<uint8_t>& b, size_t& i, uint32_t& out) {
+    uint32_t v = 0;
+    int shift = 0;
+    for (;;) {
+        if (i >= b.size() || shift > 28) return false;
+        const uint8_t x = b[i++];
+        v |= uint32_t(x & 0x7F) << shift;
+        if (!(x & 0x80)) break;
+        shift += 7;
+    }
+    out = v;
+    return true;
+}
+
 std::string Replay::toCode() const {
     std::vector<uint8_t> b;
     auto u32 = [&](uint32_t v) {
@@ -74,15 +96,20 @@ std::string Replay::toCode() const {
     uint32_t gb;
     std::memcpy(&gb, &gravity, 4);
     u32(gb);
+    b.push_back(uint8_t(physics));
+    b.push_back(uint8_t(outcome));
+    putVar(b, endStep);
+    putVar(b, uint32_t(subs.size()));
+    uint32_t ps = 0;
+    for (const auto& sw : subs) {
+        putVar(b, sw.first - ps);
+        ps = sw.first;
+        b.push_back(sw.second);
+    }
     uint32_t prev = 0;
     for (const auto& d : drops) {
-        uint32_t delta = d.step - prev;
+        putVar(b, d.step - prev);
         prev = d.step;
-        while (delta >= 0x80) {
-            b.push_back(uint8_t(delta | 0x80));
-            delta >>= 7;
-        }
-        b.push_back(uint8_t(delta));
         const uint16_t q = uint16_t(int(d.x * 128.f + 0.5f));
         b.push_back(uint8_t(q & 255));
         b.push_back(uint8_t(q >> 8));
@@ -91,7 +118,7 @@ std::string Replay::toCode() const {
     const uint16_t crc = crc16(b);
     b.push_back(uint8_t(crc & 255));
     b.push_back(uint8_t(crc >> 8));
-    std::string s = "LQ1-";
+    std::string s = "LQ2-";
     for (size_t i = 0; i < b.size(); i += 3) {
         uint32_t v = uint32_t(b[i]) << 16 | (i + 1 < b.size() ? uint32_t(b[i + 1]) << 8 : 0u) | (i + 2 < b.size() ? b[i + 2] : 0u);
         s += kB64[(v >> 18) & 63];
@@ -103,7 +130,12 @@ std::string Replay::toCode() const {
 }
 
 bool Replay::fromCode(const std::string& in, Replay& out) {
-    size_t p = in.find("LQ1-");
+    size_t p = in.find("LQ2-");
+    int ver = 2;
+    if (p == std::string::npos) {
+        p = in.find("LQ1-");
+        ver = 1;
+    }
     if (p == std::string::npos) return false;
     std::vector<uint8_t> b;
     uint32_t acc = 0;
@@ -145,17 +177,27 @@ bool Replay::fromCode(const std::string& in, Replay& out) {
     const uint32_t gb = u32();
     std::memcpy(&r.gravity, &gb, 4);
     if (r.substeps > 3 || r.modifier > 4 || r.mode > 15 || !(r.gravity >= 0.f && r.gravity < 100000.f)) return false;
+    r.physics = 1;
+    if (ver == 2) {
+        if (i + 2 > b.size()) return false;
+        r.physics = b[i++];
+        r.outcome = b[i++];
+        uint32_t n = 0;
+        if (r.outcome > 3 || !getVar(b, i, r.endStep) || !getVar(b, i, n) || n > 100000) return false;
+        uint32_t st = 0;
+        for (uint32_t k = 0; k < n; ++k) {
+            uint32_t d = 0;
+            if (!getVar(b, i, d) || i >= b.size()) return false;
+            st += d;
+            const uint8_t v = b[i++];
+            if (v < 1 || v > 3) return false;
+            r.subs.push_back({st, v});
+        }
+    }
     uint32_t step = 0;
     while (i < b.size()) {
         uint32_t delta = 0;
-        int shift = 0;
-        for (;;) {
-            if (i >= b.size() || shift > 28) return false;
-            const uint8_t v = b[i++];
-            delta |= uint32_t(v & 0x7F) << shift;
-            if (!(v & 0x80)) break;
-            shift += 7;
-        }
+        if (!getVar(b, i, delta)) return false;
         if (i + 3 > b.size()) return false;
         step += delta;
         ReplayDrop d;
@@ -174,10 +216,11 @@ uint64_t replayChecksum(const Replay& r, int tailSteps) {
     World w;
     w.substeps = r.substeps;
     w.viscScale = r.modifier == 3 ? 3.f : 1.f;
-    size_t i = 0;
+    size_t i = 0, si = 0;
     uint32_t step = 0;
     const uint32_t end = (r.drops.empty() ? 0u : r.drops.back().step) + uint32_t(tailSteps);
     for (; step < end; ++step) {
+        while (si < r.subs.size() && r.subs[si].first <= step) w.substeps = r.subs[si++].second;
         while (i < r.drops.size() && r.drops[i].step <= step) {
             w.spawn(r.drops[i].x, cfg::kSpawnY, r.drops[i].level);
             ++i;

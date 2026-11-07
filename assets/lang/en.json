@@ -308,5 +308,8 @@
   "extras.import.bad": "Not a valid .liqtheme file",
   "extras.import.none": "No .liqtheme files found",
   "extras.import.clip": "Paste from clipboard",
-  "extras.import.where": "Put .liqtheme files in: {0}"
+  "extras.import.where": "Put .liqtheme files in: {0}",
+  "pause.copycode": "Copy run code",
+  "replay.paused": "PAUSED",
+  "replay.older": "Code from an older version: the replay may differ"
 }

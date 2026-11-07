@@ -4,6 +4,7 @@
 // drops into a fresh World reproduces the pot exactly (on the same build and platform).
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace liq {
@@ -24,6 +25,12 @@ struct Replay {
     float gravity = 0;  // gravity used for the run
     uint32_t seed = 0;  // drop-queue seed (so the replay scene rolls the same queue)
     int puzzle = 0;     // puzzle level (Puzzle mode)
+    int physics = 2;    // cfg::kPhysicsVersion of the build that recorded it (1 = codes from before v1.7.4)
+    int outcome = 0;    // 0 = recorded part only (copied while paused), 1 won, 2 lost, 3 finished
+    uint32_t endStep = 0;  // physics steps simulated when the run ended or was copied; 0 = unknown (old codes)
+    // Liquid-quality changes made by the performance governor: (step, substeps). They change the physics, so a
+    // replay has to repeat them.
+    std::vector<std::pair<uint32_t, uint8_t>> subs;
     std::vector<ReplayDrop> drops;
 
     bool empty() const { return drops.empty(); }
@@ -31,7 +38,7 @@ struct Replay {
     // Remove drops at or after a step (used by undo).
     void truncateFrom(uint32_t step);
 
-    std::string toCode() const;  // short shareable run code, e.g. "LQ1-..." (base64url + checksum)
+    std::string toCode() const;  // short shareable run code, e.g. "LQ2-..." (base64url + checksum); "LQ1-" codes still load
     static bool fromCode(const std::string& s, Replay& out);
     std::string toText() const;
     static bool fromText(const std::string& s, Replay& out);

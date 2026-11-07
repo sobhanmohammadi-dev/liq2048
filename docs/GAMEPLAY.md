@@ -71,7 +71,7 @@ Open them from **Play → More modes**.
 
 - **Endless Rain:** drops fall by themselves, faster and faster (every 3.2 s down to every 1.1 s). You cannot drop
   manually, only steer. Survive as long as you can.
-- **Rising Tide:** the overflow line sinks all the time (1.6 px per second, up to 230 px). Every merge lifts it,
+- **Rising Tide:** the overflow line sinks all the time (1.6 px per second, up to 230 px, then it keeps swelling up and down by 22 px). Every merge lifts it,
   more for bigger droplets, but never above its start; it glides instead of jumping.
 - **Weekly Challenge:** the same 100 drops for everyone for a whole week (Monday to Sunday, UTC) with that week's
   rule: low gravity, heavy gravity, thick liquid or bonus drops. Own weekly best, reset every week.

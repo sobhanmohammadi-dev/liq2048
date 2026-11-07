@@ -308,5 +308,8 @@
   "extras.import.bad": "Gecersiz .liqtheme dosyasi",
   "extras.import.none": ".liqtheme dosyasi yok",
   "extras.import.clip": "Panodan yapistir",
-  "extras.import.where": ".liqtheme dosyalarini buraya koyun: {0}"
+  "extras.import.where": ".liqtheme dosyalarini buraya koyun: {0}",
+  "pause.copycode": "Kodu kopyala",
+  "replay.paused": "DURAKLATILDI",
+  "replay.older": "Eski surum kodu: tekrar farkli olabilir"
 }

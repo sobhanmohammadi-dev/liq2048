@@ -308,5 +308,8 @@
   "extras.import.bad": "ملف .liqtheme غير صالح",
   "extras.import.none": "لا توجد ملفات .liqtheme",
   "extras.import.clip": "لصق من الحافظة",
-  "extras.import.where": "ضع ملفات .liqtheme في: {0}"
+  "extras.import.where": "ضع ملفات .liqtheme في: {0}",
+  "pause.copycode": "نسخ رمز اللعبة",
+  "replay.paused": "متوقف مؤقتا",
+  "replay.older": "رمز من إصدار أقدم: قد تختلف الإعادة"
 }

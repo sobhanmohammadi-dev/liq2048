@@ -308,5 +308,8 @@
   "extras.import.bad": "Ungueltige .liqtheme-Datei",
   "extras.import.none": "Keine .liqtheme-Dateien",
   "extras.import.clip": "Aus Zwischenablage",
-  "extras.import.where": ".liqtheme-Dateien ablegen in: {0}"
+  "extras.import.where": ".liqtheme-Dateien ablegen in: {0}",
+  "pause.copycode": "Code kopieren",
+  "replay.paused": "PAUSE",
+  "replay.older": "Code einer aelteren Version: kann abweichen"
 }
