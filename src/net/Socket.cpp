@@ -88,7 +88,7 @@ std::string Addr::ipString() const {
 bool parseIp(const std::string& s, uint32_t& ip) {
     unsigned a, b, c, d;
     char tail;
-    if (std::sscanf(s.c_str(), "%u.%u.%u.%u%c", &a, &b, &c, &d, &tail) != 4 || a > 255 || b > 255 || c > 255 || d > 255) return false;
+    if (std::sscanf_s(s.c_str(), "%u.%u.%u.%u%c", &a, &b, &c, &d, &tail) != 4 || a > 255 || b > 255 || c > 255 || d > 255) return false;
     ip = (a << 24) | (b << 16) | (c << 8) | d;
     return true;
 }

@@ -101,7 +101,7 @@ void drawIcon(Ctx& c, ModeId m, float cx, float cy, std::vector<BlobSprite>& sp)
         case ModeId::Zen: {  // one calm drop, slow ripples
             for (int i = 0; i < 3; ++i) {
                 const float ph = std::fmod(T * 0.22f + float(i) / 3.f, 1.f);
-                const int a = int(110.f * (1.f - ph));
+                const Uint8 a = static_cast<Uint8>(std::clamp(110.f * (1.f - ph), 0.f, 255.f));
                 g.ring(cx, cy + 2.f, 12 + int(ph * 30.f), withAlpha(t.blob[0], a));
             }
             sp.push_back(plainSprite(cx, cy + 2.f + std::sin(T * 0.8f) * 2.f, 0, 0.04f + 0.03f * std::sin(T * 0.8f), T * 0.3f));
@@ -182,7 +182,8 @@ void drawIcon(Ctx& c, ModeId m, float cx, float cy, std::vector<BlobSprite>& sp)
                 const float p = std::fmod(T * 0.7f + float(i) / 3.f, 1.f);
                 const float x = cx - 10.f + float(i) * 10.f;
                 const float yy = cy - 3.f + p * 26.f;
-                const Color dc = withAlpha(t.blob[6], int(255.f * std::min(1.f, (1.f - p) * 2.5f)));
+                const Uint8 alpha = static_cast<Uint8>(std::clamp(255.f * std::min(1.f, (1.f - p) * 2.5f), 0.f, 255.f));
+                const Color dc = withAlpha(t.blob[6], alpha);
                 g.disc(x, yy, 2, dc);
                 g.rect(x, yy - 5.f, 1, 3, dc);
             }

@@ -1335,7 +1335,8 @@ private:
         g.dim(t, 0);
         const float slide = std::min(1.f, overT_ * 4.f);
         const float oy = std::floor((1.f - slide) * -60.f);
-        ui.panel(35, 140 + oy, 200, mid_ == ModeId::Puzzle || hot_ ? 248 : 272);
+
+        ui.panel(35.0f,140.0f + oy,200.0f,mid_ == ModeId::Puzzle || hot_ ? 248.0f : 272.0f);
         if (mid_ == ModeId::Puzzle) {
             puzzleOverlay(c, oy);
             return;
