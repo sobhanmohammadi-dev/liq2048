@@ -164,7 +164,7 @@ void drawIcon(Ctx& c, ModeId m, float cx, float cy, std::vector<BlobSprite>& sp)
                     if (week && n >= 7) break;
                     const Color cc = hi ? t.accent : mix(t.dim, t.ink, 0.3f);
                     const float px = x + 4.f + float(q) * 7.f, py = y + 13.f + float(r) * 6.f;
-                    g.rect(px, py, hi ? 5 : 4, hi ? 5 : 4, cc);
+                    g.rect(px, py, hi ? 5.f : 4.f, hi ? 5.f : 4.f, cc);
                 }
             if (!week && std::fmod(T, 1.4f) < 0.7f) {  // twinkle on the day of the challenge
                 const float sx = x + 4.f + 1.f * 7.f + 2.f, sy = y + 13.f + 1.f * 6.f - 10.f;
