@@ -1,3 +1,6 @@
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "net/Socket.hpp"
 
 #include <cstdio>

@@ -78,7 +78,8 @@ bool writePng(const std::string& path, int w, int h, const std::vector<uint8_t>&
 
     FILE* f = nullptr;
 
-    if (fopen_s(&f, path.c_str(), "wb") != 0) {
+    f = std::fopen(path.c_str(), "wb");
+    if (f == nullptr) {
         return false;
     }
     
