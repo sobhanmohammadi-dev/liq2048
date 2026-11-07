@@ -1,4 +1,7 @@
 // Mode selection: a scrollable board of animated tiles (Battle, Puzzle, Classic and Zen up front).
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>

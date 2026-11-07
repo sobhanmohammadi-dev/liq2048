@@ -1,5 +1,8 @@
 // Dev-only scene used by `liq2048 --screenshot out.bmp --scene logo|banner|social` to render the
 // repository's logo and banner with the real game renderer (see tools/branding/make_branding.py).
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <cmath>
 
 #include "game/World.hpp"

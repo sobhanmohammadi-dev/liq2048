@@ -1,4 +1,7 @@
 // Menu, mode selection, progress and standalone settings scenes.
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <cmath>
 #include <string>
 

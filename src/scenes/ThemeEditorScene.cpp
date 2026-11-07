@@ -1,4 +1,7 @@
 // Custom theme editor: name, every colour, and the sound of every slot.
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <algorithm>
 #include <cmath>
 #include <string>

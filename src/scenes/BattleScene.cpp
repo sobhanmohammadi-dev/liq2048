@@ -1,4 +1,7 @@
 // Battle menus: choose bot or human, bot difficulty, and the LAN host / browse / join flow.
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <cmath>
 #include <ctime>
 #include <string>

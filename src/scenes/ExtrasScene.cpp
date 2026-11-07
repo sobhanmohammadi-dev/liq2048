@@ -1,4 +1,7 @@
 // "Additional features": run codes, player card and name, save backup / restore, authors.
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <algorithm>
 #include <cmath>
 #include <string>
