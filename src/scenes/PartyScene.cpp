@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 #include <cstddef>
+#include <cstdio>
+#include <optional>
 
 #include "core/Config.hpp"
 #include "core/Util.hpp"
@@ -20,27 +22,17 @@ namespace liq {
 namespace {
 
 bool hasEnv(const char* name) {
-    char* value = nullptr;
-    size_t length = 0;
-
-    const errno_t result = _dupenv_s(&value, &length, name);
-    const bool exists = result == 0 && value != nullptr;
-
-    std::free(value);
-    return exists;
+    return std::getenv(name) != nullptr;
 }
 
 std::string getEnv(const char* name) {
-    char* value = nullptr;
-    size_t length = 0;
+    const char* value = std::getenv(name);
 
-    if (_dupenv_s(&value, &length, name) != 0 || value == nullptr) {
+    if (value == nullptr) {
         return {};
     }
 
-    std::string result(value);
-    std::free(value);
-    return result;
+    return std::string(value);
 }
 
 constexpr int kFieldR = 9, kColorR = 6;
