@@ -180,8 +180,8 @@ void drawIcon(Ctx& c, ModeId m, float cx, float cy, std::vector<BlobSprite>& sp)
             if (!week) {  // a sparkle that swells and fades on the day of the challenge
                 const float s = pulse(std::fmod(T / 1.8f, 1.f)), sx = x + 13.f, sy = y + 9.f;
                 const Uint8 a = static_cast<Uint8>(std::clamp(255.f * s, 0.f, 255.f)); const int l = 1 + int(s * 3.f);
-                g.rect(sx - l, sy, 2 * l + 1, 1, withAlpha(t.accent, a));
-                g.rect(sx, sy - l, 1, 2 * l + 1, withAlpha(t.accent, a));
+                g.rect(sx - float(l), sy, float(2 * l + 1), 1.f, withAlpha(t.accent, a));
+                g.rect(sx, sy - float(l), 1.f, float(2 * l + 1), withAlpha(t.accent, a));
             }
             break;
         }
@@ -238,8 +238,8 @@ void drawIcon(Ctx& c, ModeId m, float cx, float cy, std::vector<BlobSprite>& sp)
                 g.rect(cx + float(x), cy + hh + 1.f, 1, 1, t.ink);
             }
             const float px = cx + std::sin(T * 0.9f) * 6.f;
-            g.disc(px, cy, std::max(1.f, 5.f * lid), t.ink);
-            g.disc(px, cy, std::max(0.f, 3.f * lid), t.accent);
+            g.disc(px, cy, std::max(1, static_cast<int>(std::lround(5.f * lid))), t.ink);
+            g.disc(px, cy, std::max(0, static_cast<int>(std::lround(3.f * lid))), t.accent);
             g.text("?", cx, cy - 25.f + std::sin(T * 2.f) * 2.f, 2, withAlpha(t.text, static_cast<Uint8>(std::clamp(120.f + 100.f * std::sin(T * 2.f), 0.f, 255.f))), Align::Center);
             break;
         }
@@ -345,7 +345,9 @@ public:
             if (!tl.big) icy = yy + 36.f;
             if (!c.save.reduceMotion) {  // a soft glow behind the picture that breathes in the mode's colour
                 const float br = pulse(std::fmod(c.time / 3.f + float(i) * 0.13f, 1.f));
-                g.disc(icx, icy, 16.f + 5.f * br, withAlpha(accent, 22 + int(18.f * br)));
+                const int glowRadius = static_cast<int>(std::lround(16.f + 5.f * br));
+                const Uint8 glowAlpha = static_cast<Uint8>(std::clamp(22 + static_cast<int>(18.f * br), 0, 255));
+                g.disc(icx, icy, glowRadius, withAlpha(accent, glowAlpha));
             }
             drawIcon(c, tl.mode, icx, icy, sp);
 

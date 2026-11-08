@@ -1,10 +1,14 @@
 // Party modes (v1.8.0): Mirror (two narrow pots, one shared queue, the drops take turns) and Big Container (1-8 players
 // in one wide pot; the camera follows every drop down and then returns). Self-contained: own physics worlds, HUD and input.
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include <cstddef>
 
 #include "core/Config.hpp"
 #include "core/Util.hpp"
@@ -15,9 +19,33 @@
 namespace liq {
 namespace {
 
+bool hasEnv(const char* name) {
+    char* value = nullptr;
+    size_t length = 0;
+
+    const errno_t result = _dupenv_s(&value, &length, name);
+    const bool exists = result == 0 && value != nullptr;
+
+    std::free(value);
+    return exists;
+}
+
+std::string getEnv(const char* name) {
+    char* value = nullptr;
+    size_t length = 0;
+
+    if (_dupenv_s(&value, &length, name) != 0 || value == nullptr) {
+        return {};
+    }
+
+    std::string result(value);
+    std::free(value);
+    return result;
+}
+
 constexpr int kFieldR = 9, kColorR = 6;
 constexpr float kIso = 1.1f;
-constexpr float kMirrorW = 112.f, kMirrorGap = 124.f;  // pot width and the distance between the two pots
+constexpr float kMirrorW = 112.f, kMirrorGap = 124.f;
 constexpr float kPotL = 24.f;
 constexpr float kBoxBase = cfg::kFieldR - cfg::kFieldL;
 
@@ -27,9 +55,11 @@ float sm(float a, float b, float x) {
 }
 
 struct FText {
-    float x, y, t;
+    float x = 0.f;
+    float y = 0.f;
+    float t = 0.f;
     std::string s;
-    bool big;
+    bool big = false;
 };
 
 class PartyScene final : public Scene {
@@ -50,6 +80,7 @@ private:
     int players_ = 2, sizeSel_ = 0;  // sizeSel_ 0 = automatic, 1..7 = 1.0x .. 2.5x
     bool mirror() const { return mode_ == ModeId::Mirror; }
     float mult() const { return sizeSel_ == 0 ? std::min(2.f, 1.f + 0.2f * float(players_ - 1)) : 1.f + 0.25f * float(sizeSel_ - 1); }
+    bool aiming_ = false, following_ = false, best_ = false, demo_ = false;
 
     // ---- play ----
     World w_[2];
@@ -59,7 +90,6 @@ private:
     int cur_ = 0, next_ = 0, drops_ = 0, score_ = 0, last_ = 0, scores_[8] = {};
     float aim_ = 0.5f, cooldown_ = 0.f, acc_ = 0.f, camX_ = 0.f, camY_ = 0.f, followT_ = 0.f, calmT_ = 0.f, fx_ = 0.f, fy_ = 0.f;
     float demoT_ = 0.f, overT_ = 0.f;
-    bool aiming_ = false, following_ = false, best_ = false;
     int target_ = 0;  // pot that receives the current drop (Mirror)
     std::vector<FText> texts_;
 
@@ -68,8 +98,18 @@ private:
     void init(Ctx& c) {
         inited_ = true;
         mode_ = c.mode == ModeId::BigBox ? ModeId::BigBox : ModeId::Mirror;
-        if (const char* e = std::getenv("LIQ_PARTY_PLAYERS")) players_ = clampv(std::atoi(e), 1, 8);
-        if (std::getenv("LIQ_PARTY_DEMO")) begin(c);
+
+        const std::string partyPlayers = getEnv("LIQ_PARTY_PLAYERS");
+
+        if (!partyPlayers.empty()) {
+            players_ = clampv(std::atoi(partyPlayers.c_str()), 1, 8);
+        }
+
+        demo_ = hasEnv("LIQ_PARTY_DEMO");
+
+        if (demo_) {
+            begin(c);
+        }
     }
 
     int roll() {
@@ -287,7 +327,7 @@ private:
                 dropNow(c);
             }
             if (in.drop || in.confirm || in.dn) dropNow(c);
-            if (std::getenv("LIQ_PARTY_DEMO") && cooldown_ <= 0.f) {  // dev: scripted drops for screenshots
+            if (demo_ && cooldown_ <= 0.f) {  // dev: scripted drops for screenshots
                 demoT_ += dt;
                 aim_ = 0.5f + 0.45f * std::sin(demoT_ * 1.7f);
                 if (demoT_ > 0.5f) {
@@ -352,11 +392,11 @@ private:
             const int pot = mirror() ? (drops_ % 2) : 0;
             const float ox = mirror() && pot == 1 ? kMirrorGap : 0.f;
             const float gx = aimWorldX(pot) + ox, sy = w_[pot].surfaceY(aimWorldX(pot), radHeld());
-            for (float y = cfg::kSpawnY + 24.f; y < sy - 4.f; y += 8.f) g.rect(std::floor(gx), std::floor(y), 1, 3, withAlpha(t.text, 70));
+            for (float y = cfg::kSpawnY + 24.f; y < sy - 4.f; y += 8.f) g.rect(std::floor(gx), std::floor(y), 1, 3, withAlpha(t.text, static_cast<Uint8>(70)));
         }
         for (const auto& f : texts_) {
             const float u = 1.f - f.t / 0.9f;
-            g.number(f.s, f.x, f.y - u * 22.f, f.big ? 2 : 1, withAlpha(f.big ? t.accent : t.text, int(255.f * (1.f - u * u))), Align::Center, TextFx::Outline, t.ink);
+            g.number(f.s, f.x, f.y - u * 22.f, f.big ? 2 : 1, withAlpha(f.big ? t.accent : t.text,static_cast<Uint8>(std::clamp(static_cast<int>(255.f * (1.f - u * u)),0,255))), Align::Center, TextFx::Outline, t.ink);
         }
         g.setOffset(0, 0);
         if (!mirror()) drawGauge(c);
@@ -373,7 +413,7 @@ private:
         g.rect(L, top, R - L, fl - top, withAlpha(t.ink, 105));
         // overflow line
         const bool warn = w_[idx].overflow() > 0.2f;
-        for (float x = L; x < R; x += 6.f) g.rect(std::floor(x), std::floor(deadY_), 3, warn ? 2 : 1, t.danger);
+        for (float x = L; x < R; x += 6.f)g.rect(static_cast<float>(std::floor(x)),static_cast<float>(std::floor(deadY_)),3.f, warn ? 2.f : 1.f, t.danger);
         // floor
         g.rect(L - 6, fl, R - L + 12, 10, t.frame);
         g.rect(L - 6, fl, R - L + 12, 1, t.ink);
@@ -442,7 +482,7 @@ private:
                 const bool me = ph_ == Ph::Play && i == turn();
                 g.rect(x, y, cw - 2.f, ch, me ? mix(t.panelHi, t.blob[(i * 3) % 12], 0.5f) : t.panel);
                 g.border(x, y, cw - 2.f, ch, 1, me ? t.accent : t.ink);
-                g.disc(x + 7.f, y + ch / 2.f, 3.f, t.blob[(i * 3) % 12]);
+                g.disc(static_cast<float>(std::lround(x + 7.f)),static_cast<float>(std::lround(y + ch / 2.f)),3,t.blob[(i * 3) % 12]);
                 g.text("P" + std::to_string(i + 1), x + 13.f, y + (rows == 1 ? 12.f : 8.f), 1, me ? t.text : t.dim);
                 g.number(std::to_string(scores_[i]), x + cw - 6.f, y + ch - (rows == 1 ? 12.f : 8.f), 1, t.text, Align::Right);
             }
@@ -455,7 +495,8 @@ private:
         Loc& L = c.loc;
         Ui& ui = c.ui;
         const float u = sm(0.f, 0.4f, overT_);
-        g.rect(0, 0, float(cfg::kW), float(cfg::kH), withAlpha(t.ink, int(150.f * u)));
+        const Uint8 overlayAlpha = static_cast<Uint8>(std::clamp(static_cast<int>(150.f * u), 0, 255));
+        g.rect(0.f, 0.f, float(cfg::kW), float(cfg::kH),withAlpha(t.ink, overlayAlpha));
         const float py = 150.f + (1.f - u) * 20.f;
         ui.panel(25, py, 220, 190);
         g.text(L.tr("party.over"), 135, py + 18, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
@@ -470,7 +511,7 @@ private:
             const int n = std::min(players_, 8);
             for (int i = 0; i < n; ++i) {
                 const float x = 40.f + float(i / 4) * 100.f, y = py + 66.f + float(i % 4) * 14.f;
-                g.disc(x + 3.f, y, 3.f, t.blob[(i * 3) % 12]);
+                g.disc(static_cast<float>(std::lround(x + 3.f)),static_cast<float>(std::lround(y)),3,t.blob[(i * 3) % 12]);
                 g.text("P" + std::to_string(i + 1), x + 10.f, y, 1, i == win ? t.accent : t.text);
                 g.number(std::to_string(scores_[i]), x + 90.f, y, 1, t.text, Align::Right);
             }
