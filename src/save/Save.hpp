@@ -54,6 +54,7 @@ public:
     bool slowmo = true;         // brief slow motion on big merges
     bool calm = false;          // calm mode: no shake, slow motion, blinking or flashes
     // Accessibility (v1.2.0)
+    int liquid = 0;             // liquid type (game/Liquid.hpp); the host's choice wins in LAN matches
     int quality = 1;            // liquid quality: 0 low (1 substep), 1 medium (2), 2 high (3)
     int colorVision = 0;        // 0 standard, 1 red/green safe, 2 blue/yellow safe
     bool highContrast = false;

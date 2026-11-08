@@ -6,6 +6,7 @@
 #include "core/Access.hpp"
 #include "core/Config.hpp"
 #include "core/Platform.hpp"
+#include "game/Liquid.hpp"
 #include "game/World.hpp"
 #include "scenes/Scenes.hpp"
 
@@ -88,8 +89,58 @@ void drawDeadLine(Ctx& c, bool warn, float lineY) {
     }
 }
 
-static int g_page = 0;  // 0 = general, 1 = game feel, 2 = accessibility
-void setSettingsPage(int p) { g_page = p < 0 || p > 2 ? 0 : p; }
+static int g_page = 0;  // 0 = general, 1 = game feel, 2 = accessibility, 3 = liquid
+void setSettingsPage(int p) { g_page = p < 0 || p > 3 ? 0 : p; }
+
+// A small pot on the Liquid settings page: it shows the chosen liquid sloshing, so the types can be compared by eye.
+namespace {
+struct LiquidPreview {
+    World w;
+    int type = -1, quality = -1, frame = 0, n = 0;
+    void reset(int t, int q) {
+        type = t;
+        quality = q;
+        frame = n = 0;
+        w.clear();
+        w.fieldL = 0.f;
+        w.fieldR = 120.f;
+        w.floorY = 62.f;
+        w.worldW = 130.f;
+        w.worldH = 90.f;
+        w.substeps = q + 1;
+        applyLiquid(w, t);
+    }
+    void draw(Ctx& c, float x, float y) {
+        if (type != c.save.liquid || quality != c.save.quality) reset(c.save.liquid, c.save.quality);
+        if (frame % 90 == 0) {  // a drop every 1.5 s; the pot is emptied now and then
+            if (n >= 6) {
+                w.clear();
+                n = 0;
+            }
+            static const int lv[6] = {1, 0, 2, 0, 1, 2};
+            w.spawn(30.f + float((n * 37) % 60), 4.f, lv[n % 6]);
+            ++n;
+        }
+        ++frame;
+        w.step(cfg::kStep, cfg::kGravity);
+        w.events.clear();
+        w.impacts.clear();
+        const Theme& t = *c.theme;
+        c.gfx.rect(x - 1, y - 1, 122, 70, t.ink);
+        c.gfx.rect(x, y, 120, 62, mix(t.tank, t.ink, 0.35f));
+        std::vector<BlobSprite> pile;
+        w.particleSprites(1.f, 0.f, pile);
+        for (auto& sp : pile) {
+            sp.x += x;
+            sp.y += y;
+        }
+        c.raster.clear();
+        c.raster.drawLiquid(pile, t, 9, 6, 1.1f);
+        c.gfx.raster(c.raster);
+        c.gfx.rect(x - 1, y + 62, 122, 3, t.frame);
+    }
+};
+}  // namespace
 
 bool drawSettings(Ctx& c, float y0, bool allowCustom) {
     int& page = g_page;
@@ -98,7 +149,7 @@ bool drawSettings(Ctx& c, float y0, bool allowCustom) {
     const Theme& t = *c.theme;
     Loc& L = c.loc;
     const bool desktop = !platform::isMobile();
-    const int rows = 8;
+    const int rows = g_page == 0 ? 9 : 8;
     const float rowH = 32.f;
     const float panelH = 40.f + rows * rowH + 40.f;
     ui.panel(14, y0, 242, panelH);
@@ -128,13 +179,40 @@ bool drawSettings(Ctx& c, float y0, bool allowCustom) {
         toggle("settings.slowmo", c.save.slowmo);
         toggle("settings.calm", c.save.calm);
         toggle("settings.reduce", c.save.reduceMotion);
+        toggle("settings.lefthand", c.save.leftHand);
+    } else if (page == 3) {
         label("settings.quality");
         if (const int d = ui.stepper(cx, y, cw, 20, L.tr(c.save.quality == 0 ? "settings.q.low" : c.save.quality == 1 ? "settings.q.med" : "settings.q.high"))) {
             c.save.quality = (c.save.quality + d + 3) % 3;
             c.save.store();
         }
         y += rowH;
-        toggle("settings.lefthand", c.save.leftHand);
+        label("liquid.type");
+        if (const int d = ui.stepper(cx, y, cw, 20, L.tr(liquidProps(c.save.liquid).key))) {
+            c.save.liquid = (c.save.liquid + d + kLiquidCount) % kLiquidCount;
+            c.save.store();
+        }
+        y += rowH - 4.f;
+        const LiquidProps& lp = liquidProps(c.save.liquid);
+        ui.paragraph(L.tr((std::string(lp.key) + ".desc").c_str()), 24, y + 2.f, 222, 1, t.dim, Align::Center);
+        y += 42.f;
+        // How the type behaves compared with water (bars: 0..max)
+        auto bar = [&](const char* key, float v, float vmax) {
+            g.text(L.tr(key), lx, y + 3.f, 1, t.text, la);
+            const float bw = 100.f, bx = ui.mx(144.f, bw);
+            g.rect(bx, y, bw, 6, t.ink);
+            g.rect(bx + 1, y + 1, bw - 2, 4, t.panelLo);
+            g.rect(bx + 1, y + 1, (bw - 2) * std::fmin(1.f, v / vmax), 4, t.accent);
+            y += 12.f;
+        };
+        bar("liquid.thickness", std::log2(1.f + lp.thickness) , std::log2(7.f));
+        bar("liquid.sticky", lp.cohesion * 0.25f + lp.adhesion * 1.5f + lp.shear * 4.f + lp.jelly * 0.0004f, 1.7f);
+        bar("liquid.slip", lp.wallDrag, 1.f);
+        y += 6.f;
+        static LiquidPreview pv;
+        pv.draw(c, ui.mx(75.f, 120.f), y);
+        y += 70.f;
+        ui.paragraph(L.tr("liquid.note"), 24, y + 2.f, 222, 1, t.dim, Align::Center);
     } else if (page == 2) {
         label("settings.cvd");
         if (const int d = ui.stepper(cx, y, cw, 20, L.tr(colorVisionKey(c.save.colorVision)))) {
@@ -163,7 +241,7 @@ bool drawSettings(Ctx& c, float y0, bool allowCustom) {
             page = 0;
             return true;
         }
-        if (ui.button(L.tr(page == 1 ? "settings.access" : "settings.general"), 150, y0 + panelH - 34, 100, 24)) page = page == 1 ? 2 : 0;
+        if (ui.button(L.tr(page == 1 ? "settings.liquid" : page == 3 ? "settings.access" : "settings.general"), 150, y0 + panelH - 34, 100, 24)) page = page == 1 ? 3 : page == 3 ? 2 : 0;
         return false;
     }
 
@@ -238,9 +316,14 @@ bool drawSettings(Ctx& c, float y0, bool allowCustom) {
     y += rowH;
 
     // Custom theme editor
-    if (allowCustom && ui.button(L.tr("ct.title"), 26, y, 218, 20)) c.go(SceneId::ThemeEditor);
-
-    if (!g.hasPersianFont() && !rtl) g.text(L.tr("settings.nofont"), 135, y - 4, 1, t.dim, Align::Center);
+    if (allowCustom) {
+        if (ui.button(L.tr("ct.title"), 26, y, 218, 20)) c.go(SceneId::ThemeEditor);
+        y += rowH - 4.f;
+    }
+    // Liquid type and quality
+    if (ui.button(L.tr("settings.liquid"), 26, y, 218, 20)) page = 3;
+    y += 22.f;
+    if (!g.hasPersianFont() && !rtl) g.text(L.tr("settings.nofont"), 135, y + 4.f, 1, t.dim, Align::Center);
 
     if (ui.button(L.tr("common.back"), 20, y0 + panelH - 34, 100, 24)) return true;
     if (ui.button(L.tr("settings.more"), 150, y0 + panelH - 34, 100, 24)) page = 1;

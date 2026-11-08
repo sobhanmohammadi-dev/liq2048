@@ -11,7 +11,7 @@
 
 namespace liq::battle {
 
-constexpr uint8_t kProtocol = 1;
+constexpr uint8_t kProtocol = 2;  // 2: Welcome and Announce carry the host's liquid type (1.8.1)
 constexpr uint16_t kDiscoveryPort = 47821;  // UDP: hosts announce, browsers listen
 
 enum class Msg : uint8_t { Hello = 1, Welcome, Start, Frame, Final, Leave };
@@ -22,6 +22,7 @@ struct Hello {  // joining player -> host
 struct Welcome {  // host -> joining player: the rules of the match
     uint32_t seed = 0;
     uint8_t modifier = 0;
+    uint8_t liquid = 0;       // the host's liquid type
     uint16_t duration = 120;  // seconds
     std::string hostName;
 };
@@ -69,6 +70,7 @@ struct Announce {
     uint16_t tcpPort = 0;
     uint16_t duration = 120;
     uint8_t modifier = 0;
+    uint8_t liquid = 0;
     uint8_t players = 1;  // 1 = open, 2 = full
 };
 net::Bytes encode(const Announce& m);

@@ -151,6 +151,7 @@ int App::run(const AppOptions& opt) {
                 else if (k == "mode") c.mode = ModeId(std::min(std::max(v, 0), kModeCount - 1));
                 else if (k == "puzzle") c.puzzleLevel = v;
                 else if (k == "modifier") s.modifier = v;
+                else if (k == "liquid") s.liquid = v;
             }
         }
         if (shot) setSettingsPage(opt.shotPage);

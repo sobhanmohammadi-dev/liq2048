@@ -59,6 +59,8 @@ void World::spawn(float x, float y, int level) {
             Particle p;
             p.x = p.px = p.ox = px;
             p.y = p.py = p.oy = py;
+            p.rx = px - x;
+            p.ry = py - y;
             p.g = gi;
             parts.push_back(p);
             ++d.n;
@@ -325,6 +327,13 @@ void World::substep(float h, float g, bool last) {
     }
     for (const auto& pr : pairs_) {
         Particle &a = parts[size_t(pr.i)], &b = parts[size_t(pr.j)];
+        if (shear > 0.f) {  // neighbours drag each other towards a common velocity (gooey liquids)
+            const float k = shear * (1.f - pr.q), dvx = (b.vx - a.vx) * k, dvy = (b.vy - a.vy) * k;
+            a.vx += dvx;
+            a.vy += dvy;
+            b.vx -= dvx;
+            b.vy -= dvy;
+        }
         const float u = (a.vx - b.vx) * pr.nx + (a.vy - b.vy) * pr.ny;  // >0 approaching
         if (u <= 0.f) continue;
         const float I = h * (1.f - pr.q) * (cfg::kViscSigma * viscScale * u + cfg::kViscBeta * u * u) * 0.5f;
@@ -332,6 +341,27 @@ void World::substep(float h, float g, bool last) {
         a.vy -= I * pr.ny;
         b.vx += I * pr.nx;
         b.vy += I * pr.ny;
+    }
+
+    // 1b. jelly: a spring pulls every particle to its rest place around the drop's centroid, and the motion relative to
+    // the drop's mean velocity is damped, so a drop wobbles and springs back to a round body (shape memory).
+    if (jelly > 0.f) {
+        jc_.assign(drops.size() * 5, 0.f);
+        for (const auto& p : parts) {
+            float* c = &jc_[size_t(p.g) * 5];
+            c[0] += p.x;
+            c[1] += p.y;
+            c[2] += p.vx;
+            c[3] += p.vy;
+            c[4] += 1.f;
+        }
+        const float kd = jellyDamp * h;
+        for (auto& p : parts) {
+            const float* c = &jc_[size_t(p.g) * 5];
+            const float inv = 1.f / c[4];
+            p.vx += (c[0] * inv + p.rx - p.x) * jelly * h - (p.vx - c[2] * inv) * kd;
+            p.vy += (c[1] * inv + p.ry - p.y) * jelly * h - (p.vy - c[3] * inv) * kd;
+        }
     }
 
     // 2. advect
@@ -388,8 +418,11 @@ void World::substep(float h, float g, bool last) {
         Particle &a = parts[size_t(pr.i)], &b = parts[size_t(pr.j)];
         if (a.g != b.g) continue;
         const float d = pr.q * cfg::kInteract;
-        if (!moving_[size_t(a.g)] || d <= cfg::kSpacing) continue;  // surface tension only while the drop is in motion
-        const float pull = cfg::kCohesion * (1.f - pr.q) * 0.5f;
+        if (d <= cfg::kSpacing) continue;
+        // Surface tension acts while the drop is in motion; a sticky liquid keeps some of it at rest (restCohesion).
+        const float k = moving_[size_t(a.g)] ? cfg::kCohesion * cohesion : cfg::kCohesion * restCohesion;
+        if (k <= 0.f) continue;
+        const float pull = k * (1.f - pr.q) * 0.5f;
         a.x += pull * pr.nx;
         a.y += pull * pr.ny;
         b.x -= pull * pr.nx;
@@ -414,11 +447,11 @@ void World::substep(float h, float g, bool last) {
         p.vx = (p.x - p.px) / h;
         p.vy = (p.y - p.py) / h;
         if (wall) {
-            p.vx *= cfg::kWallDrag;
-            p.vy *= 0.9f;
+            p.vx *= wallDrag;
+            p.vy *= wallVy;
         }
-        p.vx *= cfg::kDamp;
-        p.vy *= cfg::kDamp;
+        p.vx *= damp;
+        p.vy *= damp;
         const float sp2 = p.vx * p.vx + p.vy * p.vy;  // position corrections can spike: keep the velocity sane
         if (sp2 > cfg::kHardSpeed * cfg::kHardSpeed) {
             const float k = cfg::kHardSpeed / std::sqrt(sp2);
@@ -500,6 +533,21 @@ void World::mergeGroups(int a, int b) {
     chain_ = sinceMerge_ < cfg::kChainWindow ? chain_ + 1 : 1;
     sinceMerge_ = 0.f;
     refresh();
+    if (jelly > 0.f) {  // the merged drop remembers a round body of its new size (particles keep their direction, ranked by distance)
+        const Drop& D = drops[size_t(na)];
+        std::vector<std::pair<float, size_t>> order;
+        for (size_t k = 0; k < parts.size(); ++k)
+            if (parts[k].g == na) order.push_back({std::hypot(parts[k].x - D.x, parts[k].y - D.y), k});
+        std::sort(order.begin(), order.end());
+        const float R = radiusFor(level) - 0.5f * cfg::kSpacing;
+        for (size_t r = 0; r < order.size(); ++r) {
+            Particle& p = parts[order[r].second];
+            const float dx = p.x - D.x, dy = p.y - D.y, d = std::max(0.01f, order[r].first);
+            const float tr = R * std::sqrt((float(r) + 0.5f) / float(order.size()));
+            p.rx = d < 0.5f ? 0.f : dx / d * tr;
+            p.ry = d < 0.5f ? 0.f : dy / d * tr;
+        }
+    }
     events.push_back({drops[size_t(na)].x, drops[size_t(na)].y, level, chain_});
 }
 

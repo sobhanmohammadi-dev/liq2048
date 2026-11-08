@@ -8,6 +8,7 @@
 
 #include "core/Config.hpp"
 #include "core/Platform.hpp"
+#include "game/Liquid.hpp"
 #include "game/Modifier.hpp"
 #include "scenes/Scenes.hpp"
 
@@ -178,6 +179,7 @@ private:
             battle::MatchConfig m;
             m.seed = freshSeed();
             m.modifier = s.battleModifier;
+            m.liquid = s.liquid;  // in a LAN match the host's liquid is sent to the joining player
             m.duration = s.battleDuration;
             m.lan = false;
             m.difficulty = battle::Difficulty(s.battleDifficulty);
@@ -222,6 +224,7 @@ private:
             battle::MatchConfig m;
             m.seed = freshSeed();
             m.modifier = s.battleModifier;
+            m.liquid = s.liquid;  // in a LAN match the host's liquid is sent to the joining player
             m.duration = s.battleDuration;
             m.lan = true;
             m.myName = c.save.playerName.empty() ? L.tr("battle.you") : c.save.playerName;
@@ -250,7 +253,7 @@ private:
         const std::string ip = net::localIp();
         g.text(L.tr("battle.yourip"), cfg::kW / 2.f, 90, 1, t.dim, Align::Center);
         g.number(ip + ":" + std::to_string(host_->port()), cfg::kW / 2.f, 108, 1, t.text, Align::Center);
-        g.text(durText(L, host_->config().duration) + "  -  " + L.tr(modKey(host_->config().modifier)), cfg::kW / 2.f,
+        g.text(durText(L, host_->config().duration) + "  -  " + L.tr(modKey(host_->config().modifier)) + "  -  " + L.tr(liquidProps(host_->config().liquid).key), cfg::kW / 2.f,
                132, 1, t.dim, Align::Center);
         c.ui.panel(22, 160, 226, 110);
         if (host_->failed()) {
@@ -292,7 +295,7 @@ private:
         for (const auto& p : games) {
             if (shown >= 5) break;
             const bool open = p.info.players < 2;
-            const std::string meta = durText(L, p.info.duration) + "  -  " + L.tr(modKey(p.info.modifier));
+            const std::string meta = durText(L, p.info.duration) + "  -  " + L.tr(modKey(p.info.modifier)) + "  -  " + L.tr(liquidProps(p.info.liquid).key);
             if (card(c, 72.f + float(shown) * 60.f, 54, p.info.hostName, open ? meta : L.tr("battle.full"), 5, open) && open) {
                 join_ = std::make_unique<battle::JoinLobby>();
                 join_->start(p, c.save.playerName.empty() ? L.tr("battle.you") : c.save.playerName);

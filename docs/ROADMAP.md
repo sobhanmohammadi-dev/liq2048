@@ -205,6 +205,10 @@ Exit: a two-player LAN match and a PvE match both play to the end on desktop and
 - ☑ Modifiers Wind, Earthquake, Fog; Rain and Tide became the modifiers Downpour and Rising tide.
 - ☑ Redesigned mode-select screen with seamless animated pictures.
 
+## v1.8.1: Liquid settings ☑ released
+- ☑ Liquid settings page: quality and liquid type (Water, Dilute, Oil, Honey, Slime, Mercury, Jelly, Bubble) with live preview.
+- ☑ Liquid type in run codes; the host's liquid is used in LAN matches.
+
 ## v1.9.0: Modding and community
 
 Goal: let players and artists extend the game with no code.

@@ -8,6 +8,19 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.8.1] "Liquid settings"
+
+### Added
+- **Liquid settings** (Settings > Liquid settings): choose the **liquid quality** (moved here from Game feel) and the **liquid type**, with a live preview pot and bars for thickness, stickiness and slip. Types: **Water** (reference), **Dilute** (thin, splashes into many pieces), **Oil** (slower, rounder), **Honey** (thick, plops and clings), **Slime** (sticky: drops hold together and hardly separate) **Mercury** (heavy beads that slide freely) and **Jelly** (soft, slow, wobbling drops that spring back to a round body) and **Bubble** (the original bubbles of the first versions: round drops with a jelly wobble that pile up like soft balls). Both use a new shape-memory spring in the physics (drops remember a round body; merged drops re-form round).
+- The liquid type is part of the physics: it is stored in run codes (older codes play as Water) and shown in the Battle lobby.
+- **LAN matches use the host's liquid**: the host's type is sent in the Welcome message, so both pots behave the same whatever the joining player has chosen. Single-player Battle uses your own choice.
+
+### Changed
+- Daily Challenge, Weekly Challenge and Puzzle always use Water so everyone plays the same physics. Runs with another liquid are unranked, like modifiers.
+- Big Container and Mirror use the chosen liquid.
+- The LAN protocol is now version 2: 1.8.0 and 1.8.1 players cannot join each other's matches.
+- The physics engine got four material parameters (neighbour velocity sharing, landing bounce, wall friction, resting surface tension); Water is unchanged, so old run codes still replay exactly.
+
 ## [1.8.0] "Game Mode Revolution"
 
 ### Added

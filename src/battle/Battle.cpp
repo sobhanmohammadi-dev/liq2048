@@ -1,4 +1,5 @@
 #include "battle/Battle.hpp"
+#include "game/Liquid.hpp"
 #include "game/Modifier.hpp"
 
 #include <algorithm>
@@ -27,7 +28,7 @@ class Bot final : public Opponent {
 public:
     explicit Bot(const MatchConfig& cfg) : cfg_(cfg) {
         w_.substeps = 1;  // cheaper than the player's pot; fairness is about decisions, not liquid detail
-        w_.viscScale = cfg.modifier == 3 ? 3.f : 1.f;
+        applyLiquid(w_, cfg.liquid, cfg.modifier == kModThick);
         rng_.seed(mix32(cfg.seed ^ 0xB07B07u));
         cur_ = battleLevel(cfg.seed, 0, cfg.modifier);
         next_ = battleLevel(cfg.seed, 1, cfg.modifier);
@@ -307,6 +308,7 @@ void HostLobby::update(float dt) {
         a.tcpPort = listener_.port();
         a.duration = uint16_t(cfg_.duration);
         a.modifier = uint8_t(cfg_.modifier);
+        a.liquid = uint8_t(cfg_.liquid);
         a.players = guestJoined_ ? 2 : 1;
         udp_.broadcast(kDiscoveryPort, encode(a));
     }
@@ -329,6 +331,7 @@ void HostLobby::update(float dt) {
                 Welcome w;
                 w.seed = cfg_.seed;
                 w.modifier = uint8_t(cfg_.modifier);
+                w.liquid = uint8_t(cfg_.liquid);
                 w.duration = uint16_t(cfg_.duration);
                 w.hostName = cfg_.myName;
                 link_->conn.send(encode(w));
@@ -419,6 +422,7 @@ void JoinLobby::update(float dt) {
         if (typeOf(m) == Msg::Welcome && decode(m, w)) {
             link_->cfg.seed = w.seed;
             link_->cfg.modifier = w.modifier;
+            link_->cfg.liquid = w.liquid;  // the host's liquid replaces mine for this match
             link_->cfg.duration = w.duration;
             link_->cfg.lan = true;
             link_->cfg.myName = myName_;

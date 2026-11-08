@@ -1,3 +1,4 @@
+#include "game/Liquid.hpp"
 #include "game/Modifier.hpp"
 #include "game/Replay.hpp"
 
@@ -98,7 +99,7 @@ std::string Replay::toCode() const {
     std::memcpy(&gb, &gravity, 4);
     u32(gb);
     b.push_back(uint8_t(physics));
-    b.push_back(uint8_t(outcome));
+    b.push_back(uint8_t(outcome | liquid << 2));  // the liquid type rides in the upper bits (old codes: Water)
     putVar(b, endStep);
     putVar(b, uint32_t(subs.size()));
     uint32_t ps = 0;
@@ -182,9 +183,10 @@ bool Replay::fromCode(const std::string& in, Replay& out) {
     if (ver == 2) {
         if (i + 2 > b.size()) return false;
         r.physics = b[i++];
-        r.outcome = b[i++];
+        r.outcome = b[i] & 3;
+        r.liquid = b[i++] >> 2;
         uint32_t n = 0;
-        if (r.outcome > 3 || !getVar(b, i, r.endStep) || !getVar(b, i, n) || n > 100000) return false;
+        if (r.liquid >= kLiquidCount || !getVar(b, i, r.endStep) || !getVar(b, i, n) || n > 100000) return false;
         uint32_t st = 0;
         for (uint32_t k = 0; k < n; ++k) {
             uint32_t d = 0;
@@ -216,7 +218,7 @@ bool Replay::fromCode(const std::string& in, Replay& out) {
 uint64_t replayChecksum(const Replay& r, int tailSteps) {
     World w;
     w.substeps = r.substeps;
-    w.viscScale = r.modifier == 3 ? 3.f : 1.f;
+    applyLiquid(w, r.liquid, r.modifier == kModThick);
     size_t i = 0, si = 0;
     uint32_t step = 0;
     const uint32_t end = (r.drops.empty() ? 0u : r.drops.back().step) + uint32_t(tailSteps);

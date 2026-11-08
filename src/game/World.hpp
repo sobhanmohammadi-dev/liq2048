@@ -19,6 +19,7 @@ namespace liq {
 struct Particle {
     float x = 0, y = 0, vx = 0, vy = 0, px = 0, py = 0;
     float ox = 0, oy = 0;  // position at the start of the last fixed step (interpolation)
+    float rx = 0, ry = 0;  // rest offset from the drop's centroid (jelly liquids spring back to it)
     int g = 0;             // owning drop index
 };
 
@@ -80,7 +81,13 @@ public:
     // Re-seeds drop i at the same centroid with another level (Madhouse): the volume and the colour follow the level.
     void relevel(int i, int level);
     int substeps = cfg::kSubsteps;   // 1..3, the "Liquid quality" setting (2 = reference physics)
-    float viscScale = 1.f;           // Thick liquid modifier multiplies the viscosity
+    float viscScale = 1.f;           // viscosity multiplier (liquid type x Thick modifier)
+    // Material (see game/Liquid.hpp): surface tension while moving / at rest, wall friction and damping per substep.
+    float jellyDamp = cfg::kJellyDamp;  // ... and how strongly motion inside the drop is damped (1/s)
+    float jelly = 0.f;  // shape memory (spring, 1/s^2; 0 = none): a drop springs back to its round shape and wobbles
+    float shear = 0.f;  // velocity averaging between neighbours (0 = none): the liquid moves as one gooey mass
+    float wallVy = 0.9f;  // vertical velocity kept on touching the floor or a wall (low = the liquid lands with a plop)
+    float cohesion = 1.f, restCohesion = 0.f, wallDrag = cfg::kWallDrag, damp = cfg::kDamp;
 
     std::vector<Particle> parts;
     std::vector<Drop> drops;
@@ -90,6 +97,7 @@ public:
 private:
     void substep(float h, float g, bool last);
     float gx_ = 0.f;
+    std::vector<float> jc_;  // scratch: centroid sums per drop (jelly)
     void refresh();
     void anchors();
     void mergeGroups(int a, int b);

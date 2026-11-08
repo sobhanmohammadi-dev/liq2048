@@ -67,6 +67,7 @@ net::Bytes encode(const Welcome& m) {
     w.u8(kProtocol);
     w.u32(m.seed);
     w.u8(m.modifier);
+    w.u8(m.liquid);
     w.u16(m.duration);
     w.str(m.hostName);
     return w.b;
@@ -110,9 +111,10 @@ bool decode(const net::Bytes& b, Welcome& m) {
     if (r.u8() != uint32_t(Msg::Welcome) || r.u8() != kProtocol) return false;
     m.seed = r.u32();
     m.modifier = uint8_t(r.u8());
+    m.liquid = uint8_t(r.u8());
     m.duration = uint16_t(r.u16());
     m.hostName = r.str();
-    return r.ok && m.modifier <= 6 && m.duration >= 10 && m.duration <= 900;
+    return r.ok && m.modifier <= 6 && m.liquid < 8 && m.duration >= 10 && m.duration <= 900;
 }
 bool decode(const net::Bytes& b, Final& m) {
     R r(b);
@@ -156,6 +158,7 @@ net::Bytes encode(const Announce& m) {
     w.u16(m.tcpPort);
     w.u16(m.duration);
     w.u8(m.modifier);
+    w.u8(m.liquid);
     w.u8(m.players);
     w.str(m.hostName);
     return w.b;
@@ -166,6 +169,7 @@ bool decode(const net::Bytes& b, Announce& m) {
     m.tcpPort = uint16_t(r.u16());
     m.duration = uint16_t(r.u16());
     m.modifier = uint8_t(r.u8());
+    m.liquid = uint8_t(r.u8());
     m.players = uint8_t(r.u8());
     m.hostName = r.str();
     return r.ok && m.tcpPort != 0;

@@ -19,7 +19,8 @@ int battleLevel(uint32_t seed, int index, int modifier);
 
 struct MatchConfig {
     uint32_t seed = 1;
-    int modifier = 0;      // 0 none, 1 low g, 2 heavy, 3 thick, 4 bonus drops
+    int modifier = 0;      // game/Modifier.hpp (0..6)
+    int liquid = 0;        // game/Liquid.hpp: the HOST's liquid; joining players are given it in the Welcome message
     int duration = 120;    // seconds
     bool lan = false;
     Difficulty difficulty = Difficulty::Medium;

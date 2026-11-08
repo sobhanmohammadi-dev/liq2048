@@ -214,6 +214,23 @@ from height):
 These numbers come from measurements, not from listening or watching a human play; "feels like water" is still
 a judgement the player makes.
 
+### 4.3b Liquid types (1.8.1)
+
+Settings > Liquid settings chooses the liquid quality and the material. A type only changes liquid parameters, never the rules:
+
+| Type | Viscosity | Neighbour velocity sharing | Surface tension (moving / resting) | Wall friction / landing bounce | Character |
+|------|-----------|----------------------------|------------------------------------|--------------------------------|-----------|
+| Water | 1x | 0 | 1.0 / 0 | 0.97 / 0.90 | Reference; ranked scores, Daily, Weekly and Puzzle |
+| Dilute | 0.25x | 0 | 0.6 / 0 | 0.97 / 0.90 | Thin; splashes into many pieces |
+| Oil | 2.2x | 0.03 | 1.3 / 0.10 | 0.90 / 0.75 | Slower, rounder |
+| Honey | 3x | 0.05 | 1.5 / 0 | 0.50 / 0.30 | Thick, plops, clings to walls |
+| Slime | 4x | 0.10 | 3.0 / 0.30 | 0.20 / 0.10 | Sticky: drops hold together |
+| Mercury | 0.6x | 0 | 2.4 / 0 | 1.00 / 0.90 | Heavy beads, frictionless |
+| Jelly | 1.5x | 0.10 | 2.0 / 0 + shape-memory spring 900, damping 10 | 0.90 / 0.80 | Soft, round, wobbles and springs back |
+| Bubble | 1x | 0.20 | 1.0 / 0 + shape-memory spring 1500, damping 14 | 0.96 / 0.50 | The first versions' bubbles: round jelly drops that pile up like soft balls |
+
+Measured with a big drop hitting a pool (connected pieces of liquid at their maximum): Dilute 29, Mercury 13, Water 8, Oil 3, Honey 2, Slime 2. The type is stored in the run code and the checksum. Non-water runs are unranked. In LAN matches the host's liquid replaces the joining player's choice (sent in the Welcome message; protocol version 2).
+
 ### 4.4 Particle and droplet sizes
 
 Radius grows by x1.15 per level from 17 px (`kBaseRadius`, `kRadiusGrowth`). Particle spacing is 4.4 px and the
@@ -450,6 +467,7 @@ and never uses the internet. The roadmap has no store-release plan. Progress rew
 | 1.7.3 | Custom themes, per-theme sound, `.liqtheme`, external fonts, licences |
 | 1.7.4 | Water-like liquid, replay fixes (pause, speed, full playback), Tide keeps moving, copy run code from the pause menu, puzzle run codes, this document |
 | 1.8.0 | Game Mode Revolution: Mirror, Big Container, Madhouse, I Don't Know; Wind, Earthquake, Fog; Rain and Tide became modifiers; new mode board |
+| 1.8.1 | Liquid settings: quality and liquid types (Water, Dilute, Oil, Honey, Slime, Mercury); the host's liquid in LAN matches |
 
 ### Roadmap (see [ROADMAP.md](ROADMAP.md))
 

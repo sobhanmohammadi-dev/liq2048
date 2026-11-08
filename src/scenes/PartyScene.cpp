@@ -8,6 +8,7 @@
 
 #include "core/Config.hpp"
 #include "core/Util.hpp"
+#include "game/Liquid.hpp"
 #include "game/World.hpp"
 #include "scenes/Scenes.hpp"
 
@@ -97,6 +98,7 @@ private:
             w.floorY = floorY_;
             w.worldW = kPotL + boxW_ + 40.f;
             w.worldH = floorY_ + 40.f;
+            applyLiquid(w, c.save.liquid);
             w.substeps = (!mirror() && m > 1.6f) ? 1 : c.save.quality + 1;
         }
         rng_.seed(uint32_t(SDL_GetTicks()) * 2246822519u + 11u);
@@ -239,7 +241,7 @@ private:
         g.drawBackdrop(t, c.save.reduceMotion ? 0.f : c.time);
         g.text(L.tr(mirror() ? "mode.mirror" : "mode.bigbox"), cfg::kW / 2.f, 40, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
         ui.panel(15, 66, 240, 86);
-        ui.paragraph(L.tr(mirror() ? "mode.mirror.desc" : "mode.bigbox.desc"), 135, 78, 220, 1, t.text, Align::Center);
+        ui.paragraph(L.tr(mirror() ? "mode.mirror.desc" : "mode.bigbox.desc"), 25, 78, 220, 1, t.text, Align::Center);
         float y = 176.f;
         if (!mirror()) {
             g.text(L.tr("party.players"), 22, y + 10, 1, t.dim);
@@ -249,10 +251,10 @@ private:
             const std::string sv = sizeSel_ == 0 ? L.tr("party.auto") + " " + fmtMult(mult()) : fmtMult(mult());
             if (const int d = ui.stepper(120, y, 130, 22, sv, sizeSel_ != 0)) sizeSel_ = (sizeSel_ + d + 8) % 8;
             y += 34.f;
-            if (mult() >= 2.f) ui.paragraph(L.tr("party.slow"), 135, y, 230, 1, t.dim, Align::Center);
+            if (mult() >= 2.f) ui.paragraph(L.tr("party.slow"), 20, y, 230, 1, t.dim, Align::Center);
             y += 34.f;
         } else {
-            ui.paragraph(L.tr("party.mirror.how"), 135, y, 230, 1, t.dim, Align::Center);
+            ui.paragraph(L.tr("party.mirror.how"), 20, y, 230, 1, t.dim, Align::Center);
             y += 60.f;
         }
         const int best = c.save.best[int(mode_)];

@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "game/Liquid.hpp"
 #include "game/Modifier.hpp"
 #include "core/Config.hpp"
 #include "core/Platform.hpp"
@@ -159,6 +160,7 @@ private:
     std::unique_ptr<Mode> mode_;
     World world_;
     Rng rng_, rngFx_;
+    int liquid_ = 0;                   // liquid type of this run
     Rng madRng_;                       // Madhouse: its own stream, so the drop queue is untouched
     int peeks_ = 3;                    // I Don't Know: reveals left
     float peekT_ = 0.f, madFlash_ = 0.f;
@@ -307,12 +309,15 @@ private:
         hs_[0] = hs_[1] = 0;
         turn_ = lastDropper_ = 0;
         world_.clear();
-        world_.viscScale = mod_ == kModThick ? 3.f : 1.f;
+        // Daily, Puzzle and Weekly are always Water so everyone plays the same physics; Battle uses the host's liquid.
+        liquid_ = battle_ ? bcfg_.liquid : (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle || mid_ == ModeId::Weekly) ? 0 : c.save.liquid;
+        applyLiquid(world_, liquid_, mod_ == kModThick);
         // Daily and Puzzle must play identically for everyone, so they always use the reference quality.
         world_.substeps = (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle || mid_ == ModeId::Battle) ? 2 : c.save.quality + 1;
         if (replaying_) {
             mod_ = rec_.modifier;
-            world_.viscScale = mod_ == kModThick ? 3.f : 1.f;
+            liquid_ = rec_.liquid;
+            applyLiquid(world_, liquid_, mod_ == kModThick);
             world_.substeps = rec_.substeps;
         }
         wantSub_ = world_.substeps;
@@ -347,6 +352,7 @@ private:
             rec_.clear();
             rec_.mode = int(mid_);
             rec_.modifier = mod_;
+            rec_.liquid = liquid_;
             rec_.substeps = world_.substeps;
             rec_.gravity = gravityNow();
             rec_.seed = seed;
@@ -691,7 +697,7 @@ private:
             if (mod_ != 0 && mid_ != ModeId::Weekly && score_ >= 1000) grant(c, kModded);
         }
         if (mid_ != ModeId::Puzzle && mid_ != ModeId::Battle && !hot_) {
-            const bool counts = mod_ == 0 || mid_ == ModeId::Weekly;  // modifiers keep their own, unranked, runs
+            const bool counts = (mod_ == 0 && liquid_ == 0) || mid_ == ModeId::Weekly;  // modifiers keep their own, unranked, runs
             int& best = mid_ == ModeId::Weekly ? c.save.weeklyBest : c.save.best[int(mid_)];
             newBest_ = counts && score_ > best;
             if (newBest_) best = score_;

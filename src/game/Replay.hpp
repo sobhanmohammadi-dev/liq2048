@@ -20,7 +20,8 @@ struct ReplayDrop {
 
 struct Replay {
     int mode = 0;       // ModeId as int
-    int modifier = 0;   // 0..4
+    int modifier = 0;   // game/Modifier.hpp
+    int liquid = 0;     // game/Liquid.hpp (codes from before 1.8.1 are Water)
     int substeps = 2;   // liquid quality used for the run
     float gravity = 0;  // gravity used for the run
     uint32_t seed = 0;  // drop-queue seed (so the replay scene rolls the same queue)

@@ -21,6 +21,8 @@
 #include "gfx/ArabicShaper.hpp"
 #include "gfx/PixelFont.hpp"
 #include "core/Platform.hpp"
+#include "battle/Protocol.hpp"
+#include "game/Liquid.hpp"
 #include "game/Modifier.hpp"
 #include "game/Mode.hpp"
 #include "game/Puzzle.hpp"
@@ -908,6 +910,111 @@ TEST(world_relevel_keeps_the_pot_intact) {
     big.spawn(400.f, 150.f, 3);
     for (int i = 0; i < 400; ++i) big.step(cfg::kStep, cfg::kGravity);
     for (const auto& p : big.parts) CHECK(p.x > 20.f && p.x < 485.f && p.y < 606.f);
+}
+
+static int liquidFragments(const World& w) {  // connected pieces of liquid
+    const size_t n = w.parts.size();
+    std::vector<int> f(n);
+    for (size_t i = 0; i < n; ++i) f[i] = int(i);
+    auto find = [&](int x) {
+        while (f[size_t(x)] != x) x = f[size_t(x)] = f[size_t(f[size_t(x)])];
+        return x;
+    };
+    const float r = cfg::kSpacing * 1.9f;
+    for (size_t i = 0; i < n; ++i)
+        for (size_t j = i + 1; j < n; ++j) {
+            const float dx = w.parts[i].x - w.parts[j].x, dy = w.parts[i].y - w.parts[j].y;
+            if (dx * dx + dy * dy < r * r) f[size_t(find(int(i)))] = find(int(j));
+        }
+    int c = 0;
+    for (size_t i = 0; i < n; ++i) c += find(int(i)) == int(i);
+    return c;
+}
+
+TEST(liquid_types_v181) {
+    CHECK(kLiquidCount == 8);
+    int frag[kLiquidCount] = {};
+    for (int ty = 0; ty < kLiquidCount; ++ty) {
+        World w;
+        applyLiquid(w, ty);
+        for (int i = 0; i < 4; ++i) w.spawn(60.f + 45.f * float(i), 420.f, 1);
+        for (int i = 0; i < 300; ++i) w.step(cfg::kStep, cfg::kGravity);
+        w.spawn(130.f, 114.f, 4);  // a big drop hits the pool
+        for (int i = 0; i < 240; ++i) {
+            w.step(cfg::kStep, cfg::kGravity);
+            if (i % 10 == 0) frag[ty] = std::max(frag[ty], liquidFragments(w));
+            for (const auto& p : w.parts) {
+                CHECK(std::isfinite(p.x) && std::isfinite(p.y));
+                CHECK(p.x >= cfg::kFieldL - 1.f && p.x <= cfg::kFieldR + 1.f && p.y <= cfg::kFloor + 1.f);
+            }
+        }
+        std::printf("  liquid %d fragments %d\n", ty, frag[ty]);
+    }
+    // A big splash: dilute liquid breaks into the most pieces, sticky liquids hold together.
+    CHECK(frag[kLiqDilute] > frag[kLiqWater]);
+    CHECK(frag[kLiqSlime] < frag[kLiqWater] && frag[kLiqHoney] < frag[kLiqWater]);
+    // Jelly and Bubble keep a drop round, wobble when it lands and then come to rest.
+    for (const int ty : {int(kLiqJelly), int(kLiqBubble)}) {
+        World j;
+        applyLiquid(j, ty);
+        j.spawn(130.f, 114.f, 3);
+        float width = 0.f, vmax = 0.f;
+        for (int i = 0; i < 600; ++i) {
+            j.step(cfg::kStep, cfg::kGravity);
+            float lo = 1e9f, hi = -1e9f;
+            vmax = 0.f;
+            for (const auto& p : j.parts) {
+                lo = std::min(lo, p.x);
+                hi = std::max(hi, p.x);
+                vmax = std::max(vmax, std::hypot(p.vx, p.vy));
+            }
+            width = hi - lo;
+        }
+        CHECK(width < 90.f);
+        CHECK(vmax < 5.f);
+    }
+    {
+        // Merging jelly drops still works and the merged drop stays inside the pot.
+        World m;
+        applyLiquid(m, kLiqJelly);
+        m.spawn(120.f, 300.f, 1);
+        m.spawn(140.f, 200.f, 1);
+        bool merged = false;
+        float vm = 0.f;
+        for (int i = 0; i < 1200; ++i) {
+            vm = 0.f;
+            for (const auto& p : m.parts) vm = std::max(vm, std::hypot(p.vx, p.vy));
+            m.step(cfg::kStep, cfg::kGravity);
+            merged = merged || !m.events.empty();
+            m.events.clear();
+            m.impacts.clear();
+        }
+        CHECK(merged);
+        CHECK(vm < 5.f);  // no perpetual jitter
+        for (const auto& p : m.parts) CHECK(std::isfinite(p.x) && p.x > cfg::kFieldL - 1.f && p.x < cfg::kFieldR + 1.f);
+    }
+    // The material is part of the physics, so it is part of the run code and the checksum.
+    Replay r;
+    r.mode = 0; r.seed = 5; r.gravity = 600.f; r.substeps = 2; r.endStep = 200;
+    r.drops = {{5, 100.f, 1}, {70, 130.f, 1}};
+    Replay o = r;
+    o.liquid = kLiqHoney;
+    CHECK(replayChecksum(r, 200) != replayChecksum(o, 200));
+    CHECK(replayChecksum(o, 200) == replayChecksum(o, 200));
+    Replay b;
+    CHECK(Replay::fromCode(o.toCode(), b) && b.liquid == kLiqHoney && b.endStep == 200);
+    CHECK(Replay::fromCode(r.toCode(), b) && b.liquid == 0);
+    // LAN: the host's liquid travels in the Welcome and in the announcement.
+    battle::Welcome wl;
+    wl.seed = 9; wl.modifier = 2; wl.liquid = kLiqOil; wl.duration = 90; wl.hostName = "H";
+    battle::Welcome wr;
+    CHECK(battle::decode(battle::encode(wl), wr) && wr.liquid == kLiqOil && wr.modifier == 2 && wr.duration == 90);
+    wl.liquid = 9;
+    CHECK(!battle::decode(battle::encode(wl), wr));
+    battle::Announce an;
+    an.tcpPort = 1234; an.liquid = kLiqSlime; an.hostName = "H";
+    battle::Announce ar;
+    CHECK(battle::decode(battle::encode(an), ar) && ar.liquid == kLiqSlime);
 }
 
 TEST(base64_roundtrip) {
