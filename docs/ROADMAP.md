@@ -200,7 +200,12 @@ Exit: a two-player LAN match and a PvE match both play to the end on desktop and
 - ☑ Rising Tide keeps moving; water-like liquid physics; copy run code from the pause menu; puzzle run codes.
 - ☑ Game design document (`docs/GDD.md`).
 
-## v1.8.0: Modding and community
+## v1.8.0: Game Mode Revolution ☑ released
+- ☑ Mirror, Big Container (1-8 players, camera follow), Madhouse and I Don't Know modes.
+- ☑ Modifiers Wind, Earthquake, Fog; Rain and Tide became the modifiers Downpour and Rising tide.
+- ☑ Redesigned mode-select screen with seamless animated pictures.
+
+## v1.9.0: Modding and community
 
 Goal: let players and artists extend the game with no code.
 

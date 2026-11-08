@@ -112,7 +112,7 @@ bool decode(const net::Bytes& b, Welcome& m) {
     m.modifier = uint8_t(r.u8());
     m.duration = uint16_t(r.u16());
     m.hostName = r.str();
-    return r.ok && m.modifier <= 4 && m.duration >= 10 && m.duration <= 900;
+    return r.ok && m.modifier <= 6 && m.duration >= 10 && m.duration <= 900;
 }
 bool decode(const net::Bytes& b, Final& m) {
     R r(b);

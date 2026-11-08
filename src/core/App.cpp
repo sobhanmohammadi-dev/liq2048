@@ -25,6 +25,10 @@ SceneId sceneFromName(const std::string& n, Ctx& c) {
     if (n == "game") return SceneId::Game;
     if (n == "credits") return SceneId::Credits;
     if (n == "battle") return SceneId::Battle;
+    if (n == "mirror" || n == "bigbox") {  // dev: the party modes
+        c.mode = n == "mirror" ? ModeId::Mirror : ModeId::BigBox;
+        return SceneId::Party;
+    }
     if (n == "hotseat") {
         c.mode = ModeId::Classic;
         c.hotseat = true;

@@ -8,6 +8,23 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.8.0] "Game Mode Revolution"
+
+### Added
+- **Mirror:** two narrow pots, one shared queue; the drops take turns and the right pot's aim is mirrored. Shared score; either pot overflowing ends the run.
+- **Big Container:** 1 to 8 players (pass-and-play) in one huge pot. The container grows with the player count (or set the size by hand, up to 2.5x). The camera follows every drop down and then eases back. Merges are credited to whoever dropped last; a depth gauge shows the fill level.
+- **Madhouse:** every 10 seconds the numbers, sizes and colours of the liquid change (about half of the drops move one level up or down, deterministic by step count).
+- **I Don't Know:** all liquid has one colour and shows question marks; the drop in your hand is known. Three "peeks" reveal everything for 2 seconds.
+- **New modifiers:** Wind, Earthquake (with screen shake) and Fog (hides the next drop and the aim guide).
+- **New mode-select screen:** twelve tiles with their own animated pictures, tiles settling in one after another, breathing glows and "NEW" badges. All pictures are built from periodic functions and grow or fade in and out from nothing, so loops are seamless.
+
+### Changed
+- **The revolution:** *Endless Rain* and *Rising Tide* are no longer modes; they are the modifiers **Downpour** and **Rising tide**, so they combine with every mode. Old run codes and saved scores keep working. The weekly challenge now rotates through seven rules. Battle offers the physics modifiers (none to earthquake).
+- Progress list hides the retired modes unless they have a score.
+
+### Notes
+- Mirror and Big Container have no run codes yet. Big Container uses a lighter physics setting on large sizes; very big pots need a fast device.
+
 ## [1.7.4]
 
 ### Fixed

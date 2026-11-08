@@ -1,12 +1,14 @@
-// The in-game scene: shared run loop for all modes (mode rules come from Mode).
+﻿// The in-game scene: shared run loop for all modes (mode rules come from Mode).
 
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <algorithm>
+#include <cstdlib>
 #include <cmath>
 #include <string>
 #include <vector>
 
+#include "game/Modifier.hpp"
 #include "core/Config.hpp"
 #include "core/Platform.hpp"
 #include "core/Util.hpp"
@@ -157,6 +159,11 @@ private:
     std::unique_ptr<Mode> mode_;
     World world_;
     Rng rng_, rngFx_;
+    Rng madRng_;                       // Madhouse: its own stream, so the drop queue is untouched
+    int peeks_ = 3;                    // I Don't Know: reveals left
+    float peekT_ = 0.f, madFlash_ = 0.f;
+    static constexpr uint32_t kMadSteps = uint32_t(cfg::kMadnessPeriod * 60.f + 0.5f);
+    static constexpr int kBlindLevel = 7;  // the one colour every hidden drop is drawn in
     St st_ = St::Playing;
     Outcome outcome_ = Outcome::Running;
     int today_ = 0;
@@ -202,17 +209,21 @@ private:
     bool replaying_ = false;
     uint32_t replayTail_ = 0;
     // Modes (v1.3.0)
-    int mod_ = 0;                       // active modifier (0 none, 1 low g, 2 heavy g, 3 thick, 4 bonus drops)
+    int mod_ = 0;                       // active modifier (see game/Modifier.hpp)
     // Harder than before (v1.6.1): the overflow line sits lower in the pot, so there is less room to stack.
     // Zen, Puzzle and Rising Tide (whose line moves) keep the original start position.
-    float deadBase() const { return (mid_ == ModeId::Zen || mid_ == ModeId::Puzzle || mid_ == ModeId::Tide) ? cfg::kDeadY : cfg::kDeadY + 22.f; }
+    float deadBase() const { return (mid_ == ModeId::Zen || mid_ == ModeId::Puzzle || tideOn()) ? cfg::kDeadY : cfg::kDeadY + 22.f; }
     float deadY_ = cfg::kDeadY, tideRelief_ = 0.f, autoT_ = 0.f, autoFill_ = 0.f;
     int queueIdx_ = 0, runMerges_ = 0, runChain_ = 0, stars_ = 0;
     std::string hint_;                  // short coaching banner inside the pot
     float hintT_ = 0.f;                 // seconds left, < 0 = until cleared
     int coach_ = -1;                    // first-run coach step (-1 = off)
     bool statsDone_ = false;
-    float gravityNow() const { return cfg::kGravity * mode_->gravityScale() * (mod_ == 1 ? 0.55f : mod_ == 2 ? 1.4f : 1.f); }
+    float gravityNow() const { return cfg::kGravity * mode_->gravityScale() * modifierGravity(mod_); }
+    bool rainOn() const { return mid_ == ModeId::Rain || mod_ == kModRain; }  // drops fall by themselves
+    bool tideOn() const { return mid_ == ModeId::Tide || mod_ == kModTide; }  // the overflow line sinks and swells
+    float autoInterval() const { return mod_ == kModRain && mid_ != ModeId::Rain ? rainInterval(elapsed_) : mode_->autoDropInterval(elapsed_); }
+    bool manualOk() const { return mode_->manualDrop() && mod_ != kModRain; }
     void setHint(const std::string& s, float t) {
         hint_ = s;
         hintT_ = t;
@@ -278,7 +289,7 @@ private:
         }
         if (mid_ == ModeId::Battle) return battle::battleLevel(bcfg_.seed, queueIdx_++, mod_);
         const int r = rng_.range(0, 99);
-        if (mod_ == 4) return r < 15 ? 1 : r < 45 ? 2 : r < 80 ? 3 : 4;
+        if (mod_ == kModBonus) return r < 15 ? 1 : r < 45 ? 2 : r < 80 ? 3 : 4;
         if (mid_ == ModeId::Zen) return r < 40 ? 0 : r < 70 ? 1 : r < 90 ? 2 : 3;  // Zen stays relaxed
         // Everyone else gets bigger drops the longer a run lasts (cumulative weights for levels 0..5).
         static const int w[5][6] = {{38, 70, 90, 100, 100, 100}, {28, 56, 78, 93, 100, 100}, {20, 42, 66, 86, 100, 100},
@@ -296,12 +307,12 @@ private:
         hs_[0] = hs_[1] = 0;
         turn_ = lastDropper_ = 0;
         world_.clear();
-        world_.viscScale = mod_ == 3 ? 3.f : 1.f;
+        world_.viscScale = mod_ == kModThick ? 3.f : 1.f;
         // Daily and Puzzle must play identically for everyone, so they always use the reference quality.
         world_.substeps = (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle || mid_ == ModeId::Battle) ? 2 : c.save.quality + 1;
         if (replaying_) {
             mod_ = rec_.modifier;
-            world_.viscScale = mod_ == 3 ? 3.f : 1.f;
+            world_.viscScale = mod_ == kModThick ? 3.f : 1.f;
             world_.substeps = rec_.substeps;
         }
         wantSub_ = world_.substeps;
@@ -327,6 +338,9 @@ private:
         if (replaying_) seed = rec_.seed;
         else if (!seed) seed = uint32_t(SDL_GetTicks()) * 2246822519u + 7u;
         rng_.seed(seed);
+        madRng_.seed(seed ^ 0x9e3779b9u);
+        peeks_ = 3;
+        peekT_ = madFlash_ = 0.f;
         simStep_ = 0;
         repIdx_ = 0;
         if (!replaying_) {
@@ -365,15 +379,15 @@ private:
     void introHint(Ctx& c) {
         if (mid_ == ModeId::Battle) return;
         static const char* desc[kModeCount] = {"mode.classic.desc", "mode.timed.desc", "mode.target.desc", "mode.daily.desc",
-                                               "mode.zen.desc", "mode.rain.desc", "mode.tide.desc", "mode.weekly.desc", "mode.puzzle.desc", "mode.battle.desc"};
-        static const char* modKey[5] = {"mod.none", "mod.lowg", "mod.heavy", "mod.thick", "mod.bonus"};
+                                               "mode.zen.desc", "mode.rain.desc", "mode.tide.desc", "mode.weekly.desc", "mode.puzzle.desc", "mode.battle.desc",
+                                               "mode.mirror.desc", "mode.bigbox.desc", "mode.madhouse.desc", "mode.blind.desc"};
         const uint32_t bit = 1u << int(mid_);
         std::string s;
         if (!(c.save.seenModes & bit) && st_ != St::Tutorial) {
             c.save.seenModes |= bit;
             s = c.loc.tr(desc[int(mid_)]);
         }
-        if (mid_ == ModeId::Weekly) s = (s.empty() ? "" : s + " ") + c.loc.fmt("mod.rule", c.loc.tr(modKey[mod_]));
+        if (mid_ == ModeId::Weekly) s = (s.empty() ? "" : s + " ") + c.loc.fmt("mod.rule", c.loc.tr(modifierKey(mod_)));
         else if (mid_ == ModeId::Puzzle) {
             const PuzzleDef* pz = mode_->puzzle();
             s = c.loc.fmt("puzzle.goal", std::to_string(1 << pz->goal)) + " " + c.loc.fmt("puzzle.par", std::to_string(pz->par));
@@ -549,8 +563,12 @@ private:
         if (!(replaying_ && replayPaused_)) elapsed_ += dt;
         quiet_ += dt;
         mode_->update(dt);
-        if (want && mode_->manualDrop()) tryDrop(c);
-        if (const float iv = mode_->autoDropInterval(elapsed_); iv > 0.f && !replaying_) {
+        if (static const bool dev = std::getenv("LIQ_AUTODROP") != nullptr; dev && !replaying_ && manualOk() && simStep_ % 50 == 0) {  // dev: scripted play for screenshots
+                aimX_ = holdX_ = 40.f + 170.f * (0.5f + 0.5f * std::sin(float(simStep_) * 0.021f));
+                tryDrop(c);
+            }
+            if (want && manualOk()) tryDrop(c);
+        if (const float iv = autoInterval(); iv > 0.f && !replaying_) {
             autoT_ += dt;
             autoFill_ = std::min(1.f, autoT_ / iv);
             if (autoT_ >= iv) {
@@ -558,8 +576,8 @@ private:
                 tryDrop(c, true);
             }
         }
-        if (mid_ == ModeId::Rain && elapsed_ >= 60.f) grant(c, kRain60);
-        if (mid_ == ModeId::Tide && elapsed_ >= 90.f) grant(c, kTide90);
+        if (rainOn() && elapsed_ >= 60.f) grant(c, kRain60);
+        if (tideOn() && elapsed_ >= 90.f) grant(c, kTide90);
 
         const bool frozen = replaying_ && replayPaused_;
         if (!frozen) acc_ = std::min(acc_ + dt * float(replaying_ ? replaySpeed_ : 1), cfg::kStep * 3.f * float(replaying_ ? replaySpeed_ : 1));  // never catch up more than 3 steps (slow phones)
@@ -585,15 +603,16 @@ private:
                 tryDrop(c, true, rec_.drops[repIdx_].level);
                 ++repIdx_;
             }
-            world_.step(cfg::kStep, gravityNow());
+            if (mid_ == ModeId::Madhouse && simStep_ > 0 && simStep_ % kMadSteps == 0) madShuffle(c);
+            world_.step(cfg::kStep, gravityNow(), modifierSideways(mod_, simStep_));
             ++simStep_;
             acc_ -= cfg::kStep;
             for (const auto& e : world_.events) onMerge(c, e);
             world_.events.clear();
             for (const auto& im : world_.impacts) onImpact(c, im);
             world_.impacts.clear();
-            if (mid_ == ModeId::Tide) {
-                const float shift = mode_->deadLineShift(float(simStep_) * cfg::kStep);
+            if (tideOn()) {
+                const float shift = mid_ == ModeId::Tide ? mode_->deadLineShift(float(simStep_) * cfg::kStep) : tideShift(float(simStep_) * cfg::kStep);
                 tideRelief_ = std::min(tideRelief_, shift);
                 // The line keeps moving all game (see Tide::deadLineShift); merges lift it, but never above its start.
                 const float target = cfg::kDeadY + shift - tideRelief_;
@@ -879,10 +898,7 @@ private:
         }
     }
 
-    static const char* modName(int m) {
-        static const char* k[5] = {"mod.none", "mod.lowg", "mod.heavy", "mod.thick", "mod.bonus"};
-        return k[std::min(std::max(m, 0), 4)];
-    }
+    static const char* modName(int m) { return modifierKey(m); }
 
     // ----- effects -----
     void updateFx(float dt) {
@@ -948,7 +964,7 @@ private:
     }
 
     void drawGuide(Ctx& c) {
-        if (st_ == St::Over || !c.save.guide) return;
+        if (st_ == St::Over || !c.save.guide || mod_ == kModFog) return;
         const int lim = mode_->dropLimit();
         if (lim >= 0 && drops_ >= lim) return;
         Gfx& g = c.gfx;
@@ -964,6 +980,22 @@ private:
         return s;
     }
 
+    // Madhouse: every 10 s about half of the drops (and the next ones) change number, size and colour by one step.
+    void madShuffle(Ctx& c) {
+        for (size_t i = 0; i < world_.drops.size(); ++i) {
+            if (!world_.drops[i].n || madRng_.range(0, 99) >= 55) continue;
+            const int lv = clampv(world_.drops[i].level + (madRng_.range(0, 1) ? 1 : -1), 0, 9);
+            if (lv != world_.drops[i].level) world_.relevel(int(i), lv);
+        }
+        cur_ = clampv(cur_ + (madRng_.range(0, 1) ? 1 : -1), 0, 5);
+        next_ = clampv(next_ + (madRng_.range(0, 1) ? 1 : -1), 0, 5);
+        madFlash_ = 0.6f;
+        if (!replaying_) {
+            c.audio.play(Sfx::Swipe, 0.6f);
+            shake_ = std::max(shake_, 3.f);
+        }
+    }
+
     void drawBlobs(Ctx& c, int sx, int sy) {
         const float alpha = clampv(acc_ / cfg::kStep, 0.f, 1.f);
         const bool spec = viewing();
@@ -971,6 +1003,11 @@ private:
         std::vector<BlobSprite> pile, labels;
         W.particleSprites(spec ? opp_->viewAlpha() : (st_ == St::Playing ? alpha : 1.f), kParticleDraw, pile);
         W.labelSprites(labels);
+        const bool blind = mid_ == ModeId::Blind && !spec && peekT_ <= 0.f;
+        if (blind) {
+            for (auto& s : pile) s.level = kBlindLevel;
+            labels.clear();
+        }
         for (auto& s : pile) {
             s.x += float(sx);
             s.y += float(sy);
@@ -1007,11 +1044,29 @@ private:
             return;
         }
         // Next-blob preview inside its HUD panel (unshaken).
-        std::vector<BlobSprite> nxt{popped(plainSprite(c.ui.mx(8, 44) + 22.f, 36.f, next_), nextPop_.x)};
-        nxt[0].ra = nxt[0].rb = std::min(nxt[0].ra, 13.f);
-        c.raster.drawField(nxt, *c.theme);
-        c.raster.drawLabels(nxt, *c.theme);
+        if (mod_ != kModFog) {
+            std::vector<BlobSprite> nxt{popped(plainSprite(c.ui.mx(8, 44) + 22.f, 36.f, mid_ == ModeId::Blind ? kBlindLevel : next_), nextPop_.x)};
+            nxt[0].ra = nxt[0].rb = std::min(nxt[0].ra, 13.f);
+            c.raster.drawField(nxt, *c.theme);
+            if (mid_ != ModeId::Blind) c.raster.drawLabels(nxt, *c.theme);
+        }
         c.gfx.raster(c.raster);
+        if (blind) {  // hidden values: a question mark on every drop, bobbing a little
+            std::vector<BlobSprite> ql;
+            W.labelSprites(ql);
+            for (const auto& q : ql) {
+                const int sc = q.ra > 15.f ? 2 : 1;
+                c.gfx.text("?", q.x + float(sx), q.y + float(sy) - 3.f + std::sin(c.time * 2.f + q.x * 0.1f), sc, withAlpha(c.theme->text, 190), Align::Center);
+            }
+        }
+        if (mid_ == ModeId::Blind && !spec) {
+            if (peekT_ > 0.f) peekT_ -= 1.f / 60.f;
+            const float by = 36.f;
+            if (c.ui.button(c.loc.fmt("blind.peek", std::to_string(peeks_)), c.ui.mx(210, 56), by, 56, 20) && peeks_ > 0 && peekT_ <= 0.f && st_ == St::Playing) {
+                --peeks_;
+                peekT_ = 2.f;
+            }
+        }
     }
 
     void drawNextPanel(Ctx& c) {
@@ -1381,7 +1436,8 @@ private:
             }
             if (ui.button(L.tr("over.copyres"), 137, 360 + oy, 78, 20)) {
                 static const char* names[kModeCount] = {"mode.classic", "mode.timed", "mode.target", "mode.daily", "mode.zen",
-                                                        "mode.rain", "mode.tide", "mode.weekly", "mode.puzzle", "mode.battle"};
+                                                        "mode.rain", "mode.tide", "mode.weekly", "mode.puzzle", "mode.battle",
+                                                        "mode.mirror", "mode.bigbox", "mode.madhouse", "mode.blind"};
                 SDL_SetClipboardText(("Liq2048 V" LIQ_VERSION " - " + L.tr(names[int(mid_)]) + ": " + std::to_string(score_) + " pts, " +
                                       std::to_string(drops_) + " drops, chain x" + std::to_string(runChain_)).c_str());
                 toast_ = L.tr("over.copied");
@@ -1408,3 +1464,5 @@ private:
 std::unique_ptr<Scene> makeGameScene(Ctx& c) { return std::make_unique<GameScene>(c); }
 
 }  // namespace liq
+
+

@@ -1,3 +1,4 @@
+#include "game/Modifier.hpp"
 #include "game/Replay.hpp"
 
 #include <cstdio>
@@ -35,7 +36,7 @@ bool Replay::fromText(const std::string& s, Replay& out) {
     Replay r;
     double g = 0;
     if (!(in >> r.mode >> r.modifier >> r.substeps >> r.seed >> r.puzzle >> g)) return false;
-    if (r.substeps < 1 || r.substeps > 3 || r.modifier < 0 || r.modifier > 4) return false;
+    if (r.substeps < 1 || r.substeps > 3 || r.modifier < 0 || r.modifier >= kModifierCount) return false;
     r.gravity = float(g);
     ReplayDrop d;
     double x;
@@ -176,7 +177,7 @@ bool Replay::fromCode(const std::string& in, Replay& out) {
     r.seed = u32();
     const uint32_t gb = u32();
     std::memcpy(&r.gravity, &gb, 4);
-    if (r.substeps > 3 || r.modifier > 4 || r.mode > 15 || !(r.gravity >= 0.f && r.gravity < 100000.f)) return false;
+    if (r.substeps > 3 || r.modifier >= kModifierCount || r.mode > 15 || !(r.gravity >= 0.f && r.gravity < 100000.f)) return false;
     r.physics = 1;
     if (ver == 2) {
         if (i + 2 > b.size()) return false;
@@ -225,7 +226,7 @@ uint64_t replayChecksum(const Replay& r, int tailSteps) {
             w.spawn(r.drops[i].x, cfg::kSpawnY, r.drops[i].level);
             ++i;
         }
-        w.step(cfg::kStep, r.gravity);
+        w.step(cfg::kStep, r.gravity, modifierSideways(r.modifier, uint32_t(step)));
         w.events.clear();
         w.impacts.clear();
     }

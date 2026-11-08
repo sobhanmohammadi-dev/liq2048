@@ -123,15 +123,20 @@ Classic and Zen: 1 charge at the start of a run, +1 for every chain of 3 or more
 | 3 | **Target** | Reach 256 within 140 drops; next run 512 (260 drops), then 1024 (520 drops) | Target reached, drops used, overflow | Escalating goals |
 | 4 | **Daily Challenge** | Same seed for everyone each UTC day, 60 drops | Drops used and settled, or overflow | Always reference physics quality, no modifier |
 | 5 | **Zen** | Gravity x0.35, no fail state | The player quits | Liquid stuck above the line drains away harmlessly |
-| 6 | **Endless Rain** | Drops fall by themselves, every 3.2 s down to every 1.1 s; steering only | Overflow | Survive as long as possible; 60 s achievement |
-| 7 | **Rising Tide** | The overflow line sinks 1.6 px/s up to 230 px (reached after about 2:24), then **keeps moving as a swell** (up and down by 22 px, 12 s period). Every merge lifts the line (more for bigger droplets) but never above its start | Overflow | 90 s achievement |
-| 8 | **Weekly Challenge** | The same 100 drops for everyone for a whole week (Monday to Sunday, UTC) with that week's rule: low gravity, heavy gravity, thick liquid or bonus drops | Drops used or overflow | Own weekly best |
-| 9 | **Puzzle** | 26 levels. Filled tank, a fixed drop queue, reach the goal droplet before the queue runs out | Goal reached or queue empty | 3 stars at par, 2 at par + 2, 1 for any solution |
-| 10 | **Battle** | Timed duel (60, 90, 120 or 180 s). Both players get the identical queue in their own pot. Higher score wins; a tie goes to the higher droplet level; otherwise a draw | Time out or both pots finished | vs Bot (Easy, Medium, Hard, Adaptive), vs Human on the same Wi-Fi, or pass-and-play on one device |
+| 6 | **Weekly Challenge** | The same 100 drops for everyone for a whole week (Monday to Sunday, UTC) with that week's rule (one of the seven physics and rule modifiers) | Drops used or overflow | Own weekly best |
+| 7 | **Puzzle** | 26 levels. Filled tank, a fixed drop queue, reach the goal droplet before the queue runs out | Goal reached or queue empty | 3 stars at par, 2 at par + 2, 1 for any solution |
+| 8 | **Battle** | Timed duel (60, 90, 120 or 180 s). Both players get the identical queue in their own pot. Higher score wins; a tie goes to the higher droplet level; otherwise a draw | Time out or both pots finished | vs Bot (Easy, Medium, Hard, Adaptive), vs Human on the same Wi-Fi, or pass-and-play on one device |
+
+| 9 | **Mirror** (1.8) | Two narrow pots, one queue; drops alternate pots; aim is mirrored for the right pot | Either pot overflows | Shared score |
+| 10 | **Big Container** (1.8) | 1-8 hot-seat players in one wide pot (auto size from player count or 1x-2.5x); the camera follows each drop down and returns | Overflow | Per-player scores, credit to the last dropper |
+| 11 | **Madhouse** (1.8) | Every 10 s about half of the drops change one level, as do the held and next drops | Overflow | Deterministic: own seeded stream, step-based |
+| 12 | **I Don't Know** (1.8) | Liquid drawn in one colour with question marks; held drop known; 3 peeks (2 s each) | Overflow | |
+
+Endless Rain and Rising Tide were modes until 1.7.4; since 1.8.0 they are the modifiers Downpour and Rising tide (their old ids stay valid for run codes and saves).
 
 ### 3.1 Modifiers
 
-Applied to the next Classic, Time Attack, Target, Zen, Rain or Tide run (and to both pots in Battle):
+Applied to the next Classic, Time Attack, Target, Zen, Madhouse or I Don't Know run (Battle offers the first seven):
 
 | Modifier | Effect |
 |----------|--------|
@@ -139,6 +144,11 @@ Applied to the next Classic, Time Attack, Target, Zen, Rain or Tide run (and to 
 | Heavy gravity | 140 % gravity |
 | Thick liquid | 3x viscosity |
 | Bonus drops | Bigger drops |
+| Wind | Sideways acceleration that sways slowly (sum of two sines) |
+| Earthquake | A 0.9 s tremor every 8 s: shaking floor and screen |
+| Fog | The next drop and the aim guide are hidden |
+| Downpour | Drops fall by themselves, every 3.2 s down to every 1.1 s; steering only (was Endless Rain) |
+| Rising tide | The overflow line sinks and then swells; merges lift it (was Rising Tide) |
 
 Runs with a modifier never change ranked best scores, but count for statistics and the "Modded 1000" achievement.
 
@@ -439,10 +449,11 @@ and never uses the internet. The roadmap has no store-release plan. Progress rew
 | 1.7.2 | Pass-and-play, ghost pace, history charts, result image, checksums |
 | 1.7.3 | Custom themes, per-theme sound, `.liqtheme`, external fonts, licences |
 | 1.7.4 | Water-like liquid, replay fixes (pause, speed, full playback), Tide keeps moving, copy run code from the pause menu, puzzle run codes, this document |
+| 1.8.0 | Game Mode Revolution: Mirror, Big Container, Madhouse, I Don't Know; Wind, Earthquake, Fog; Rain and Tide became modifiers; new mode board |
 
 ### Roadmap (see [ROADMAP.md](ROADMAP.md))
 
-- **1.8.0:** mirror mode, true ghost replay, large-text option, safe-area handling, 19 more puzzles,
+- **1.9.0:** modding, true ghost replay, large-text option, safe-area handling, 19 more puzzles,
   screen-reader labels.
 - **2.0.0 ideas:** gamepad support, more scripts and languages, mod packs.
 

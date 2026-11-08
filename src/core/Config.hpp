@@ -52,6 +52,7 @@ inline constexpr int kDailyDrops = 60;
 inline constexpr int kWeeklyDrops = 100;
 inline constexpr float kTideMaxShift = 230.f;   // how far the Rising Tide line can sink (px)
 inline constexpr float kTideRate = 1.6f;        // px per second
+inline constexpr float kMadnessPeriod = 10.f;     // Madhouse: seconds between changes
 inline constexpr float kTideSwell = 22.f;       // after the line has sunk fully it swells up and down by this much (px)
 inline constexpr float kTideSwellPeriod = 12.f; // seconds per swell
 

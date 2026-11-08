@@ -161,12 +161,16 @@ public:
         g.rect(22, 80, 226, 1, t.panelLo);
         if (tab_ == 0) {
             static const char* names[kModeCount] = {"mode.classic", "mode.timed", "mode.target", "mode.daily", "mode.zen",
-                                                    "mode.rain",    "mode.tide",  "mode.weekly", "mode.puzzle", "mode.battle"};
+                                                    "mode.rain",    "mode.tide",  "mode.weekly", "mode.puzzle", "mode.battle",
+                                                    "mode.mirror",  "mode.bigbox", "mode.madhouse", "mode.blind"};
             // Medal thresholds (bronze, silver, gold) per mode.
             static const int medal[kModeCount][3] = {{2000, 6000, 15000}, {800, 2000, 4000}, {500, 2000, 6000}, {1500, 4000, 9000}, {2000, 6000, 15000},
-                                                     {600, 1800, 4500},   {800, 2500, 6000}, {1500, 4000, 9000}, {0, 0, 0}, {0, 0, 0}};
+                                                     {600, 1800, 4500},   {800, 2500, 6000}, {1500, 4000, 9000}, {0, 0, 0}, {0, 0, 0},
+                                                     {1500, 4000, 9000}, {1500, 4000, 9000}, {1500, 4000, 9000}, {1000, 3000, 7000}};
+            int row = 0;
             for (int i = 0; i < kModeCount; ++i) {
-                const float y = 96.f + float(i) * 30.f;
+                if ((i == int(ModeId::Rain) || i == int(ModeId::Tide)) && c.save.best[i] <= 0) continue;  // now modifiers
+                const float y = 96.f + float(row++) * 30.f;
                 g.text(L.tr(names[i]), lx, y, 1, t.text, la);
                 const int v = i == int(ModeId::Puzzle) ? c.save.puzzlesSolved() : i == int(ModeId::Battle) ? c.save.battleWins
                               : i == int(ModeId::Weekly) ? c.save.weeklyBest : c.save.best[i];
@@ -256,6 +260,7 @@ std::unique_ptr<Scene> makeScene(SceneId id, Ctx& c) {
         case SceneId::Puzzle: return makePuzzleSelectScene();
         case SceneId::Credits: return makeCreditsScene();
         case SceneId::Battle: return makeBattleScene();
+        case SceneId::Party: return makePartyScene();
         case SceneId::Extras: return makeExtrasScene();
         case SceneId::Card: return makeCardScene();
         case SceneId::ThemeEditor: return makeThemeEditorScene();
