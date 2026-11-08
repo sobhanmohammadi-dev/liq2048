@@ -170,7 +170,7 @@ void World::setPicture(const std::vector<int>& levels, const std::vector<int>& c
 void World::buildPairs(float margin) {
     const float R = cfg::kInteract + margin;
     const float cell = R * 0.5f;
-    const int nx = int(float(cfg::kW) / cell) + 5, ny = int(float(cfg::kH) / cell) + 5;
+    const int nx = int(worldW / cell) + 5, ny = int(worldH / cell) + 5;
     head_.assign(size_t(nx) * size_t(ny), -1);
     next_.assign(parts.size(), -1);
     auto cellIdx = [&](const Particle& p, int& cx, int& cy) {
@@ -242,7 +242,8 @@ void World::regeom() {
     }
 }
 
-void World::step(float dt, float gravity) {
+void World::step(float dt, float gravity, float gx) {
+    gx_ = gx;
     for (auto& p : parts) {
         p.ox = p.x;
         p.oy = p.y;
@@ -290,7 +291,7 @@ void World::anchors() {
     }
     for (size_t g = 0; g < drops.size(); ++g)
         if (an[g]) {
-            const float tx = ax[g] / float(an[g]), ty = std::min(ay[g] / float(an[g]), cfg::kFloor - 6.f);
+            const float tx = ax[g] / float(an[g]), ty = std::min(ay[g] / float(an[g]), floorY - 6.f);
             if (drops[g].lr == 0.f) {  // first time: snap
                 drops[g].lx = tx;
                 drops[g].ly = ty;
@@ -318,7 +319,10 @@ void World::substep(float h, float g, bool last) {
 
     // 1. gravity + viscosity (impulses between approaching neighbours)
     regeom();
-    for (auto& p : parts) p.vy += g * h;
+    for (auto& p : parts) {
+        p.vy += g * h;
+        p.vx += gx_ * h;
+    }
     for (const auto& pr : pairs_) {
         Particle &a = parts[size_t(pr.i)], &b = parts[size_t(pr.j)];
         const float u = (a.vx - b.vx) * pr.nx + (a.vy - b.vy) * pr.ny;  // >0 approaching
@@ -403,7 +407,7 @@ void World::substep(float h, float g, bool last) {
     // 5. container + velocity from position change
     for (auto& p : parts) {
         bool wall = false;
-        const float lo = cfg::kFieldL + 1.2f, hi = cfg::kFieldR - 1.2f, fl = cfg::kFloor - 1.2f;
+        const float lo = fieldL + 1.2f, hi = fieldR - 1.2f, fl = floorY - 1.2f;
         if (p.x < lo) { p.x = lo; wall = true; }
         if (p.x > hi) { p.x = hi; wall = true; }
         if (p.y > fl) { p.y = fl; wall = true; }
@@ -499,6 +503,37 @@ void World::mergeGroups(int a, int b) {
     events.push_back({drops[size_t(na)].x, drops[size_t(na)].y, level, chain_});
 }
 
+void World::relevel(int i, int level) {
+    if (i < 0 || i >= int(drops.size())) return;
+    level = std::clamp(level, 0, cfg::kMaxLevel);
+    if (drops[size_t(i)].level == level) return;
+    // Keep the centroid and the mean velocity; the new body is a fresh lattice of the right size.
+    const float x = drops[size_t(i)].x, vx = drops[size_t(i)].vx, vy = drops[size_t(i)].vy;
+    const float r = radiusFor(level);
+    float y = drops[size_t(i)].y;
+    y = std::min(y, floorY - r - 1.f);  // never inside the floor
+    const float cx = std::clamp(x, fieldL + r + 1.f, fieldR - r - 1.f);
+    parts.erase(std::remove_if(parts.begin(), parts.end(), [i](const Particle& p) { return p.g == i; }), parts.end());
+    const size_t before = parts.size();
+    spawn(cx, y, level);  // appended as the last drop
+    const int last = int(drops.size()) - 1;
+    for (size_t k = before; k < parts.size(); ++k) {
+        parts[k].vx = vx;
+        parts[k].vy = vy;
+    }
+    // Move the new drop into slot i so the other drops keep their indices.
+    Drop nd = drops[size_t(last)];
+    drops.pop_back();
+    for (auto& p : parts)
+        if (p.g == last) p.g = i;
+    nd.age = 0.9f;  // no overflow grace needed, but keep the pop spring calm
+    nd.pop = 0.f;
+    drops[size_t(i)] = nd;
+    candValid_ = false;
+    refresh();
+    anchors();
+}
+
 void World::removeDrop(int gi) {
     drops.erase(drops.begin() + gi);
     for (auto& p : parts)
@@ -534,7 +569,7 @@ std::vector<Drop> World::popAbove(float deadY) {
 }
 
 float World::surfaceY(float x, float hw) const {
-    float y = cfg::kFloor;
+    float y = floorY;
     for (const auto& p : parts)
         if (std::fabs(p.x - x) <= hw) y = std::min(y, p.y);
     return y;

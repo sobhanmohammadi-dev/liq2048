@@ -84,12 +84,12 @@ void Save::load() {
     }
     if (musicVol < 0.f || musicVol > 1.f) musicVol = 0.6f;
     if (sfxVol < 0.f || sfxVol > 1.f) sfxVol = 0.9f;
-    if (modifier < 0 || modifier > 4) modifier = 0;
+    if (modifier < 0 || modifier >= 10) modifier = 0;
     if (colorVision < 0 || colorVision > 2) colorVision = 0;
     if (quality < 0 || quality > 2) quality = 1;
     if (battleDuration != 60 && battleDuration != 90 && battleDuration != 120 && battleDuration != 180) battleDuration = 120;
     battleDifficulty = battleDifficulty < 0 ? 0 : battleDifficulty > 3 ? 3 : battleDifficulty;
-    battleModifier = battleModifier < 0 ? 0 : battleModifier > 4 ? 4 : battleModifier;
+    battleModifier = battleModifier < 0 ? 0 : battleModifier > 6 ? 6 : battleModifier;
     battleWins = std::max(0, battleWins);
     battleLosses = std::max(0, battleLosses);
     battleDraws = std::max(0, battleDraws);

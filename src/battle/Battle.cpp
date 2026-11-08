@@ -1,4 +1,5 @@
 #include "battle/Battle.hpp"
+#include "game/Modifier.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +18,7 @@ uint32_t mix32(uint32_t x) {
     return x ^ (x >> 16);
 }
 
-float gravityFor(int modifier) { return cfg::kGravity * (modifier == 1 ? 0.55f : modifier == 2 ? 1.4f : 1.f); }
+float gravityFor(int modifier) { return cfg::kGravity * modifierGravity(modifier); }
 
 // ------------------------------------------------------------------------------------------------
 // Computer opponent: plays its own hidden pot with the real physics and the same drop queue as the player.
@@ -140,7 +141,7 @@ private:
             cooldown_ = rng_.uni(p.tMin, p.tMax);
             pick();
         }
-        w_.step(cfg::kStep, gravityFor(cfg_.modifier));
+        w_.step(cfg::kStep, gravityFor(cfg_.modifier), modifierSideways(cfg_.modifier, simStep_++));
         for (const auto& e : w_.events) {
             score_ += (1 << e.level) * e.chain;
             maxLevel_ = std::max(maxLevel_, e.level);
@@ -159,6 +160,7 @@ private:
     World w_;
     Rng rng_;
     float acc_ = 0, elapsed_ = 0, cooldown_ = 0, aimX_ = 0, target_ = 0, adaptT_ = 0, skill_ = 0.45f;
+    uint32_t simStep_ = 0;
     int idx_ = 0, cur_ = 0, next_ = 0, score_ = 0, maxLevel_ = 0;
     bool done_ = false, topped_ = false, fast_ = false;
 };

@@ -4,6 +4,7 @@
 #include <cstdio>
 
 #include "core/Config.hpp"
+#include "game/Modifier.hpp"
 
 namespace liq {
 
@@ -101,7 +102,7 @@ class Rain final : public Mode {
 public:
     ModeId id() const override { return ModeId::Rain; }
     const char* nameKey() const override { return "mode.rain"; }
-    float autoDropInterval(float elapsed) const override { return std::max(1.1f, 3.2f - elapsed * 0.02f); }
+    float autoDropInterval(float elapsed) const override { return rainInterval(elapsed); }
     bool manualDrop() const override { return false; }
     std::string status(const Loc& l, const Stats& s) const override { return l.tr("hud.time") + " " + mmss(s.elapsed - 0.999f); }
 };
@@ -111,14 +112,7 @@ class Tide final : public Mode {
 public:
     ModeId id() const override { return ModeId::Tide; }
     const char* nameKey() const override { return "mode.tide"; }
-    // The line sinks at a steady rate until it is kTideMaxShift lower; from then on it keeps moving like a swell
-    // (up and down, slowly growing to +-kTideSwell), so the tide never looks stuck and the pressure stays on.
-    float deadLineShift(float elapsed) const override {
-        const float raw = elapsed * cfg::kTideRate;
-        if (raw < cfg::kTideMaxShift) return raw;
-        const float t = (raw - cfg::kTideMaxShift) / cfg::kTideRate;
-        return cfg::kTideMaxShift + cfg::kTideSwell * std::min(1.f, t / 6.f) * std::sin(t * 6.2831853f / cfg::kTideSwellPeriod);
-    }
+    float deadLineShift(float elapsed) const override { return tideShift(elapsed); }
     std::string status(const Loc& l, const Stats& s) const override { return l.tr("hud.time") + " " + mmss(s.elapsed - 0.999f); }
 };
 
@@ -178,6 +172,25 @@ private:
     int number_ = 1;
 };
 
+// Madhouse: every 10 seconds the numbers, colours and volumes of the liquid change (the scene does the shuffling).
+class Madhouse final : public Mode {
+public:
+    ModeId id() const override { return ModeId::Madhouse; }
+    const char* nameKey() const override { return "mode.madhouse"; }
+    std::string status(const Loc& l, const Stats& s) const override {
+        const float left = cfg::kMadnessPeriod - std::fmod(s.elapsed, cfg::kMadnessPeriod);
+        return l.tr("hud.madness") + " " + std::to_string(int(left + 0.999f));
+    }
+    float progress(const Stats& s) const override { return 1.f - std::fmod(s.elapsed, cfg::kMadnessPeriod) / cfg::kMadnessPeriod; }
+};
+
+// I Don't Know: the liquid hides its value (question marks, one colour, no labels); you can peek a few times.
+class Blind final : public Mode {
+public:
+    ModeId id() const override { return ModeId::Blind; }
+    const char* nameKey() const override { return "mode.blind"; }
+};
+
 // Head-to-head: the clock runs for everyone, topping out ends your run early, the opponent decides who won.
 class Battle final : public Mode {
 public:
@@ -217,6 +230,8 @@ std::unique_ptr<Mode> makeMode(ModeId id, const Save& save, int today, int puzzl
         case ModeId::Tide: return std::make_unique<Tide>();
         case ModeId::Weekly: return std::make_unique<Weekly>(weekOf(today));
         case ModeId::Puzzle: return std::make_unique<Puzzle>(puzzleLevel);
+        case ModeId::Madhouse: return std::make_unique<Madhouse>();
+        case ModeId::Blind: return std::make_unique<Blind>();
         default: return std::make_unique<Classic>();
     }
 }

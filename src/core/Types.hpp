@@ -31,8 +31,10 @@ constexpr Color unpack(uint32_t p) {
 
 inline int luminance(Color c) { return (c.r * 299 + c.g * 587 + c.b * 114) / 1000; }
 
-enum class ModeId { Classic = 0, Timed, Target, Daily, Zen, Rain, Tide, Weekly, Puzzle, Battle };
-constexpr int kModeCount = 10;
+// Rain and Tide are legacy ids: since v1.8.0 they are the Downpour and Rising tide modifiers and no longer listed as
+// modes (old run codes and saved scores keep working). Mirror and BigBox are the multi-pot party modes.
+enum class ModeId { Classic = 0, Timed, Target, Daily, Zen, Rain, Tide, Weekly, Puzzle, Battle, Mirror, BigBox, Madhouse, Blind };
+constexpr int kModeCount = 14;
 
 enum class Align { Left, Center, Right };
 

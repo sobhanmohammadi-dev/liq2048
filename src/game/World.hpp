@@ -53,9 +53,9 @@ class World {
 public:
     static float radiusFor(int level);       // nominal radius of a round drop of that level
     static int particlesFor(int level);      // particle count (constant volume per level)
-    void clear();
+    void clear();                            // keeps the container geometry
     void spawn(float x, float y, int level);
-    void step(float dt, float gravity);      // one fixed frame (substeps inside)
+    void step(float dt, float gravity, float gx = 0.f);  // one fixed frame (substeps inside); gx = sideways acceleration (wind)
     void updateOverflow(float deadY, float dt);
     float overflow() const { return overflow_; }
     void resetOverflow() { overflow_ = 0; }
@@ -74,6 +74,11 @@ public:
     void particleSprites(float alpha, float radius, std::vector<BlobSprite>& out) const;
     void labelSprites(std::vector<BlobSprite>& out) const;
 
+    // Container geometry. The defaults are the normal pot; bigger or smaller pots (Big Container, Mirror) change them.
+    float fieldL = cfg::kFieldL, fieldR = cfg::kFieldR, floorY = cfg::kFloor;
+    float worldW = float(cfg::kW), worldH = float(cfg::kH);  // extent of the spatial hash (must cover every particle)
+    // Re-seeds drop i at the same centroid with another level (Madhouse): the volume and the colour follow the level.
+    void relevel(int i, int level);
     int substeps = cfg::kSubsteps;   // 1..3, the "Liquid quality" setting (2 = reference physics)
     float viscScale = 1.f;           // Thick liquid modifier multiplies the viscosity
 
@@ -84,6 +89,7 @@ public:
 
 private:
     void substep(float h, float g, bool last);
+    float gx_ = 0.f;
     void refresh();
     void anchors();
     void mergeGroups(int a, int b);

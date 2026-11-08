@@ -8,6 +8,7 @@
 
 #include "core/Config.hpp"
 #include "core/Platform.hpp"
+#include "game/Modifier.hpp"
 #include "scenes/Scenes.hpp"
 
 namespace liq {
@@ -22,10 +23,7 @@ int durIndex(int d) {
     return 2;
 }
 
-const char* modKey(int m) {
-    static const char* k[5] = {"mod.none", "mod.lowg", "mod.heavy", "mod.thick", "mod.bonus"};
-    return k[m < 0 || m > 4 ? 0 : m];
-}
+const char* modKey(int m) { return modifierKey(m); }
 
 uint32_t freshSeed() {
     static uint32_t n = 0;
@@ -173,7 +171,7 @@ private:
         }
         row(c, 326, L.tr("mod.label"), L.tr(modKey(s.battleModifier)), d);
         if (d) {
-            s.battleModifier = (s.battleModifier + d + 5) % 5;
+            s.battleModifier = (s.battleModifier + d + kBattleModifiers) % kBattleModifiers;
             s.store();
         }
         if (c.ui.button(L.tr("battle.fight"), 148, 430, 100, 26, true, true, BtnStyle::Primary)) {
@@ -217,7 +215,7 @@ private:
         }
         row(c, 130, L.tr("mod.label"), L.tr(modKey(s.battleModifier)), d);
         if (d) {
-            s.battleModifier = (s.battleModifier + d + 5) % 5;
+            s.battleModifier = (s.battleModifier + d + kBattleModifiers) % kBattleModifiers;
             s.store();
         }
         if (c.ui.button(L.tr("battle.create"), 148, 430, 100, 26, true, true, BtnStyle::Primary)) {

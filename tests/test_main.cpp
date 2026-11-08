@@ -21,6 +21,7 @@
 #include "gfx/ArabicShaper.hpp"
 #include "gfx/PixelFont.hpp"
 #include "core/Platform.hpp"
+#include "game/Modifier.hpp"
 #include "game/Mode.hpp"
 #include "game/Puzzle.hpp"
 #include "game/Replay.hpp"
@@ -862,6 +863,51 @@ TEST(replay_v2_code) {
     std::string code = r.toCode();
     code[10] = code[10] == 'A' ? 'B' : 'A';
     CHECK(!Replay::fromCode(code, b));
+}
+
+TEST(modifiers_v18) {
+    CHECK(kModifierCount == 10 && kBattleModifiers == 7);
+    // Wind and earthquake are pure functions of the step count, and the quake is quiet most of the time.
+    CHECK(modifierSideways(kModWind, 123) == modifierSideways(kModWind, 123));
+    CHECK(modifierSideways(kModNone, 123) == 0.f && modifierSideways(kModFog, 5) == 0.f);
+    int calm = 0;
+    for (uint32_t i = 0; i < 480; ++i) calm += modifierSideways(kModQuake, i) == 0.f || std::fabs(modifierSideways(kModQuake, i)) < 1600.f;
+    CHECK(calm == 480);
+    CHECK(quakeAmount(kModQuake, 600) == 0.f && quakeAmount(kModQuake, 27) > 0.9f);
+    CHECK(rainInterval(0.f) > rainInterval(200.f) && rainInterval(1000.f) >= 1.1f);
+    CHECK(tideShift(10.f) < tideShift(30.f));
+    for (int w = 0; w < 30; ++w) CHECK(weeklyRuleOf(w) >= 1 && weeklyRuleOf(w) <= 7);
+    // Replays with the new modifiers are accepted and deterministic.
+    Replay r;
+    r.mode = 0; r.seed = 77; r.gravity = 600.f; r.substeps = 1; r.modifier = kModWind; r.endStep = 300;
+    r.drops = {{10, 100.f, 1}, {80, 150.f, 2}};
+    CHECK(replayChecksum(r, 300) == replayChecksum(r, 300));
+    Replay q = r;
+    q.modifier = kModNone;
+    CHECK(replayChecksum(q, 300) != replayChecksum(r, 300));
+    Replay b;
+    CHECK(Replay::fromCode(r.toCode(), b) && b.modifier == kModWind);
+}
+
+TEST(world_relevel_keeps_the_pot_intact) {
+    World w;
+    w.spawn(120.f, 200.f, 2);
+    w.spawn(120.f, 120.f, 3);
+    for (int i = 0; i < 120; ++i) w.step(cfg::kStep, cfg::kGravity);
+    const size_t n = w.drops.size();
+    w.relevel(0, 4);
+    CHECK(w.drops.size() == n);
+    int found = 0;
+    for (const auto& d : w.drops) found += d.level == 4;
+    CHECK(found >= 1);
+    for (int i = 0; i < 200; ++i) w.step(cfg::kStep, cfg::kGravity);
+    for (const auto& p : w.parts) CHECK(std::isfinite(p.x) && std::isfinite(p.y) && p.y < cfg::kFloor + 5.f);
+    // A wider, deeper container keeps everything inside its own walls.
+    World big;
+    big.fieldL = 24.f; big.fieldR = 480.f; big.floorY = 600.f; big.worldW = 520.f; big.worldH = 640.f;
+    big.spawn(400.f, 150.f, 3);
+    for (int i = 0; i < 400; ++i) big.step(cfg::kStep, cfg::kGravity);
+    for (const auto& p : big.parts) CHECK(p.x > 20.f && p.x < 485.f && p.y < 606.f);
 }
 
 TEST(base64_roundtrip) {
