@@ -535,6 +535,13 @@ if(
             liq_core
     )
 
+    if(LIQ_USE_LTO)
+        set_property(
+            TARGET liq_tests
+            PROPERTY INTERPROCEDURAL_OPTIMIZATION ON
+        )
+    endif()
+
     add_test(
         NAME liq_tests
         COMMAND liq_tests
