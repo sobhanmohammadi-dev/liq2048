@@ -107,7 +107,11 @@ private:
     float overflow_ = 0.f;
     // uint32_t seed_ = 1;
     // Spatial hash scratch.
-    std::vector<int> head_, next_;
+    struct Pos { float x, y; };
+    void gatherPositions();
+    std::vector<Pos> pos_;  // packed copy of the particle positions (cache friendly pair loops)
+    std::vector<int> cellStart_, cellOf_, fill_, sorted_;  // counting-sort cell grid of the pair search
+    std::vector<Pos> sortedPos_;
     struct PairRec {
         int i, j;
         float q, nx, ny;  // distance / radius and unit vector i -> j

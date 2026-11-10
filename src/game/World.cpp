@@ -169,47 +169,67 @@ void World::setPicture(const std::vector<int>& levels, const std::vector<int>& c
     anchors();
 }
 
+// Positions only, packed: the pair loops read two random particles per pair, and a 8-byte-per-particle array stays in
+// the L1 cache where the full particle records (48 bytes) do not.
+void World::gatherPositions() {
+    pos_.resize(parts.size());
+    for (size_t i = 0; i < parts.size(); ++i) pos_[i] = {parts[i].x, parts[i].y};
+}
+
 void World::buildPairs(float margin) {
     const float R = cfg::kInteract + margin;
     const float cell = R * 0.5f;
     const int nx = int(worldW / cell) + 5, ny = int(worldH / cell) + 5;
-    head_.assign(size_t(nx) * size_t(ny), -1);
-    next_.assign(parts.size(), -1);
-    auto cellIdx = [&](const Particle& p, int& cx, int& cy) {
-        cx = std::clamp(int(p.x / cell) + 2, 0, nx - 1);
-        cy = std::clamp(int(p.y / cell) + 2, 0, ny - 1);
-    };
+    const size_t n = parts.size(), cells = size_t(nx) * size_t(ny);
+    gatherPositions();
+
+    // Counting sort of the particles into cells: one contiguous run per cell instead of a linked list, so the pair search
+    // walks memory in order. Inside a cell the particles are stored by DESCENDING index, which is exactly the order the
+    // old linked list had, so the candidate pairs (and with them every float sum of the solver) come out unchanged.
+    cellStart_.assign(cells + 1, 0);
+    cellOf_.resize(n);
     int minCx = nx, maxCx = 0, minCy = ny, maxCy = 0;
-    for (int i = 0; i < int(parts.size()); ++i) {
-        int cx, cy;
-        cellIdx(parts[size_t(i)], cx, cy);
+    for (size_t i = 0; i < n; ++i) {
+        const int cx = std::clamp(int(pos_[i].x / cell) + 2, 0, nx - 1), cy = std::clamp(int(pos_[i].y / cell) + 2, 0, ny - 1);
         minCx = std::min(minCx, cx);
         maxCx = std::max(maxCx, cx);
         minCy = std::min(minCy, cy);
         maxCy = std::max(maxCy, cy);
-        next_[size_t(i)] = head_[size_t(cy) * size_t(nx) + size_t(cx)];
-        head_[size_t(cy) * size_t(nx) + size_t(cx)] = i;
+        const int id = cy * nx + cx;
+        cellOf_[i] = id;
+        ++cellStart_[size_t(id) + 1];
     }
+    for (size_t c = 0; c < cells; ++c) cellStart_[c + 1] += cellStart_[c];
+    fill_.assign(cellStart_.begin(), cellStart_.end() - 1);
+    sorted_.resize(n);
+    sortedPos_.resize(n);
+    for (size_t i = n; i-- > 0;) {
+        const size_t at = size_t(fill_[size_t(cellOf_[i])]++);
+        sorted_[at] = int(i);
+        sortedPos_[at] = pos_[i];
+    }
+
     cand_.clear();
-    auto test = [&](int i, int j) {
-        const Particle &a = parts[size_t(i)], &b = parts[size_t(j)];
-        const float dx = b.x - a.x, dy = b.y - a.y;
-        if (dx * dx + dy * dy >= R * R) return;
-        cand_.push_back({i, j, 0.f, dx >= 0.f ? 1.f : -1.f, 0.f});  // geometry filled by regeom()
-    };
+    const float R2 = R * R;
     // Half-shell of neighbour cells within +-2.
     static const int off[13][2] = {{0, 0}, {1, 0}, {2, 0}, {-2, 1}, {-1, 1}, {0, 1}, {1, 1}, {2, 1},
                                    {-2, 2}, {-1, 2}, {0, 2}, {1, 2}, {2, 2}};
     for (int cy = minCy; cy <= maxCy; ++cy)
         for (int cx = minCx; cx <= maxCx; ++cx) {
-            const int first = head_[size_t(cy) * size_t(nx) + size_t(cx)];
-            if (first < 0) continue;
+            const int s0 = cellStart_[size_t(cy * nx + cx)], e0 = cellStart_[size_t(cy * nx + cx) + 1];
+            if (s0 == e0) continue;
             for (int o = 0; o < 13; ++o) {
                 const int ax = cx + off[o][0], ay = cy + off[o][1];
                 if (ax < 0 || ax >= nx || ay >= ny) continue;
-                for (int i = first; i >= 0; i = next_[size_t(i)]) {
-                    int j = o == 0 ? next_[size_t(i)] : head_[size_t(ay) * size_t(nx) + size_t(ax)];
-                    for (; j >= 0; j = next_[size_t(j)]) test(i, j);
+                const int nid = ay * nx + ax;
+                const int s1 = cellStart_[size_t(nid)], e1 = cellStart_[size_t(nid) + 1];
+                for (int ia = s0; ia < e0; ++ia) {
+                    const Pos a = sortedPos_[size_t(ia)];
+                    for (int ib = o == 0 ? ia + 1 : s1, end = o == 0 ? e0 : e1; ib < end; ++ib) {
+                        const float dx = sortedPos_[size_t(ib)].x - a.x, dy = sortedPos_[size_t(ib)].y - a.y;
+                        if (dx * dx + dy * dy >= R2) continue;
+                        cand_.push_back({sorted_[size_t(ia)], sorted_[size_t(ib)], 0.f, dx >= 0.f ? 1.f : -1.f, 0.f});  // geometry: regeom()
+                    }
                 }
             }
         }
@@ -218,14 +238,18 @@ void World::buildPairs(float margin) {
 
 // Recompute pair geometry after particles moved; drop pairs that left the interaction radius.
 void World::regeom() {
-    pairs_.clear();
-    pairs_.reserve(cand_.size());
+    gatherPositions();
     const float R2 = cfg::kInteract * cfg::kInteract;
+    pairs_.resize(cand_.size());
+    PairRec* out = pairs_.data();
+    size_t kept = 0;
     for (const PairRec& c : cand_) {
-        const Particle &a = parts[size_t(c.i)], &b = parts[size_t(c.j)];
+        const Pos &a = pos_[size_t(c.i)], &b = pos_[size_t(c.j)];
         const float dx = b.x - a.x, dy = b.y - a.y, d2 = dx * dx + dy * dy;
-        if (d2 >= R2) continue;
-        PairRec pr = c;
+        // Branch-free filter: every candidate is written, only the ones inside the radius advance the cursor
+        // (whether a pair is inside is unpredictable, so a branch here costs a pipeline flush about every other pair).
+        PairRec& pr = out[kept];
+        pr = c;
         float d = std::sqrt(d2);
         if (d < 1e-4f) {  // exactly stacked: separate along a fixed axis
             pr.nx = (c.i + c.j) & 1 ? 1.f : -0.6f;
@@ -240,8 +264,9 @@ void World::regeom() {
             pr.ny = dy * inv;
         }
         pr.q = d / cfg::kInteract;
-        pairs_.push_back(pr);
+        kept += d2 < R2;
     }
+    pairs_.resize(kept);
 }
 
 void World::step(float dt, float gravity, float gx) {

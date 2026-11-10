@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(Liq2048
-    VERSION 1.8.1
+    VERSION 1.8.2
     LANGUAGES C CXX
     DESCRIPTION "Physics-based blob merging puzzle in C++17 and SDL2"
     HOMEPAGE_URL "https://github.com/sobhanmohammadi-dev/Liq2048"
@@ -35,8 +35,18 @@ option(LIQ_BUILD_TESTS
 )
 
 option(LIQ_BUILD_TOOLS
-    "Build developer tools (liq_audiogen and liq_puzzlegen)"
+    "Build developer tools (liq_audiogen, liq_puzzlegen and liq_bench)"
     OFF
+)
+
+option(LIQ_LTO
+    "Link-time optimisation for Release builds (smaller and usually faster; ignored when unsupported)"
+    ON
+)
+
+option(LIQ_STRIP
+    "Strip symbols from the Release executable"
+    ON
 )
 
 option(LIQ_WARNINGS_AS_ERRORS
@@ -285,6 +295,34 @@ else()
 endif()
 
 # ---------------------------------------------------------------------------
+# Size and speed: dead-code elimination, optional LTO and symbol stripping
+#
+# Every function and data object gets its own section so the linker can drop what nothing uses;
+# LTO lets the optimiser inline across translation units (the game is split into many small modules).
+# None of this changes behaviour: floating-point semantics are untouched (no -ffast-math).
+# ---------------------------------------------------------------------------
+
+if(NOT MSVC)
+    target_compile_options(liq_core PRIVATE -ffunction-sections -fdata-sections)
+    if(APPLE)
+        set(LIQ_GC_LINK_FLAG -Wl,-dead_strip)
+    else()
+        set(LIQ_GC_LINK_FLAG -Wl,--gc-sections)
+    endif()
+endif()
+
+if(LIQ_LTO AND CMAKE_BUILD_TYPE STREQUAL "Release")
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT LIQ_IPO_OK OUTPUT LIQ_IPO_MSG LANGUAGES CXX)
+    if(LIQ_IPO_OK)
+        set_property(TARGET liq_core PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
+        set(LIQ_USE_LTO ON)
+    else()
+        message(STATUS "LTO unavailable: ${LIQ_IPO_MSG}")
+    endif()
+endif()
+
+# ---------------------------------------------------------------------------
 # Main executable
 #
 # Android requires a shared library named "main".
@@ -316,6 +354,16 @@ target_link_libraries(liq2048
     PRIVATE
         liq_core
 )
+
+if(LIQ_USE_LTO)
+    set_property(TARGET liq2048 PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
+endif()
+if(LIQ_GC_LINK_FLAG)
+    target_link_options(liq2048 PRIVATE ${LIQ_GC_LINK_FLAG})
+endif()
+if(LIQ_STRIP AND CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT MSVC AND NOT APPLE AND NOT ANDROID)
+    target_link_options(liq2048 PRIVATE -s)
+endif()
 
 # SDL2main is only needed when the platform provides it.
 if(TARGET SDL2::SDL2main)
@@ -443,6 +491,15 @@ if(LIQ_BUILD_TOOLS AND NOT ANDROID AND NOT IOS)
     add_executable(liq_audiogen
         tools/audiogen/main.cpp
         tools/audiogen/Synth.cpp
+    )
+
+    add_executable(liq_bench
+        tools/bench/main.cpp
+    )
+
+    target_link_libraries(liq_bench
+        PRIVATE
+            liq_core
     )
 
     add_executable(liq_puzzlegen

@@ -40,7 +40,9 @@ public:
     int coveredPixels() const;  // number of non-transparent pixels (tests)
 
 private:
+    void zeroPlanes();
     int w_, h_;
+    int pxMinY_ = 0, pxMaxY_ = -1, planeMinY_ = 0, planeMaxY_ = -1;  // dirty row ranges (see clear())
     std::vector<uint32_t> px_;
     std::vector<float> f_, w1_, w2_, tmp_;
     std::vector<uint32_t> c1_, c2_;

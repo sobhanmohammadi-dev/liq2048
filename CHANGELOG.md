@@ -8,6 +8,27 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.8.2] "Tidy and fast"
+Behaviour-preserving release: no gameplay, physics or save-format change. Run codes from 1.8.x stay valid.
+
+### Changed
+- `GameScene` (1,468 lines in one file) is split into a private header and six focused modules under
+  `src/scenes/game/`: core, simulation, battle, effects, HUD and overlays.
+- Settings is split into `src/scenes/settings/`: a `SettingsForm` layout helper (rows, toggles, steppers,
+  meters) plus one function per page; the old `Common.cpp` became `scenes/Chrome.cpp`.
+- New shared widget library `src/ui/widgets/` (meter, segments, page dots, spinner, swatches, level strip,
+  banner, toast, slide-in, chip, crown caption) used by the HUD, overlays and settings.
+- Scenes are grouped into `menu/`, `modes/` and `extras/` folders.
+
+### Performance and size
+- Physics step about 31 % faster (1464 particles: 1.70 -> 1.18 ms): packed positions, branch-free
+  neighbour filter and a counting-sort cell grid that keeps the original candidate order. State hashes
+  are bit-identical to 1.8.1 for all eight liquids.
+- Rasteriser tracks dirty rows; a scene with few drops costs about a third as much (0.057 -> 0.019 ms).
+- Release builds use LTO, per-function sections, `--gc-sections` and symbol stripping
+  (`LIQ_LTO`, `LIQ_STRIP` options): Linux binary 1.07 MB -> 0.75 MB.
+- New developer tool `liq_bench` (`-DLIQ_BUILD_TOOLS=ON`) for world and raster timings.
+
 ## [1.8.1] "Liquid settings"
 
 ### Added

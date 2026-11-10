@@ -27,7 +27,24 @@ BlobRaster::BlobRaster(int w, int h)
     : w_(w), h_(h), px_(size_t(w) * size_t(h), 0), f_(px_.size()), w1_(px_.size()), w2_(px_.size()),
       c1_(px_.size()), c2_(px_.size()) {}
 
-void BlobRaster::clear() { std::fill(px_.begin(), px_.end(), 0u); }
+// Only the rows that were drawn on are wiped: a mostly empty pot costs almost nothing, and the three float planes of the
+// field are zeroed lazily for the region the previous draw used (everything outside it is zero by construction).
+void BlobRaster::clear() {
+    if (pxMaxY_ >= pxMinY_) std::fill(px_.begin() + ptrdiff_t(pxMinY_) * w_, px_.begin() + ptrdiff_t(pxMaxY_ + 1) * w_, 0u);
+    pxMinY_ = h_;
+    pxMaxY_ = -1;
+}
+
+void BlobRaster::zeroPlanes() {
+    if (planeMaxY_ >= planeMinY_) {
+        const ptrdiff_t a = ptrdiff_t(planeMinY_) * w_, b = ptrdiff_t(planeMaxY_ + 1) * w_;
+        std::fill(f_.begin() + a, f_.begin() + b, 0.f);
+        std::fill(w1_.begin() + a, w1_.begin() + b, 0.f);
+        std::fill(w2_.begin() + a, w2_.begin() + b, 0.f);
+    }
+    planeMinY_ = h_;
+    planeMaxY_ = -1;
+}
 
 int BlobRaster::coveredPixels() const {
     int n = 0;
@@ -41,9 +58,7 @@ void BlobRaster::drawField(const std::vector<BlobSprite>& sprites, const Theme& 
     const float C = vis::kColorSupport, C2 = C * C;
     const float T = iso > 0.f ? iso : std::pow(1.f - 1.f / S2, 3.f);  // field value on a lone blob's edge
 
-    std::fill(f_.begin(), f_.end(), 0.f);
-    std::fill(w1_.begin(), w1_.end(), 0.f);
-    std::fill(w2_.begin(), w2_.end(), 0.f);
+    zeroPlanes();
 
     int minY = h_, maxY = -1, minX = w_, maxX = -1;
     for (const BlobSprite& s : sprites) {
@@ -88,6 +103,10 @@ void BlobRaster::drawField(const std::vector<BlobSprite>& sprites, const Theme& 
         }
     }
     if (maxY < 0) return;
+    planeMinY_ = minY;
+    planeMaxY_ = maxY;
+    pxMinY_ = std::min(pxMinY_, minY);
+    pxMaxY_ = std::max(pxMaxY_, maxY);
 
     const uint32_t ink = pack(theme.ink);
     auto inside = [&](int x, int y) {
@@ -140,9 +159,7 @@ void BlobRaster::drawLiquid(const std::vector<BlobSprite>& parts, const Theme& t
                 if (q < 1.f) kc[size_t(y + colorR) * size_t(nc) + size_t(x + colorR)] = (1.f - q) * (1.f - q);
             }
     }
-    std::fill(f_.begin(), f_.end(), 0.f);
-    std::fill(w1_.begin(), w1_.end(), 0.f);
-    std::fill(w2_.begin(), w2_.end(), 0.f);
+    zeroPlanes();
     const int nf = 2 * fieldR + 1, nc = 2 * colorR + 1;
     int minY = h_, maxY = -1, minX = w_, maxX = -1;
     for (const BlobSprite& s : parts) {
@@ -184,6 +201,10 @@ void BlobRaster::drawLiquid(const std::vector<BlobSprite>& parts, const Theme& t
         }
     }
     if (maxY < 0) return;
+    planeMinY_ = std::max(0, minY - 1);  // the smoothing below writes one row beyond the drawn region
+    planeMaxY_ = std::min(h_ - 1, maxY + 1);
+    pxMinY_ = std::min(pxMinY_, minY);
+    pxMaxY_ = std::max(pxMaxY_, maxY);
     // Smooth the field a little ([1 2 1] twice) so the silhouette has clean, rounded contours.
     {
         if (tmp_.size() != f_.size()) tmp_.assign(f_.size(), 0.f);
@@ -225,7 +246,11 @@ void BlobRaster::drawLabels(const std::vector<BlobSprite>& sprites, const Theme&
     auto block = [&](int x, int y, int n, uint32_t c) {
         for (int yy = y; yy < y + n; ++yy)
             for (int xx = x; xx < x + n; ++xx)
-                if (xx >= 0 && yy >= 0 && xx < w_ && yy < h_) px_[size_t(yy) * size_t(w_) + size_t(xx)] = c;
+                if (xx >= 0 && yy >= 0 && xx < w_ && yy < h_) {
+                    px_[size_t(yy) * size_t(w_) + size_t(xx)] = c;
+                    pxMinY_ = std::min(pxMinY_, yy);
+                    pxMaxY_ = std::max(pxMaxY_, yy);
+                }
     };
     for (const BlobSprite& s : sprites) {
         const std::string text = std::to_string(1 << std::min(std::max(s.level, 0), 11));
