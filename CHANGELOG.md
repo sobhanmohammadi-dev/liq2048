@@ -8,6 +8,13 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.9.4] "Build fix"
+### Fixed
+- macOS: the clipboard command string had a hex escape that swallowed the next letters.
+- Linux (clang): float radii passed to `Gfx::disc` (an int parameter) failed under -Werror.
+- Windows (MSVC): the build treated int/float narrowing and "unsafe CRT function" warnings as errors; both are now
+  silenced for MSVC only (clang and gcc still check narrowing).
+
 ## [1.9.3] "Sharper"
 ### Changed
 - Harder in every mode, same core: drops grow faster over a run and reach 64, the drop cooldown is 0.5 s, combos build

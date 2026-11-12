@@ -180,7 +180,10 @@ bool clipboardImage(const std::vector<unsigned char>& png, const unsigned char* 
 #elif defined(__APPLE__)
 bool clipboardImage(const std::string& pngPath) {
     if (pngPath.find_first_of("\"\\'") != std::string::npos) return false;
-    const std::string cmd = "osascript -e 'set the clipboard to (read (POSIX file \"" + pngPath + "\") as \xC2\xABclass PNGf\xC2\xBB)' >/dev/null 2>&1";
+    const std::string cmd =
+        "osascript -e 'set the clipboard to (read (POSIX file \"" +
+        pngPath +
+        "\") as \xC2\xAB" "class PNGf" "\xC2\xBB)' >/dev/null 2>&1";
     return std::system(cmd.c_str()) == 0;
 }
 #elif defined(__unix__)

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(Liq2048
-    VERSION 1.9.3
+    VERSION 1.9.4
     LANGUAGES C CXX
     DESCRIPTION "Physics-based blob merging puzzle in C++17 and SDL2"
     HOMEPAGE_URL "https://github.com/sobhanmohammadi-dev/Liq2048"
@@ -274,7 +274,10 @@ if(MSVC)
     target_compile_options(liq_core PRIVATE
         /W4
         /utf-8
+        /wd4244  # int/float narrowing: checked by clang and gcc -Wall -Wextra instead
+        /wd4267
     )
+    target_compile_definitions(liq_core PRIVATE _CRT_SECURE_NO_WARNINGS)
 
     if(LIQ_WARNINGS_AS_ERRORS)
         target_compile_options(liq_core PRIVATE /WX)

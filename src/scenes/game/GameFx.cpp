@@ -102,16 +102,16 @@ void GameScene::drawMixMarks(Ctx& c, const World& W, int sx, int sy) {
         seen[size_t(p.g)] = 1;
         const Drop& d = W.drops[size_t(p.g)];
         const float r = World::radiusFor(d.level);
-        g.disc(d.x + float(sx), d.y + float(sy) - r * 0.62f, 2.6f, c.theme->ink);
-        g.disc(d.x + float(sx), d.y + float(sy) - r * 0.62f, 1.7f, mixColor(p.mat));
+        g.disc(d.x + float(sx), d.y + float(sy) - r * 0.62f, 2, c.theme->ink);
+        g.disc(d.x + float(sx), d.y + float(sy) - r * 0.62f, 1, mixColor(p.mat));
     }
     if (st_ == St::Over) return;
     const float hr = World::radiusFor(cur_);
     const int mc = mixLiquidOf(rec_.seed, drops_);
-    g.disc(holdX_ + float(sx), cfg::kSpawnY + float(sy) - hr * 0.62f, 2.6f, c.theme->ink);
-    g.disc(holdX_ + float(sx), cfg::kSpawnY + float(sy) - hr * 0.62f, 1.7f, mixColor(mc));
-    g.disc(c.ui.mx(8, 44) + 36.f, 26.f, 2.6f, c.theme->ink);
-    g.disc(c.ui.mx(8, 44) + 36.f, 26.f, 1.7f, mixColor(mixLiquidOf(rec_.seed, drops_ + 1)));
+    g.disc(holdX_ + float(sx), cfg::kSpawnY + float(sy) - hr * 0.62f, 2, c.theme->ink);
+    g.disc(holdX_ + float(sx), cfg::kSpawnY + float(sy) - hr * 0.62f, 1, mixColor(mc));
+    g.disc(c.ui.mx(8, 44) + 36.f, 26.f, 2, c.theme->ink);
+    g.disc(c.ui.mx(8, 44) + 36.f, 26.f, 1, mixColor(mixLiquidOf(rec_.seed, drops_ + 1)));
 }
 
 void GameScene::drawBlobs(Ctx& c, int sx, int sy) {
