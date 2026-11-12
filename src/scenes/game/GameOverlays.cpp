@@ -124,7 +124,7 @@ void GameScene::pauseMenu(Ctx& c) {
     Loc& L = c.loc;
     g.dim(t, 1);
     const bool canCopy = !battle_ && !rec_.empty();
-    const float ph = battle_ ? 138.f : (canCopy && !replaying_) ? 228.f : 198.f;
+    const float ph = battle_ ? 138.f : (canCopy && !replaying_) ? 228.f : 198.f;  // bottom button ends 10 px above the panel edge
     ui.panel(55, 170, 160, ph);
     g.text(L.tr("pause.title"), cfg::kW / 2.f, 192, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
     if (!platform::isMobile()) g.text("ESC  SPACE  U  F11", cfg::kW / 2.f, 170 + ph + 10, 1, t.dim, Align::Center);
@@ -151,8 +151,10 @@ void GameScene::pauseMenu(Ctx& c) {
         }
         by += 30;
     }
-    if (ui.button(L.tr("photo.btn"), 70, by, 130, 24)) st_ = St::Photo;
-    by += 30;
+    if (!battle_) {
+        if (ui.button(L.tr("photo.btn"), 70, by, 130, 24)) st_ = St::Photo;
+        by += 30;
+    }
     if (ui.button(L.tr("pause.settings"), 70, by, 130, 24)) st_ = St::Settings;
     by += 30;
     if (ui.button(L.tr("pause.quit"), 70, by, 130, 24)) {

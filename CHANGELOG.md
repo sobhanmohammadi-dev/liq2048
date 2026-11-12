@@ -8,6 +8,11 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.9.1] "Tidy HUD"
+### Fixed
+- Combo meter overlapped the Blind peek button; the Reserve box overlapped the tank wall. The left column (Next, Undo, Reserve) now ends above the walls, the combo meter sits under the pause button and the peek button is drawn with the HUD (it used to shake with the pot and sit under other layers).
+- The pause menu overflowed its panel in Battle (the new Photo button); Photo mode is not offered in Battle.
+
 ## [1.9.0] "Mobile first"
 ### Fixed
 - Taps needing several tries and the drop jumping to the right edge: the renderer converted touch positions while its logical size was briefly switched off (every frame, to paint the letterbox bars), so some touches arrived unscaled. Fingers are now read directly and mapped to the screen with our own maths.

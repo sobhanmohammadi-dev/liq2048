@@ -178,14 +178,6 @@ void GameScene::drawBlobs(Ctx& c, int sx, int sy) {
             c.gfx.text("?", q.x + float(sx), q.y + float(sy) - 3.f + std::sin(c.time * 2.f + q.x * 0.1f), sc, withAlpha(c.theme->text, 190), Align::Center);
         }
     }
-    if (mid_ == ModeId::Blind && !spec) {
-        if (peekT_ > 0.f) peekT_ -= 1.f / 60.f;
-        const float by = 36.f;
-        if (c.ui.button(c.loc.fmt("blind.peek", std::to_string(peeks_)), c.ui.mx(210, 56), by, 56, 20) && peeks_ > 0 && peekT_ <= 0.f && st_ == St::Playing) {
-            --peeks_;
-            peekT_ = 2.f;
-        }
-    }
 }
 
 }  // namespace liq
