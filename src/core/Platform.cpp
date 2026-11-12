@@ -9,6 +9,17 @@
 #include <filesystem>
 #include <system_error>
 
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+#elif defined(__ANDROID__)
+#include <jni.h>
+#elif defined(__unix__) || defined(__APPLE__)
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+#endif
+
 namespace liq::platform {
 
 std::vector<unsigned char> readFile(const std::string& path) {
@@ -88,6 +99,155 @@ std::string systemLanguage() {
 bool isMobile() {
     const char* p = SDL_GetPlatform();
     return p && (std::strcmp(p, "Android") == 0 || std::strcmp(p, "iOS") == 0);
+}
+
+namespace {
+#if !defined(__ANDROID__)
+std::string picturesDir() {
+    namespace fs = std::filesystem;
+#ifdef _WIN32
+    const char* home = std::getenv("USERPROFILE");
+#else
+    const char* home = std::getenv("HOME");
+#endif
+    std::error_code ec;
+    if (home && *home) {
+        for (const char* sub : {"Pictures", "Downloads"}) {
+            const fs::path base = fs::path(home) / sub;
+            if (fs::is_directory(base, ec)) {
+                const fs::path d = base / "Liq2048";
+                fs::create_directories(d, ec);
+                if (fs::is_directory(d, ec)) return d.string();
+            }
+        }
+    }
+    return prefPath();
+}
+#endif
+
+#if defined(_WIN32)
+bool clipboardImage(const std::vector<unsigned char>& png, const unsigned char* rgb, int w, int h) {
+    if (!OpenClipboard(nullptr)) return false;
+    EmptyClipboard();
+    bool ok = false;
+    // CF_DIB (bottom-up BGR, rows padded to 4 bytes) is what Paint, Word and chat apps paste.
+    const size_t stride = (size_t(w) * 3 + 3) & ~size_t(3);
+    HGLOBAL hd = GlobalAlloc(GMEM_MOVEABLE, sizeof(BITMAPINFOHEADER) + stride * size_t(h));
+    if (hd) {
+        auto* b = static_cast<unsigned char*>(GlobalLock(hd));
+        if (b) {
+            BITMAPINFOHEADER bi{};
+            bi.biSize = sizeof(bi);
+            bi.biWidth = w;
+            bi.biHeight = h;
+            bi.biPlanes = 1;
+            bi.biBitCount = 24;
+            bi.biCompression = BI_RGB;
+            std::memcpy(b, &bi, sizeof(bi));
+            unsigned char* px = b + sizeof(bi);
+            std::memset(px, 0, stride * size_t(h));
+            for (int y = 0; y < h; ++y) {
+                unsigned char* o = px + size_t(h - 1 - y) * stride;
+                const unsigned char* i = rgb + size_t(y) * size_t(w) * 3;
+                for (int x = 0; x < w; ++x) {
+                    o[x * 3] = i[x * 3 + 2];
+                    o[x * 3 + 1] = i[x * 3 + 1];
+                    o[x * 3 + 2] = i[x * 3];
+                }
+            }
+            GlobalUnlock(hd);
+            ok = SetClipboardData(CF_DIB, hd) != nullptr;
+        }
+        if (!ok) GlobalFree(hd);
+    }
+    const UINT fmt = RegisterClipboardFormatA("PNG");
+    HGLOBAL hp = png.empty() ? nullptr : GlobalAlloc(GMEM_MOVEABLE, png.size());
+    if (hp) {
+        void* d = GlobalLock(hp);
+        if (d) {
+            std::memcpy(d, png.data(), png.size());
+            GlobalUnlock(hp);
+            if (!SetClipboardData(fmt, hp)) GlobalFree(hp);
+        } else {
+            GlobalFree(hp);
+        }
+    }
+    CloseClipboard();
+    return ok;
+}
+#elif defined(__ANDROID__)
+// handled in exportImage through LiqActivity.exportImage (MediaStore insert + clipboard URI)
+#elif defined(__APPLE__)
+bool clipboardImage(const std::string& pngPath) {
+    if (pngPath.find_first_of("\"\\'") != std::string::npos) return false;
+    const std::string cmd = "osascript -e 'set the clipboard to (read (POSIX file \"" + pngPath + "\") as \xC2\xABclass PNGf\xC2\xBB)' >/dev/null 2>&1";
+    return std::system(cmd.c_str()) == 0;
+}
+#elif defined(__unix__)
+bool clipboardImage(const std::vector<unsigned char>& png) {
+    if (png.empty()) return false;
+    void (*old)(int) = std::signal(SIGPIPE, SIG_IGN);
+    bool ok = false;
+    // Wayland first, then X11; both tools read the PNG from stdin and keep serving it in the background.
+    for (const char* cmd : {"wl-copy --type image/png 2>/dev/null", "xclip -selection clipboard -t image/png -i 2>/dev/null"}) {
+        FILE* f = popen(cmd, "w");
+        if (!f) continue;
+        const size_t n = std::fwrite(png.data(), 1, png.size(), f);
+        const int rc = pclose(f);
+        if (n == png.size() && rc == 0) {
+            ok = true;
+            break;
+        }
+    }
+    std::signal(SIGPIPE, old);
+    return ok;
+}
+#endif
+}  // namespace
+
+int exportImage(const std::string& pngPath, const std::string& name, const unsigned char* rgb, int w, int h) {
+    int res = 0;
+#if defined(__ANDROID__)
+    (void)rgb; (void)w; (void)h;
+    JNIEnv* env = static_cast<JNIEnv*>(SDL_AndroidGetJNIEnv());
+    jobject act = static_cast<jobject>(SDL_AndroidGetActivity());
+    if (env && act) {
+        jclass cls = env->GetObjectClass(act);
+        jmethodID m = cls ? env->GetMethodID(cls, "exportImage", "(Ljava/lang/String;Ljava/lang/String;)I") : nullptr;
+        if (m) {
+            jstring jp = env->NewStringUTF(pngPath.c_str());
+            jstring jn = env->NewStringUTF(name.c_str());
+            res = int(env->CallIntMethod(act, m, jp, jn));
+            env->DeleteLocalRef(jp);
+            env->DeleteLocalRef(jn);
+        }
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+            res = 0;
+        }
+        if (cls) env->DeleteLocalRef(cls);
+        env->DeleteLocalRef(act);
+    }
+    if (!(res & kImgSaved) && !readFile(pngPath).empty()) res |= kImgSaved;  // at least the private copy exists
+#else
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const fs::path dst = fs::path(picturesDir()) / name;
+    if (fs::path(pngPath) == dst || fs::copy_file(pngPath, dst, fs::copy_options::overwrite_existing, ec)) res |= kImgSaved;
+    const std::vector<unsigned char> png = readFile(pngPath);
+#if defined(_WIN32)
+    if (!png.empty() && rgb && w > 0 && h > 0 && clipboardImage(png, rgb, w, h)) res |= kImgCopied;
+#elif defined(__APPLE__)
+    (void)rgb; (void)w; (void)h; (void)png;
+    if (clipboardImage(pngPath)) res |= kImgCopied;
+#elif defined(__unix__)
+    (void)rgb; (void)w; (void)h;
+    if (clipboardImage(png)) res |= kImgCopied;
+#else
+    (void)rgb; (void)w; (void)h; (void)png;
+#endif
+#endif
+    return res;
 }
 
 int dayNumber() { return int(std::time(nullptr) / 86400); }

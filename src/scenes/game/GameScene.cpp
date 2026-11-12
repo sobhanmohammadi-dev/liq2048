@@ -1,4 +1,5 @@
 // GameScene core: construction, per-frame orchestration and run (re)start.
+#include <ctime>
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -169,8 +170,7 @@ void GameScene::frame(Ctx& c, float dt) {
         case St::Photo:  // photo mode: clean pot, tap to save a PNG, Esc to go back
             if (c.in.esc) st_ = St::Paused;
             else if (c.in.pressed || c.in.confirm) {
-                const bool ok = g.capturePng(platform::prefPath() + "liq2048-photo.png");
-                toast_ = c.loc.tr(ok ? "card.saved" : "extras.fail");
+                toast_ = c.loc.tr(platform::imageToastKey(g.shareImage("liq2048-photo-" + std::to_string(std::time(nullptr)) + ".png")));
                 toastT_ = 2.5f;
             } else if (toastT_ <= 0.f) {
                 g.text(c.loc.tr("photo.hint"), cfg::kW / 2.f, cfg::kH - 30.f, 1, c.theme->dim, Align::Center);

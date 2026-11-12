@@ -1,4 +1,5 @@
 // "Additional features": run codes, player card and name, save backup / restore, authors.
+#include <ctime>
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -331,12 +332,12 @@ public:
 
         if (capturing_) {  // the frame without buttons is what gets saved
             capturing_ = false;
-            const std::string path = platform::prefPath() + "player-card.png";
-            const bool ok = g.capturePng(path);
-            msg_ = ok ? L.tr("card.saved") : L.tr("extras.fail");
+            const int got = g.shareImage("liq2048-player-card-" + std::to_string(std::time(nullptr)) + ".png");
+            const bool ok = got != 0;
+            msg_ = L.tr(platform::imageToastKey(got));
             msgBad_ = !ok;
             msgT_ = 3.f;
-            if (ok) {
+            if (ok && !(got & platform::kImgCopied)) {  // no image clipboard here: share the stats as text instead
                 const std::string txt = "Liq2048 V" LIQ_VERSION " - " + name + ": " + std::to_string(s.gamesPlayed) + " games, best droplet " +
                                         std::to_string(2 << std::min(s.highestLevel, 10)) + ", longest chain x" + std::to_string(s.longestChain);
                 SDL_SetClipboardText(txt.c_str());

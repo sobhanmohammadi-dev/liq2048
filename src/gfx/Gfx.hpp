@@ -76,7 +76,10 @@ public:
     void raster(const BlobRaster& r);               // upload + draw the droplet layer
 
     bool screenshot(const std::string& path);
-    bool capturePng(const std::string& path);  // the logical screen only (no bars), as PNG
+    bool capturePng(const std::string& path, std::vector<uint8_t>* rgb = nullptr, int* w = nullptr, int* h = nullptr);  // the logical screen only (no bars), as PNG
+    // Captures the logical screen, saves it as `name` in the pictures folder and copies the image to the clipboard.
+    // Returns platform::kImgSaved / kImgCopied bits (0 = failed).
+    int shareImage(const std::string& name);
 
 private:
     struct Face {

@@ -525,7 +525,7 @@ bool Gfx::screenshot(const std::string& path) {
     return ok;
 }
 
-bool Gfx::capturePng(const std::string& path) {
+bool Gfx::capturePng(const std::string& path, std::vector<uint8_t>* rgbOut, int* wOut, int* hOut) {
     int w = 0, h = 0;
     SDL_GetRendererOutputSize(r_, &w, &h);
     SDL_Surface* s = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
@@ -553,9 +553,22 @@ bool Gfx::capturePng(const std::string& path) {
             }
         }
         ok = writePng(path, cw, ch, rgb);
+        if (ok && rgbOut) {
+            *rgbOut = rgb;
+            if (wOut) *wOut = cw;
+            if (hOut) *hOut = ch;
+        }
     }
     SDL_FreeSurface(s);
     return ok;
+}
+
+int Gfx::shareImage(const std::string& name) {
+    const std::string tmp = platform::prefPath() + name;
+    std::vector<uint8_t> rgb;
+    int w = 0, h = 0;
+    if (!capturePng(tmp, &rgb, &w, &h)) return 0;
+    return platform::exportImage(tmp, name, rgb.data(), w, h);
 }
 
 }  // namespace liq

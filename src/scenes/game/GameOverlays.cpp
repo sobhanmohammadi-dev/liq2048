@@ -1,4 +1,5 @@
 // GameScene full-screen overlays: tutorial, pause menu, game-over and puzzle result panels.
+#include <ctime>
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -48,8 +49,7 @@ void GameScene::captureCard(Ctx& c) {
     g.number(std::to_string(score_), cfg::kW / 2.f, 200, 2, t.text, Align::Center, TextFx::Outline, t.ink);
     resultPicture(c, 222.f);
     g.text("LIQ2048 V" LIQ_VERSION, cfg::kW / 2.f, 256, 1, t.dim, Align::Center);
-    const bool ok = g.capturePng(platform::prefPath() + "liq2048-result.png");
-    toast_ = L.tr(ok ? "card.saved" : "extras.fail");
+    toast_ = L.tr(platform::imageToastKey(g.shareImage("liq2048-result-" + std::to_string(std::time(nullptr)) + ".png")));
     toastT_ = 2.5f;
 }
 

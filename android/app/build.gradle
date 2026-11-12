@@ -6,8 +6,8 @@ plugins {
 // Java and native sides always match. CI clones it to android/SDL; locally run:
 //   git clone --depth 1 --branch release-2.30.9 https://github.com/libsdl-org/SDL.git android/SDL
 def sdlDir = (project.findProperty('sdlDir') ?: "${rootDir}/SDL").toString()
-def liqVersion = (project.findProperty('liqVersion') ?: '1.9.1').toString()
-def liqVersionCode = (project.findProperty('liqVersionCode') ?: '10901').toString().toInteger()
+def liqVersion = (project.findProperty('liqVersion') ?: '1.9.2').toString()
+def liqVersionCode = (project.findProperty('liqVersionCode') ?: '10902').toString().toInteger()
 
 android {
     namespace 'dev.sobhanmohammadi.liq2048'

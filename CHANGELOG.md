@@ -8,6 +8,14 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.9.2] "Pictures"
+### Fixed
+- Photo mode, the run-result card and the player card only wrote a PNG into the app's private folder, so the picture could
+  not be found or pasted anywhere.
+### Changed
+- These now save a uniquely named PNG where you can reach it (Pictures/Liq2048 on desktop, the gallery on Android 10+) and
+  copy the image to the clipboard (Windows, macOS, Linux with wl-copy or xclip, Android). The toast says what happened.
+
 ## [1.9.1] "Tidy HUD"
 ### Fixed
 - Combo meter overlapped the Blind peek button; the Reserve box overlapped the tank wall. The left column (Next, Undo, Reserve) now ends above the walls, the combo meter sits under the pause button and the peek button is drawn with the HUD (it used to shake with the pot and sit under other layers).

@@ -20,6 +20,14 @@ bool isMobile();
 bool accel(float& x, float& y, float& z);
 bool shake();
 void vibrate(float strength, int ms);  // haptic pulse on phones (strength 0..1); no-op elsewhere
+// Image export: `pngPath` is a PNG already written; rgb (w*h*3) is the same picture. Saves a copy where the person can find it
+// (Pictures/Liq2048 on desktop, the gallery on Android) and puts the image on the clipboard. Returns kImgSaved/kImgCopied bits.
+constexpr int kImgSaved = 1, kImgCopied = 2;
+int exportImage(const std::string& pngPath, const std::string& name, const unsigned char* rgb, int w, int h);
+// Lang key for the toast after exportImage (0 = failed).
+inline const char* imageToastKey(int got) {
+    return got == (kImgSaved | kImgCopied) ? "img.both" : got == kImgCopied ? "img.copied" : got == kImgSaved ? "img.saved" : "extras.fail";
+}
 int dayNumber();                 // days since Unix epoch (UTC)
 
 }  // namespace liq::platform
