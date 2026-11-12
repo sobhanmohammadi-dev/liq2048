@@ -520,13 +520,7 @@ endif()
 # Tests
 # ---------------------------------------------------------------------------
 
-if(
-    LIQ_BUILD_TESTS
-    AND NOT ANDROID
-    AND NOT IOS
-    AND CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR
-)
-
+if(LIQ_BUILD_TESTS)
     enable_testing()
 
     add_executable(liq_tests
@@ -538,12 +532,18 @@ if(
             liq_core
     )
 
+    # Keep IPO/LTO settings consistent with liq_core.
+    if(LIQ_USE_LTO)
+        set_property(
+            TARGET liq_tests
+            PROPERTY INTERPROCEDURAL_OPTIMIZATION ON
+        )
+    endif()
+
     add_test(
         NAME liq_tests
         COMMAND liq_tests
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
-
 endif()
 
 # ---------------------------------------------------------------------------
