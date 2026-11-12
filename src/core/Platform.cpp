@@ -8,6 +8,9 @@
 #include <ctime>
 #include <filesystem>
 #include <system_error>
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -178,6 +181,16 @@ bool clipboardImage(const std::vector<unsigned char>& png, const unsigned char* 
 #elif defined(__ANDROID__)
 // handled in exportImage through LiqActivity.exportImage (MediaStore insert + clipboard URI)
 #elif defined(__APPLE__)
+
+#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+
+bool clipboardImage(const std::string& pngPath) {
+    (void)pngPath;
+    return false;
+}
+
+#else  // macOS
+
 bool clipboardImage(const std::string& pngPath) {
     if (pngPath.find_first_of("\"\\'") != std::string::npos) return false;
     const std::string cmd =
@@ -186,6 +199,8 @@ bool clipboardImage(const std::string& pngPath) {
         "\") as \xC2\xAB" "class PNGf" "\xC2\xBB)' >/dev/null 2>&1";
     return std::system(cmd.c_str()) == 0;
 }
+
+#endif  // TARGET_OS_IPHONE
 #elif defined(__unix__)
 bool clipboardImage(const std::vector<unsigned char>& png) {
     if (png.empty()) return false;
