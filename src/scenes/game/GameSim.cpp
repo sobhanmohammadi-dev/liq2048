@@ -10,35 +10,35 @@
 namespace liq {
 
 void GameScene::saveSnap() {
-    snap_.world = world_;
-    snap_.rng = rng_;
-    snap_.score = score_;
-    snap_.drops = drops_;
-    snap_.cur = cur_;
-    snap_.next = next_;
-    snap_.maxLevel = maxLevel_;
-    snap_.elapsed = elapsed_;
-    snap_.quiet = quiet_;
-    snap_.simStep = simStep_;
-    snap_.relief = tideRelief_;
-    snap_.combo = combo_;
-    snap_.comboT = comboT_;
-    snap_.reserve = reserve_;
-    snap_.deadY = deadY_;
-    snap_.valid = true;
-}
-
-void GameScene::doSwap(Ctx& c) {
-    if (!swapAllowed() || st_ != St::Playing || swaps_ <= 0 || cooldown_ > 0.f || (mode_->dropLimit() >= 0 && drops_ >= mode_->dropLimit())) return;
-    std::swap(cur_, reserve_);
-    --swaps_;
-    holdPop_ = Spring{-0.35f, 7.f};
-    c.audio.play(Sfx::Click);
-    buzz(c, 0.2f, 10);
+    if (snaps_.size() >= kUndoDepth) snaps_.erase(snaps_.begin());
+    snaps_.emplace_back();
+    Snap& s = snaps_.back();
+    s.world = world_;
+    s.rng = rng_;
+    s.score = score_;
+    s.drops = drops_;
+    s.cur = cur_;
+    s.next = next_;
+    s.maxLevel = maxLevel_;
+    s.elapsed = elapsed_;
+    s.quiet = quiet_;
+    s.simStep = simStep_;
+    s.relief = tideRelief_;
+    s.combo = combo_;
+    s.comboT = comboT_;
+    s.deadY = deadY_;
 }
 
 void GameScene::doUndo(Ctx& c) {
-    if (!undoAllowed() || replaying_ || !snap_.valid || undos_ <= 0 || st_ != St::Playing) return;
+    if (!undoAllowed() || replaying_ || snaps_.empty() || undos_ <= 0 || st_ != St::Playing) return;
+    // Back to before the last combination; with no merge in the history, just the last drop.
+    size_t i = snaps_.size() - 1;
+    for (size_t k = snaps_.size(); k-- > 0;)
+        if (snaps_[k].merged) {
+            i = k;
+            break;
+        }
+    const Snap& snap_ = snaps_[i];
     world_ = snap_.world;
     rng_ = snap_.rng;
     score_ = snap_.score;
@@ -52,10 +52,9 @@ void GameScene::doUndo(Ctx& c) {
     tideRelief_ = snap_.relief;
     combo_ = snap_.combo;
     comboT_ = snap_.comboT;
-    reserve_ = snap_.reserve;
     deadY_ = snap_.deadY;
     rec_.truncateFrom(simStep_);
-    snap_.valid = false;
+    snaps_.resize(i);
     --undos_;
     parts_.clear();
     texts_.clear();
@@ -78,20 +77,20 @@ int GameScene::roll() {
     if (mid_ == ModeId::Battle) return battle::battleLevel(bcfg_.seed, queueIdx_++, mod_);
     const int r = rng_.range(0, 99);
     if (mod_ == kModBonus) return r < 15 ? 1 : r < 45 ? 2 : r < 80 ? 3 : 4;
-    if (mid_ == ModeId::Zen) return r < 40 ? 0 : r < 70 ? 1 : r < 90 ? 2 : 3;  // Zen stays relaxed
+    if (mid_ == ModeId::Zen) return r < 30 ? 0 : r < 60 ? 1 : r < 85 ? 2 : 3;  // Zen stays relaxed, but not trivial
     // Everyone else gets bigger drops the longer a run lasts (cumulative weights for levels 0..5).
-    static const int w[5][6] = {{38, 70, 90, 100, 100, 100}, {28, 56, 78, 93, 100, 100}, {20, 42, 66, 86, 100, 100},
-                                {14, 32, 54, 78, 100, 100}, {10, 24, 44, 68, 88, 100}};
-    const int tier = std::min(4, drops_ / rampDiv());
+    static const int w[6][7] = {{26, 52, 76, 92, 100, 100, 100}, {20, 42, 66, 86, 100, 100, 100}, {14, 32, 54, 78, 94, 100, 100},
+                                {10, 24, 44, 68, 86, 98, 100}, {7, 18, 36, 58, 78, 94, 100}, {5, 13, 28, 48, 70, 90, 100}};
+    const int tier = std::min(5, drops_ / rampDiv());
     int lvl = 0;
-    while (lvl < 5 && r >= w[tier][lvl]) ++lvl;
+    while (lvl < 6 && r >= w[tier][lvl]) ++lvl;
     return lvl;
 }
 
 void GameScene::tryDrop(Ctx& c, bool force, int levelOverride) {
     const int lim = mode_->dropLimit();
     if ((cooldown_ > 0 && !force) || (lim >= 0 && drops_ >= lim)) return;
-    if (undoAllowed()) saveSnap();
+    if (undoAllowed()) saveSnap();  // history for undo
     const int lvl = levelOverride >= 0 ? levelOverride : cur_;
     aimX_ = quantX(aimX_);  // run codes store positions in 1/128 px
     if (!replaying_) rec_.drops.push_back({simStep_, aimX_, lvl});
@@ -158,8 +157,8 @@ void GameScene::onMerge(Ctx& c, const MergeEvent& e) {
                       "+" + std::to_string(gain), e.chain >= 3 ? t.accent : t.text, e.chain >= 3 ? 2 : 1});
     buzz(c, 0.35f + 0.05f * float(std::min(e.level, 8)) + 0.1f * float(std::min(e.chain, 4)), 18 + 6 * std::min(e.level, 8) + 15 * std::min(e.chain - 1, 3));
     if (e.level >= 8 || e.chain >= 4) slowT_ = 0.45f;
-    if (e.chain >= 4 && swaps_ < 5 && swapAllowed()) ++swaps_;
-    if (e.chain >= 3 && undoAllowed() && undos_ < 3) {
+    if (!snaps_.empty()) snaps_.back().merged = true;
+    if (e.chain >= 4 && undoAllowed() && undos_ < 2) {
         ++undos_;
         texts_.push_back({e.x, e.y + 8.f, 1.2f, "+" + c.loc.tr("hud.undo"), t.accent, 1});
     }

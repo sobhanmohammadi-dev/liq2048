@@ -45,7 +45,7 @@ inline float quakeAmount(int m, uint32_t step) {
 }
 
 // Downpour: seconds between automatic drops after `elapsed` seconds.
-inline float rainInterval(float elapsed) { return std::max(1.1f, 3.2f - elapsed * 0.02f); }
+inline float rainInterval(float elapsed) { return std::max(1.0f, 2.8f - elapsed * 0.025f); }
 // Rising tide: how far (px) the overflow line has sunk after `elapsed` seconds. It sinks at a steady rate until it is
 // kTideMaxShift lower, then keeps moving like a swell so it never looks stuck.
 inline float tideShift(float elapsed) {

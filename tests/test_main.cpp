@@ -928,7 +928,7 @@ TEST(modifiers_v18) {
     for (uint32_t i = 0; i < 480; ++i) calm += modifierSideways(kModQuake, i) == 0.f || std::fabs(modifierSideways(kModQuake, i)) < 1600.f;
     CHECK(calm == 480);
     CHECK(quakeAmount(kModQuake, 600) == 0.f && quakeAmount(kModQuake, 27) > 0.9f);
-    CHECK(rainInterval(0.f) > rainInterval(200.f) && rainInterval(1000.f) >= 1.1f);
+    CHECK(rainInterval(0.f) > rainInterval(200.f) && rainInterval(1000.f) >= 1.0f);
     CHECK(tideShift(10.f) < tideShift(30.f));
     {   // Tide v2: bounded, never negative, never jumps faster than the line may move (50 px/s), deterministic
         bool ok = true;

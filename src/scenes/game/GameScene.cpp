@@ -57,8 +57,8 @@ void GameScene::stashResume(Ctx& c) {
     r.outcome = 0;
     c.save.resumeCode = r.toCode();
     c.save.resumeCur = cur_;
-    c.save.resumeReserve = reserve_;
-    c.save.resumeSwaps = swaps_;
+    c.save.resumeReserve = 0;
+    c.save.resumeSwaps = 0;
     c.save.resumeUndos = undos_;
 }
 
@@ -69,8 +69,6 @@ void GameScene::finishResume(Ctx& c) {
     rec_.endStep = 0;
     rec_.outcome = 0;
     cur_ = c.save.resumeCur;
-    reserve_ = c.save.resumeReserve;
-    swaps_ = c.save.resumeSwaps;
     undos_ = c.save.resumeUndos;
     elapsed_ = float(simStep_) * cfg::kStep;
     autoT_ = autoFill_ = 0.f;
@@ -79,7 +77,7 @@ void GameScene::finishResume(Ctx& c) {
     rings_.clear();
     shake_ = chainT_ = slowT_ = 0.f;
     cooldown_ = 0.5f;
-    snap_.valid = false;
+    snaps_.clear();
     c.audio.setSfxVolume(c.save.sfxVol);
     st_ = St::Paused;  // let the player get ready
     lastSt_ = St::Paused;
@@ -257,7 +255,7 @@ void GameScene::start(Ctx& c) {
     score_ = drops_ = maxLevel_ = 0;
     dispScore_ = 0;
     trail_.clear(); queuedDrop_ = 0; cooldown_ = quiet_ = elapsed_ = acc_ = shake_ = overT_ = toastT_ = chainT_ = slowT_ = 0;
-    snap_.valid = false;
+    snaps_.clear();
     undos_ = 1;
     aiming_ = committed_ = newBest_ = false;
     outcome_ = Outcome::Running;
@@ -269,8 +267,6 @@ void GameScene::start(Ctx& c) {
     }
     cur_ = roll();
     next_ = roll();
-    reserve_ = roll();
-    swaps_ = 3;
     combo_ = 0;
     comboT_ = 0.f;
     introHint(c);

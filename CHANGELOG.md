@@ -8,6 +8,16 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.9.3] "Sharper"
+### Changed
+- Harder in every mode, same core: drops grow faster over a run and reach 64, the drop cooldown is 0.5 s, combos build
+  more slowly (x1..x4, shorter window), Time Attack is 75 s, Rising Tide sinks faster and chains lift it less, Endless
+  Rain speeds up sooner, daily/weekly runs ramp up faster, Zen has fewer tiny drops.
+- Undo now rewinds to just before the last combination (up to 6 drops back), and extra charges need a chain of 4 (max 2).
+### Removed
+- The Reserve (swap) button and its stored droplet.
+- Note: old saved quick-resume codes may continue with a different next drop.
+
 ## [1.9.2] "Pictures"
 ### Fixed
 - Photo mode, the run-result card and the player card only wrote a PNG into the app's private folder, so the picture could

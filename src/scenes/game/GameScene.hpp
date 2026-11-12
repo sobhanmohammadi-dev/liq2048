@@ -85,7 +85,8 @@ private:
     int replaySpeed_ = 1;           // 1, 2 or 4
     float slowT_ = 0, cooldown_ = 0, quiet_ = 0, elapsed_ = 0, acc_ = 0, shake_ = 0, overT_ = 0, toastT_ = 0, chainT_ = 0;
     int chainShown_ = 0;
-    // Undo (Classic and Zen): one step back, charges are earned by chains.
+    // Undo (Classic and Zen): rewinds to just before the last combination (merge). Snapshots are taken before every drop;
+    // `merged` marks the ones whose drop led to a merge. Charges are earned by chains.
     struct Snap {
         World world;
         Rng rng;
@@ -93,12 +94,14 @@ private:
         float elapsed = 0, quiet = 0;
         uint32_t simStep = 0;
         float relief = 0, deadY = 0, comboT = 0;
-        int combo = 0, reserve = 0;
-        bool valid = false;
-    } snap_;
+        int combo = 0;
+        bool merged = false;
+    };
+    static constexpr size_t kUndoDepth = 6;
+    std::vector<Snap> snaps_;
     int undos_ = 1;
-    // Combo meter (v1.8.4): merges that follow each other within kComboWindow seconds build a score multiplier (x1..x5).
-    static constexpr float kComboWindow = 3.5f;
+    // Combo meter (v1.8.4): merges that follow each other within kComboWindow seconds build a score multiplier (x1..x4).
+    static constexpr float kComboWindow = 2.6f;
     // Quick resume (v1.8.5)
     Ctx* ctx_ = nullptr;
     bool stashDue_ = false;
@@ -108,13 +111,7 @@ private:
     void finishResume(Ctx& c);
     int combo_ = 0;
     float comboT_ = 0.f;
-    int comboMult() const { return 1 + std::min(4, combo_ / 3); }
-    // Reserve (v1.8.4): park the drop in your hand and take the parked one instead. A few swaps per run; chains earn more.
-    int reserve_ = 0, swaps_ = 3;
-    bool swapAllowed() const {
-        return !hot_ && !replaying_ && !battle_ && mid_ != ModeId::Daily && mid_ != ModeId::Weekly && mid_ != ModeId::Puzzle;
-    }
-    void doSwap(Ctx& c);
+    int comboMult() const { return 1 + std::min(3, combo_ / 4); }
     // Battle (v1.7.0)
     bool battle_ = false;
     battle::MatchConfig bcfg_;
@@ -173,7 +170,7 @@ private:
     std::vector<PopRing> rings_;
 
     int roll();
-    int rampDiv() const { return mid_ == ModeId::Daily || mid_ == ModeId::Weekly ? 12 : 9; }  // harder than before (v1.8.4)
+    int rampDiv() const { return mid_ == ModeId::Daily || mid_ == ModeId::Weekly ? 9 : 6; }  // v1.9.3: the ramp is steeper
 
     void start(Ctx& c);
 

@@ -86,22 +86,12 @@ void GameScene::drawHud(Ctx& c) {
     // Undo (Classic and Zen): icon plus remaining charges.
     if (undoAllowed()) {
         const float ux = ui.mx(8, 44);
-        const bool can = play && snap_.valid && undos_ > 0;
+        const bool can = play && !snaps_.empty() && undos_ > 0;
         if (ui.button("", ux, 54, 44, 15, can, can)) doUndo(c);
         g.icon(IconId::Undo, ux + 8, 57.f, can ? t.text : t.dim);
         g.number(std::to_string(undos_), ux + 32.f, 59, 1, can ? t.text : t.dim, Align::Center);
     }
 
-    // Reserve: the parked drop. Tap to swap it with the one in your hand.
-    if (swapAllowed()) {
-        const float rx = ui.mx(8, 44);
-        const bool can = play && swaps_ > 0 && cooldown_ <= 0.f;
-        const float ry = undoAllowed() ? 71.f : 54.f;  // stays above the tank walls, which start at y = 88
-        if (ui.button("", rx, ry, 44, 15, can, false)) doSwap(c);
-        g.disc(rx + 8.f, ry + 7.5f, 4.f, t.blob[std::min(reserve_, 11)]);
-        g.text(std::to_string(1 << reserve_), rx + 22.f, ry + 4.f, 1, can ? t.text : t.dim, Align::Center);
-        g.number("x" + std::to_string(swaps_), rx + 37.f, ry + 4.f, 1, can ? t.accent : t.dim, Align::Center);
-    }
     // Combo meter: fills while a combo is alive, drains as its window runs out.
     if (combo_ > 0 && !vw) {
         const float cx = ui.mx(206, 56);
