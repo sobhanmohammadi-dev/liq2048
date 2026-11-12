@@ -45,7 +45,7 @@ void World::clear() {
     overflow_ = 0.f;
 }
 
-void World::spawn(float x, float y, int level) {
+void World::spawn(float x, float y, int level, int mat) {
     const float r = radiusFor(level);
     Drop d;
     d.level = level;
@@ -62,6 +62,7 @@ void World::spawn(float x, float y, int level) {
             p.rx = px - x;
             p.ry = py - y;
             p.g = gi;
+            p.mat = uint8_t(mat);
             parts.push_back(p);
             ++d.n;
         }
@@ -361,7 +362,7 @@ void World::substep(float h, float g, bool last) {
         }
         const float u = (a.vx - b.vx) * pr.nx + (a.vy - b.vy) * pr.ny;  // >0 approaching
         if (u <= 0.f) continue;
-        const float I = h * (1.f - pr.q) * (cfg::kViscSigma * viscScale * u + cfg::kViscBeta * u * u) * 0.5f;
+        const float I = h * (1.f - pr.q) * (cfg::kViscSigma * (mixed ? viscScale * 0.5f * (mix[a.mat].visc + mix[b.mat].visc) : viscScale) * u + cfg::kViscBeta * u * u) * 0.5f;
         a.vx -= I * pr.nx;
         a.vy -= I * pr.ny;
         b.vx += I * pr.nx;
@@ -445,7 +446,8 @@ void World::substep(float h, float g, bool last) {
         const float d = pr.q * cfg::kInteract;
         if (d <= cfg::kSpacing) continue;
         // Surface tension acts while the drop is in motion; a sticky liquid keeps some of it at rest (restCohesion).
-        const float k = moving_[size_t(a.g)] ? cfg::kCohesion * cohesion : cfg::kCohesion * restCohesion;
+        const float k = mixed ? cfg::kCohesion * (moving_[size_t(a.g)] ? mix[a.mat].coh : mix[a.mat].rest)
+                              : moving_[size_t(a.g)] ? cfg::kCohesion * cohesion : cfg::kCohesion * restCohesion;
         if (k <= 0.f) continue;
         const float pull = k * (1.f - pr.q) * 0.5f;
         a.x += pull * pr.nx;
@@ -472,8 +474,8 @@ void World::substep(float h, float g, bool last) {
         p.vx = (p.x - p.px) / h;
         p.vy = (p.y - p.py) / h;
         if (wall) {
-            p.vx *= wallDrag;
-            p.vy *= wallVy;
+            p.vx *= mixed ? mix[p.mat].drag : wallDrag;
+            p.vy *= mixed ? mix[p.mat].vy : wallVy;
         }
         p.vx *= damp;
         p.vy *= damp;

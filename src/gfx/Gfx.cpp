@@ -165,6 +165,21 @@ void Gfx::clear(Color c) {
     SDL_RenderClear(r_);
 }
 
+void Gfx::windowToLogical(float nx, float ny, float& lx, float& ly) const {
+    int ow = 0, oh = 0;
+    SDL_GetRendererOutputSize(r_, &ow, &oh);
+    if (ow <= 0 || oh <= 0) {
+        lx = nx * float(cfg::kW);
+        ly = ny * float(cfg::kH);
+        return;
+    }
+    float scale = std::min(float(ow) / float(cfg::kW), float(oh) / float(cfg::kH));
+    if (SDL_RenderGetIntegerScale(r_) && scale >= 1.f) scale = std::floor(scale);
+    const float cx = (float(ow) - float(cfg::kW) * scale) * 0.5f, cy = (float(oh) - float(cfg::kH) * scale) * 0.5f;
+    lx = (nx * float(ow) - cx) / scale;
+    ly = (ny * float(oh) - cy) / scale;
+}
+
 void Gfx::fillBars(const Theme& t) {
     int ow = 0, oh = 0;
     SDL_GetRendererOutputSize(r_, &ow, &oh);
@@ -469,9 +484,29 @@ void Gfx::drawTankBg() {
 
 void Gfx::raster(const BlobRaster& r) {
     if (!rasterTex_) return;
-    SDL_UpdateTexture(rasterTex_, nullptr, r.pixels(), r.width() * 4);
-    SDL_Rect dst{ox_, oy_, cfg::kW, cfg::kH};
-    SDL_RenderCopy(r_, rasterTex_, nullptr, &dst);
+    // Upload only the rows that changed: the ones holding droplets now plus the ones that held droplets last time
+    // (which must be wiped). On phones this saves most of the half-megabyte texture upload every frame.
+    int a = 0, b = -1;
+    const bool any = r.dirtyRows(a, b);
+    if (any) {
+        a = std::max(0, a);
+        b = std::min(r.height() - 1, b);
+    }
+    int ua = any ? a : 1 << 30, ub = any ? b : -1;
+    if (gpuLast_ >= gpuFirst_) {
+        ua = std::min(ua, gpuFirst_);
+        ub = std::max(ub, gpuLast_);
+    }
+    if (ub >= ua) {
+        SDL_Rect up{0, ua, r.width(), ub - ua + 1};
+        SDL_UpdateTexture(rasterTex_, &up, r.pixels() + size_t(ua) * size_t(r.width()), r.width() * 4);
+    }
+    gpuFirst_ = any ? a : 1 << 30;
+    gpuLast_ = any ? b : -1;
+    if (!any) return;  // nothing to draw
+    SDL_Rect src{0, a, r.width(), b - a + 1};
+    SDL_Rect dst{ox_, oy_ + a, r.width(), b - a + 1};
+    SDL_RenderCopy(r_, rasterTex_, &src, &dst);
 }
 
 bool Gfx::screenshot(const std::string& path) {

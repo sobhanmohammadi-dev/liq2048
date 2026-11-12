@@ -92,6 +92,22 @@ void GameScene::drawHud(Ctx& c) {
         g.number(std::to_string(undos_), ux + 32.f, 67, 1, can ? t.text : t.dim, Align::Center);
     }
 
+    // Reserve: the parked drop. Tap to swap it with the one in your hand.
+    if (swapAllowed()) {
+        const float rx = ui.mx(8, 44);
+        const bool can = play && swaps_ > 0 && cooldown_ <= 0.f;
+        if (ui.button("", rx, 81, 44, 17, can, false)) doSwap(c);
+        g.disc(rx + 9.f, 89.5f, 5.f, t.blob[std::min(reserve_, 11)]);
+        g.text(std::to_string(1 << reserve_), rx + 24.f, 86.f, 1, can ? t.text : t.dim, Align::Center);
+        g.number("x" + std::to_string(swaps_), rx + 38.f, 91.f, 1, can ? t.accent : t.dim, Align::Center);
+    }
+    // Combo meter: fills while a combo is alive, drains as its window runs out.
+    if (combo_ > 0 && !vw) {
+        const float cx = ui.mx(200, 62);
+        widgets::meter(g, t, cx, 38.f, 62.f, 8.f, clampv(comboT_ / kComboWindow, 0.f, 1.f));
+        g.number("x" + std::to_string(comboMult()) + "  " + std::to_string(combo_), cx + 31.f, 52.f, 1, comboMult() > 1 ? t.accent : t.text, Align::Center);
+    }
+
     // Mode, status, segmented progress bar.
     const Stats s = stats();
     if (vw) g.text(opp_->name() + " - " + L.tr("battle.viewing"), cfg::kW / 2.f, 64, 1, t.danger, Align::Center);

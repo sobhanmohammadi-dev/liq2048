@@ -14,6 +14,9 @@
 
 namespace liq::widgets {
 
+// First-run coach (v1.8.5): a pulsing frame around the control to press next, with a short caption above or below it.
+void coachRing(Gfx& g, const Theme& t, float time, float x, float y, float w, float h, const std::string& caption, bool captionBelow);
+
 // Horizontal meter: ink frame, dark trough, accent fill. `frac` is clamped to 0..1.
 void meter(Gfx& g, const Theme& t, float x, float y, float w, float h, float frac);
 

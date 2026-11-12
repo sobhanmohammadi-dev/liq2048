@@ -1,4 +1,11 @@
-// Settings panel: frame, title, page dispatch and navigation. Pages live in SettingsPages.cpp.
+// Settings panel: frame, title, tab strip, page dispatch and Back. Pages live in SettingsPages.cpp.
+//
+//   +-------------------------------+
+//   |           SETTINGS            |
+//   | [General][Game][Liquid][Access] |   <- tabs: one tap to any page
+//   |   rows of the selected page   |
+//   |            [Back]             |
+//   +-------------------------------+
 #include "scenes/settings/SettingsForm.hpp"
 
 namespace liq {
@@ -6,7 +13,9 @@ namespace liq {
 namespace {
 int g_page = 0;  // 0 = general, 1 = game feel, 2 = accessibility, 3 = liquid
 constexpr int kPages = 4;
-constexpr float kRowsTop = 40.f, kRowsBottom = 40.f;
+constexpr int kRows = 8;                       // every page is laid out on the same eight-row panel
+constexpr float kRowsTop = 66.f, kRowsBottom = 40.f;
+const int kTabPage[kPages] = {0, 1, 3, 2};  // display order: General, Game, Liquid, Access
 }  // namespace
 
 void setSettingsPage(int p) { g_page = p < 0 || p >= kPages ? 0 : p; }
@@ -14,29 +23,32 @@ void setSettingsPage(int p) { g_page = p < 0 || p >= kPages ? 0 : p; }
 bool drawSettings(Ctx& c, float y0, bool allowCustom) {
     using namespace settings;
     Ui& ui = c.ui;
-    const int rows = g_page == 0 ? 9 : 8;
-    const float panelH = kRowsTop + float(rows) * kRowH + kRowsBottom;
+    const float panelH = kRowsTop + float(kRows) * kRowH + kRowsBottom;
     ui.panel(14, y0, 242, panelH);
     c.gfx.text(c.loc.tr("settings.title"), 135, y0 + 20, 2, c.theme->accent, Align::Center, TextFx::Outline, c.theme->ink);
+
+    // tab strip
+    const float tw = 56.f, gap = 2.f;
+    for (int i = 0; i < kPages; ++i) {
+        const int page = kTabPage[i];
+        const char* key = page == 0 ? "settings.general" : page == 1 ? "tab.feel" : page == 2 ? "settings.access" : "tab.liquid";
+        if (ui.button(c.loc.tr(key), ui.mx(19.f + float(i) * (tw + gap), tw), y0 + 34, tw, 20, true, true,
+                      g_page == page ? BtnStyle::Primary : BtnStyle::Normal))
+            g_page = page;
+    }
 
     SettingsForm f(c, y0 + kRowsTop);
     switch (g_page) {
         case 1: feelPage(f); break;
         case 2: accessPage(f); break;
         case 3: liquidPage(f); break;
-        default: generalPage(f, g_page, allowCustom); break;
+        default: generalPage(f, allowCustom); break;
     }
 
-    const float by = y0 + panelH - 34;
-    if (ui.button(c.loc.tr("common.back"), 20, by, 100, 24)) {
-        const bool leave = true;  // Back always closes the panel and returns to the general page next time
-        g_page = 0;
-        return leave;
+    if (ui.button(c.loc.tr("common.back"), 55, y0 + panelH - 34, 160, 24)) {
+        g_page = 0;  // the next visit starts on the general page again
+        return true;
     }
-    // The second button walks the pages: general -> feel -> liquid -> accessibility -> general.
-    static const int kNext[kPages] = {1, 3, 0, 2};
-    static const char* kNextLabel[kPages] = {"settings.more", "settings.liquid", "settings.general", "settings.access"};
-    if (ui.button(c.loc.tr(kNextLabel[g_page]), 150, by, 100, 24)) g_page = kNext[g_page];
     return false;
 }
 

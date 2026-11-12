@@ -15,6 +15,10 @@ std::vector<std::string> listFiles(const std::string& dir, const std::string& ex
 std::string prefPath();          // writable per-user dir (save file)
 std::string systemLanguage();    // "en", "fa", ...
 bool isMobile();
+// Motion sensors (phones). accel() gives the accelerometer in m/s^2 in device axes (x right, y up, z out of the screen);
+// returns false when the device has none. shake() is true once per shake of the phone.
+bool accel(float& x, float& y, float& z);
+bool shake();
 void vibrate(float strength, int ms);  // haptic pulse on phones (strength 0..1); no-op elsewhere
 int dayNumber();                 // days since Unix epoch (UTC)
 

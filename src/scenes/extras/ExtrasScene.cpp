@@ -1,10 +1,8 @@
 // "Additional features": run codes, player card and name, save backup / restore, authors.
-
-#define _CRT_SECURE_NO_WARNINGS
-
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <vector>
 
 #include "core/Config.hpp"
 #include "core/CustomTheme.hpp"
@@ -51,19 +49,24 @@ public:
         for (const std::string& f : c.in.dropped)
             if (f.size() > 9 && f.compare(f.size() - 9, 9, ".liqtheme") == 0) importFile(c, f);
 
-        struct Row { const char* head; const char* desc; int colour; };
-        const Row rows[] = {{"menu.runcode", "extras.runcode.desc", 2},  {"extras.card", "extras.card.desc", 5},
-                            {"extras.name", "extras.name.desc", 9},       {"extras.export", "extras.export.desc", 6},
-                            {"extras.import", "extras.import.desc", 3},   {"extras.backup", "extras.backup.desc", 7},
-                            {"extras.restore", "extras.restore.desc", 4}, {"menu.authors", "extras.authors.desc", 10},
-                            {"menu.quit", "extras.quit.desc", 0}};
-        const int n = platform::isMobile() ? 8 : 9;
+        struct Row { const char* head; const char* desc; int colour; int id; };
+        std::vector<Row> rows;
+        if (platform::isMobile()) rows.push_back({"tilt.title", "tilt.card.desc", 1, 9});  // phone-only: uses the motion sensor
+        const Row all[] = {{"menu.runcode", "extras.runcode.desc", 2, 0},  {"extras.card", "extras.card.desc", 5, 1},
+                           {"extras.name", "extras.name.desc", 9, 2},       {"extras.export", "extras.export.desc", 6, 3},
+                           {"extras.import", "extras.import.desc", 3, 4},   {"extras.backup", "extras.backup.desc", 7, 5},
+                           {"extras.restore", "extras.restore.desc", 4, 6}, {"menu.authors", "extras.authors.desc", 10, 7},
+                           {"menu.quit", "extras.quit.desc", 0, 8}};
+        for (const Row& r : all)
+            if (!(platform::isMobile() && r.id == 8)) rows.push_back(r);  // phones have no Quit entry
+        const int n = int(rows.size());
         for (int i = 0; i < n; ++i) {
             const float y = 48.f + float(i) * 38.f;
             std::string desc = L.tr(rows[i].desc);
-            if (i == 2) desc = c.save.playerName.empty() ? L.tr("battle.you") : c.save.playerName;
+            if (rows[i].id == 2) desc = c.save.playerName.empty() ? L.tr("battle.you") : c.save.playerName;
             if (!card(c, y, 34, L.tr(rows[i].head), desc, rows[i].colour)) continue;
-            switch (i) {
+            switch (rows[i].id) {
+                case 9: c.go(SceneId::Tilt); break;
                 case 0: runCode(c); break;
                 case 1: c.go(SceneId::Card); break;
                 case 2:

@@ -1,5 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS
-
 #include "gfx/Png.hpp"
 
 #include <algorithm>
@@ -78,13 +76,7 @@ bool writePng(const std::string& path, int w, int h, const std::vector<uint8_t>&
     chunk(out, "IDAT", z);
     chunk(out, "IEND", {});
 
-    FILE* f = nullptr;
-
-    f = std::fopen(path.c_str(), "wb");
-    if (f == nullptr) {
-        return false;
-    }
-    
+    FILE* f = std::fopen(path.c_str(), "wb");
     if (!f) return false;
     const bool ok = std::fwrite(out.data(), 1, out.size(), f) == out.size();
     return std::fclose(f) == 0 && ok;

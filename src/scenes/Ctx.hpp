@@ -18,7 +18,7 @@
 
 namespace liq {
 
-enum class SceneId { Menu, ModeSelect, Progress, Settings, Game, Brand, Puzzle, Credits, Battle, Extras, Card, ThemeEditor, Party };
+enum class SceneId { Menu, ModeSelect, Progress, Settings, Game, Brand, Puzzle, Credits, Battle, Extras, Card, ThemeEditor, Party, ModeInfo, Tilt };
 
 struct Ctx {
     Ctx() : raster(cfg::kW, cfg::kH) { ui.bind(this); }
@@ -45,6 +45,7 @@ struct Ctx {
     ModeId mode = ModeId::Classic;
     Replay pendingReplay;       // run code pasted in the menu, picked up by the next game scene
     bool hasPendingReplay = false;
+    bool resumeRun = false;     // the pending replay is a saved unfinished run: fast-forward it, then play on
     // Battle: filled in by the Battle menus, picked up by the next game scene.
     struct BattleSetup {
         battle::MatchConfig cfg;

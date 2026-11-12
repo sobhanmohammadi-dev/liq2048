@@ -22,6 +22,7 @@ struct LiquidProps {
 };
 
 inline const LiquidProps& liquidProps(int t) {
+    if (t < 0 || t >= kLiquidCount) t = 0;  // never index out of range, whatever a save file or a peer says
     static const LiquidProps k[kLiquidCount] = {
         {"liquid.water", 1.0f, 0.00f, 1.0f, 0.00f, 0.97f, 0.90f, 0.f, 0.f},
         {"liquid.dilute", 0.25f, 0.00f, 0.6f, 0.00f, 0.97f, 0.90f, 0.f, 0.f},
@@ -47,6 +48,23 @@ inline void applyLiquid(World& w, int type, bool thickMod = false) {
     w.jelly = p.jelly;
     w.jellyDamp = p.jellyDamp;
     w.damp = cfg::kDamp;
+}
+
+// Liquid mixing: the pot holds a different liquid in every drop. The pool is the six plain liquids (no shape-memory ones).
+inline constexpr int kMixPool = 6;
+inline void applyMixing(World& w, bool thickMod = false) {
+    applyLiquid(w, kLiqWater, thickMod);
+    w.mixed = true;
+    for (int i = 0; i < kMixPool; ++i) {
+        const LiquidProps& p = liquidProps(i);
+        w.mix[i] = {p.thickness, p.cohesion, p.adhesion, p.wallDrag, p.wallVy};
+    }
+}
+// The liquid of the n-th drop of a run: a pure function of the run seed, so replays and run codes need no extra data.
+inline int mixLiquidOf(uint32_t seed, int n) {
+    uint32_t h = seed * 2654435761u + uint32_t(n) * 40503u + 0x9e3779b9u;
+    h ^= h >> 15; h *= 2246822519u; h ^= h >> 13;
+    return int(h % uint32_t(kMixPool));
 }
 
 }  // namespace liq

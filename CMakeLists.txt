@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(Liq2048
-    VERSION 1.8.2
+    VERSION 1.9.0
     LANGUAGES C CXX
     DESCRIPTION "Physics-based blob merging puzzle in C++17 and SDL2"
     HOMEPAGE_URL "https://github.com/sobhanmohammadi-dev/Liq2048"
@@ -534,13 +534,6 @@ if(
         PRIVATE
             liq_core
     )
-
-    if(LIQ_USE_LTO)
-        set_property(
-            TARGET liq_tests
-            PROPERTY INTERPROCEDURAL_OPTIMIZATION ON
-        )
-    endif()
 
     add_test(
         NAME liq_tests

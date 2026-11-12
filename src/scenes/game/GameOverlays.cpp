@@ -5,20 +5,49 @@
 #include <string>
 #include <vector>
 
+#include "game/ModeNames.hpp"
 #include "scenes/game/GameScene.hpp"
 #include "ui/widgets/Widgets.hpp"
 
 namespace liq {
 
 // Share card: the final pot with a caption, saved as a PNG next to the save file (the overlay is hidden for it).
+// Run result as a picture (v1.8.4): the biggest drop you made as a real blob, plus icon chips for merges, drops and chain.
+void GameScene::resultPicture(Ctx& c, float y) {
+    Gfx& g = c.gfx;
+    const Theme& t = *c.theme;
+    const float cx = cfg::kW / 2.f;
+    std::vector<BlobSprite> sp{plainSprite(cx - 62.f, y + 14.f, maxLevel_, 0.f, 0.f)};
+    sp[0].ra = sp[0].rb = std::min(sp[0].ra, 15.f);
+    c.raster.clear();
+    c.raster.drawField(sp, t);
+    c.raster.drawLabels(sp, t);
+    g.raster(c.raster);
+    // merges: two discs that overlap
+    g.disc(cx - 14.f, y + 12.f, 5.f, t.ink);
+    g.disc(cx - 14.f, y + 12.f, 4.f, t.blob[1]);
+    g.disc(cx - 8.f, y + 12.f, 5.f, t.ink);
+    g.disc(cx - 8.f, y + 12.f, 4.f, t.blob[2]);
+    g.number(std::to_string(runMerges_), cx - 11.f, y + 24.f, 1, t.text, Align::Center);
+    // drops: a falling droplet
+    g.disc(cx + 22.f, y + 14.f, 5.f, t.ink);
+    g.disc(cx + 22.f, y + 14.f, 4.f, t.blob[0]);
+    g.rect(cx + 21.f, y + 5.f, 2, 4, t.ink);
+    g.number(std::to_string(drops_), cx + 22.f, y + 24.f, 1, t.text, Align::Center);
+    // best chain: crown
+    g.icon(IconId::Crown, cx + 53.f, y + 7.f, t.accent);
+    g.number("x" + std::to_string(runChain_), cx + 58.f, y + 24.f, 1, t.text, Align::Center);
+}
+
 void GameScene::captureCard(Ctx& c) {
     Gfx& g = c.gfx;
     const Theme& t = *c.theme;
     Loc& L = c.loc;
-    c.ui.panel(35, 190, 200, 70);
-    g.text(L.tr(mode_->nameKey()), cfg::kW / 2.f, 206, 1, t.accent, Align::Center);
-    g.number(std::to_string(score_), cfg::kW / 2.f, 230, 2, t.text, Align::Center, TextFx::Outline, t.ink);
-    g.text("LIQ2048 V" LIQ_VERSION, cfg::kW / 2.f, 250, 1, t.dim, Align::Center);
+    c.ui.panel(35, 170, 200, 100);
+    g.text(L.tr(mode_->nameKey()), cfg::kW / 2.f, 184, 1, t.accent, Align::Center);
+    g.number(std::to_string(score_), cfg::kW / 2.f, 200, 2, t.text, Align::Center, TextFx::Outline, t.ink);
+    resultPicture(c, 222.f);
+    g.text("LIQ2048 V" LIQ_VERSION, cfg::kW / 2.f, 256, 1, t.dim, Align::Center);
     const bool ok = g.capturePng(platform::prefPath() + "liq2048-result.png");
     toast_ = L.tr(ok ? "card.saved" : "extras.fail");
     toastT_ = 2.5f;
@@ -95,7 +124,7 @@ void GameScene::pauseMenu(Ctx& c) {
     Loc& L = c.loc;
     g.dim(t, 1);
     const bool canCopy = !battle_ && !rec_.empty();
-    const float ph = battle_ ? 138.f : (canCopy && !replaying_) ? 198.f : 168.f;
+    const float ph = battle_ ? 138.f : (canCopy && !replaying_) ? 228.f : 198.f;
     ui.panel(55, 170, 160, ph);
     g.text(L.tr("pause.title"), cfg::kW / 2.f, 192, 2, t.accent, Align::Center, TextFx::Outline, t.ink);
     if (!platform::isMobile()) g.text("ESC  SPACE  U  F11", cfg::kW / 2.f, 170 + ph + 10, 1, t.dim, Align::Center);
@@ -122,6 +151,8 @@ void GameScene::pauseMenu(Ctx& c) {
         }
         by += 30;
     }
+    if (ui.button(L.tr("photo.btn"), 70, by, 130, 24)) st_ = St::Photo;
+    by += 30;
     if (ui.button(L.tr("pause.settings"), 70, by, 130, 24)) st_ = St::Settings;
     by += 30;
     if (ui.button(L.tr("pause.quit"), 70, by, 130, 24)) {
@@ -205,7 +236,8 @@ void GameScene::overlay(Ctx& c) {
     Loc& L = c.loc;
     g.dim(t, 0);
     const float oy = widgets::slideIn(overT_);
-    ui.panel(35, 140 + oy, 200, (mid_ == ModeId::Puzzle || hot_) ? 248.f : 272.f);    if (mid_ == ModeId::Puzzle) {
+    ui.panel(35, 140 + oy, 200, mid_ == ModeId::Puzzle || hot_ ? 248 : 300);
+    if (mid_ == ModeId::Puzzle) {
         puzzleOverlay(c, oy);
         return;
     }
@@ -237,35 +269,33 @@ void GameScene::overlay(Ctx& c) {
     if (newBest_ && (int(overT_ * 3.f) % 2 == 0 || overT_ > 3.f)) {
         widgets::crownCaption(g, t, cfg::kW / 2.f, 257.f + oy, L.tr("over.newbest"));
     }
+    resultPicture(c, 268.f + oy - (newBest_ ? 0.f : 10.f));
     const bool canReplay = !rec_.empty();
     if (canReplay) {
-        if (ui.button(L.tr("over.copycode"), 55, 360 + oy, 78, 20)) {
+        if (ui.button(L.tr("over.copycode"), 55, 388 + oy, 78, 20)) {
             SDL_SetClipboardText(rec_.toCode().c_str());
             toast_ = L.tr("over.copied");
             toastT_ = 2.f;
         }
-        if (ui.button(L.tr("over.copyres"), 137, 360 + oy, 78, 20)) {
-            static const char* names[kModeCount] = {"mode.classic", "mode.timed", "mode.target", "mode.daily", "mode.zen",
-                                                    "mode.rain", "mode.tide", "mode.weekly", "mode.puzzle", "mode.battle",
-                                                    "mode.mirror", "mode.bigbox", "mode.madhouse", "mode.blind"};
-            SDL_SetClipboardText(("Liq2048 V" LIQ_VERSION " - " + L.tr(names[int(mid_)]) + ": " + std::to_string(score_) + " pts, " +
+        if (ui.button(L.tr("over.copyres"), 137, 388 + oy, 78, 20)) {
+            SDL_SetClipboardText(("Liq2048 V" LIQ_VERSION " - " + L.tr(modeNameKey(mid_)) + ": " + std::to_string(score_) + " pts, " +
                                   std::to_string(drops_) + " drops, chain x" + std::to_string(runChain_)).c_str());
             toast_ = L.tr("over.copied");
             toastT_ = 2.f;
         }
     }
-    if (!replaying_ && ui.button(L.tr("card.shareimg"), 55, 384 + oy, 160, 20)) shotPending_ = true;
-    if (ui.button(L.tr("over.restart"), 55, 280 + oy, 160, 24, true, true, BtnStyle::Primary)) {
+    if (!replaying_ && ui.button(L.tr("card.shareimg"), 55, 412 + oy, 160, 20)) shotPending_ = true;
+    if (ui.button(L.tr("over.restart"), 55, 308 + oy, 160, 24, true, true, BtnStyle::Primary)) {
         replaying_ = false;
         start(c);
         st_ = St::Playing;
     }
-    if (canReplay && ui.button(L.tr("over.replay"), 55, 308 + oy, 160, 22)) {
+    if (canReplay && ui.button(L.tr("over.replay"), 55, 336 + oy, 160, 22)) {
         replaying_ = true;
         start(c);
         st_ = St::Playing;
     }
-    if (ui.button(L.tr("over.menu"), 55, 334 + oy, 160, 22) || c.in.esc) c.go(SceneId::Menu);
+    if (ui.button(L.tr("over.menu"), 55, 362 + oy, 160, 22) || c.in.esc) c.go(SceneId::Menu);
 }
 
 }  // namespace liq

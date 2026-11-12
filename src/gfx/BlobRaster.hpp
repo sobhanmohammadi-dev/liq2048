@@ -37,6 +37,12 @@ public:
     int height() const { return h_; }
     const uint32_t* pixels() const { return px_.data(); }  // ARGB8888
     uint32_t at(int x, int y) const { return px_[size_t(y) * size_t(w_) + size_t(x)]; }
+    // Rows that may hold non-transparent pixels (false when nothing was drawn since clear()).
+    bool dirtyRows(int& first, int& last) const {
+        first = pxMinY_;
+        last = pxMaxY_;
+        return pxMaxY_ >= pxMinY_;
+    }
     int coveredPixels() const;  // number of non-transparent pixels (tests)
 
 private:

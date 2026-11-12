@@ -1,16 +1,16 @@
 // Menu, mode selection, progress and standalone settings scenes.
-
-#define _CRT_SECURE_NO_WARNINGS
-
 #include <cmath>
+#include <cstdlib>
 #include <string>
 
 #include "core/Config.hpp"
 #include "core/Platform.hpp"
 #include "core/Version.hpp"
 #include "game/Mode.hpp"
+#include "game/ModeNames.hpp"
 #include "game/World.hpp"
 #include "scenes/Scenes.hpp"
+#include "ui/widgets/Widgets.hpp"
 
 namespace liq {
 
@@ -50,7 +50,28 @@ public:
 
         const float bw = 150, bx = (cfg::kW - bw) / 2.f;
         float y = 222;
-        if (ui.button(L.tr("menu.start"), bx, y, bw, 28, true, true, BtnStyle::Primary)) c.go(SceneId::ModeSelect);
+        if (!resumeChecked_) {  // is there an unfinished run from this build that can be continued?
+            resumeChecked_ = true;
+            resumeOk_ = !c.save.resumeCode.empty() && Replay::fromCode(c.save.resumeCode, resumeRep_) && resumeRep_.physics == cfg::kPhysicsVersion &&
+                        resumeRep_.mode >= 0 && resumeRep_.mode < kModeCount && !modeRetired(ModeId(resumeRep_.mode));
+            if (!resumeOk_) c.save.resumeCode.clear();
+        }
+        if (resumeOk_) {
+            if (ui.button(L.tr("menu.continue"), bx, y, bw, 28, true, true, BtnStyle::Primary)) {
+                c.pendingReplay = resumeRep_;
+                c.hasPendingReplay = true;
+                c.resumeRun = true;
+                c.go(SceneId::Game);
+            }
+            g.text(L.tr(modeNameKey(ModeId(resumeRep_.mode))), cfg::kW / 2.f, y + 31.f, 1, t.dim, Align::Center);
+            y += 44;
+        }
+        if (ui.button(L.tr("menu.start"), bx, y, bw, 28, true, !resumeOk_, resumeOk_ ? BtnStyle::Normal : BtnStyle::Primary)) {
+            if (c.save.coachStep == 0) c.save.coachStep = 1;
+            c.go(SceneId::ModeSelect);
+        }
+        if (!c.save.tutorialDone && c.save.coachStep == 0 && !resumeOk_)
+            widgets::coachRing(g, t, c.time, bx, y, bw, 28, L.tr("coach.menu"), false);
         y += 35;
         if (ui.button(L.tr("menu.extras"), bx, y, bw, 28)) c.go(SceneId::Extras);
         y += 35;
@@ -72,6 +93,8 @@ public:
 
 private:
     float badCodeT_ = 0.f;
+    bool resumeChecked_ = false, resumeOk_ = false;
+    Replay resumeRep_;
 };
 
 class PuzzleSelectScene final : public Scene {
@@ -104,7 +127,7 @@ public:
                 g.rect(x + bw / 2.f - 11.f + float(s) * 8.f, y + 31.f, 5, 5, s < st ? t.accent : t.panelLo);
         }
         if (pages > 1 && ui.button(">", 148, 408, 100, 26)) page_ = (page_ + 1) % pages;
-        if (ui.button( L.tr("common.back"), 22.f, 408.f, static_cast<float>(pages > 1 ? 100 : 226), 26.f) || c.in.esc) {c.go(SceneId::ModeSelect);}
+        if (ui.button( L.tr("common.back"), 22.f, 408.f, static_cast<float>(pages > 1 ? 100 : 226), 26.f) || c.in.esc) {c.go(SceneId::ModeInfo);}
     }
 
 private:
@@ -150,7 +173,7 @@ public:
         ui.panel(14, 44, 242, 360);
 
         // Tabs: scores, awards, statistics.
-        static const char* tabs[4] = {"tab.scores", "tab.awards", "tab.stats", "tab.history"};
+        static const char* tabs[4] = {"tab.profile", "tab.scores", "tab.awards", "tab.history"};
         for (int i = 0; i < 4; ++i) {
             const float bx = ui.mx(14.f + float(i) * 59.f, 56.f);
             if (ui.button(L.tr(tabs[i]), bx, 52, 56, 20, true, true, tab_ == i ? BtnStyle::Primary : BtnStyle::Normal)) tab_ = i;
@@ -159,19 +182,17 @@ public:
         const float lx = rtl ? 244.f : 26.f, rx = rtl ? 26.f : 244.f;
         const Align la = ui.start(), ra = rtl ? Align::Left : Align::Right;
         g.rect(22, 80, 226, 1, t.panelLo);
-        if (tab_ == 0) {
-            static const char* names[kModeCount] = {"mode.classic", "mode.timed", "mode.target", "mode.daily", "mode.zen",
-                                                    "mode.rain",    "mode.tide",  "mode.weekly", "mode.puzzle", "mode.battle",
-                                                    "mode.mirror",  "mode.bigbox", "mode.madhouse", "mode.blind"};
+        if (tab_ == 1) {
             // Medal thresholds (bronze, silver, gold) per mode.
             static const int medal[kModeCount][3] = {{2000, 6000, 15000}, {800, 2000, 4000}, {500, 2000, 6000}, {1500, 4000, 9000}, {2000, 6000, 15000},
                                                      {600, 1800, 4500},   {800, 2500, 6000}, {1500, 4000, 9000}, {0, 0, 0}, {0, 0, 0},
                                                      {1500, 4000, 9000}, {1500, 4000, 9000}, {1500, 4000, 9000}, {1000, 3000, 7000}};
             int row = 0;
             for (int i = 0; i < kModeCount; ++i) {
+                if (modeRetired(ModeId(i))) continue;
                 if ((i == int(ModeId::Rain) || i == int(ModeId::Tide)) && c.save.best[i] <= 0) continue;  // now modifiers
                 const float y = 96.f + float(row++) * 30.f;
-                g.text(L.tr(names[i]), lx, y, 1, t.text, la);
+                g.text(L.tr(modeNameKey(ModeId(i))), lx, y, 1, t.text, la);
                 const int v = i == int(ModeId::Puzzle) ? c.save.puzzlesSolved() : i == int(ModeId::Battle) ? c.save.battleWins
                               : i == int(ModeId::Weekly) ? c.save.weeklyBest : c.save.best[i];
                 g.number(std::to_string(v), rx, y, 1, t.text, ra);
@@ -186,14 +207,28 @@ public:
                     }
                 }
             }
-        } else if (tab_ == 1) {
+        } else if (tab_ == 2) {
+            // Awards as a grid of medals: lit and ticked once earned, padlocked before. Tap one to read its name.
+            if (c.in.pressed)
+                for (int i = 0; i < kAchCount; ++i) {
+                    const float cx = 22.f + 57.f * float(i % 4), cy = 88.f + 52.f * float(i / 4);
+                    if (c.in.mx >= cx && c.in.mx < cx + 55.f && c.in.my >= cy && c.in.my < cy + 50.f) pick_ = i;
+                }
+            int got = 0;
+            for (int i = 0; i < kAchCount; ++i) got += c.save.has(i);
             for (int i = 0; i < kAchCount; ++i) {
-                const float y = 94.f + float(i) * 15.f;
-                const bool got = c.save.has(i);
-                const float ix = rtl ? 244.f - 7.f : 26.f;
-                g.icon(got ? IconId::Check : IconId::Lock, ix, y - 3.f, got ? t.accent : t.dim);
-                g.text(L.tr(achKey(i)), rtl ? 230.f : 42.f, y, 1, got ? t.text : t.dim, la);
+                const float cx = 22.f + 57.f * float(i % 4) + 27.f, cy = 88.f + 52.f * float(i / 4) + 22.f;
+                const bool has = c.save.has(i);
+                const Color base = has ? rgb(i < 5 ? 0xffd23d : i < 9 ? 0x6fd3ff : 0xff8fd0) : t.panelLo;
+                if (pick_ == i) g.border(cx - 26.f, cy - 21.f, 52.f, 46.f, 1, t.accent);
+                g.disc(cx, cy, 15.f, t.ink);
+                g.disc(cx, cy, 13.f, base);
+                g.disc(cx, cy - 2.f, 8.f, has ? mix(base, rgb(0xffffff), 0.35f) : mix(t.panelLo, t.ink, 0.3f));
+                g.icon(has ? IconId::Check : IconId::Lock, cx - 3.f, cy - 4.f, has ? t.ink : t.dim);
+                if (i < 5) g.number(std::to_string(128 << i), cx, cy + 20.f, 1, has ? t.accent : t.dim, Align::Center);
             }
+            g.number(std::to_string(got) + "/" + std::to_string(kAchCount), cfg::kW / 2.f, 354.f, 1, t.accent, Align::Center);
+            if (pick_ >= 0) ui.paragraph(L.tr(achKey(pick_)), 20, 372, 230, 1, c.save.has(pick_) ? t.text : t.dim, Align::Center);
         } else if (tab_ == 3) {
             static const ModeId hm[6] = {ModeId::Classic, ModeId::Timed, ModeId::Rain, ModeId::Tide, ModeId::Zen, ModeId::Target};
             static const char* hn[6] = {"mode.classic", "mode.timed", "mode.rain", "mode.tide", "mode.zen", "mode.target"};
@@ -215,25 +250,80 @@ public:
                 if (h.empty()) g.text("-", 26, base - 12, 1, t.dim, Align::Left);
             }
         } else {
-            const Save& sv = c.save;
-            const int h = sv.playSeconds / 3600, m = sv.playSeconds / 60 % 60;
-            const std::string tm = std::to_string(h) + "H " + std::to_string(m) + "M";
-            struct Row { const char* key; std::string val; };
-            const Row rows[] = {{"stats.games", std::to_string(sv.gamesPlayed)}, {"stats.drops", std::to_string(sv.totalDrops)},
-                                {"stats.merges", std::to_string(sv.totalMerges)}, {"stats.chain", std::to_string(sv.longestChain)},
-                                {"stats.tile", std::to_string(1 << sv.highestLevel)}, {"stats.time", tm},
-                                {"stats.puzzles", std::to_string(sv.puzzlesSolved())}, {"stats.streak", std::to_string(sv.streak)}};
-            for (int i = 0; i < 8; ++i) {
-                const float y = 100.f + float(i) * 26.f;
-                g.text(L.tr(rows[i].key), lx, y, 1, t.text, la);
-                g.number(rows[i].val, rx, y, 1, t.accent, ra);
-            }
+            drawProfile(c);
         }
         if (ui.button(L.tr("common.back"), 60, 414, 150, 26) || c.in.esc) c.go(SceneId::Menu);
     }
 
 private:
-    int tab_ = 0;
+    int tab_ = std::getenv("LIQ_TAB") ? std::atoi(std::getenv("LIQ_TAB")) & 3 : 0, pick_ = std::getenv("LIQ_TAB") ? 4 : -1;  // dev: screenshots
+
+    // Profile as a picture: your biggest drop as a real blob, the player's name and streak, then icon chips for the numbers.
+    void drawProfile(Ctx& c) {
+        Gfx& g = c.gfx;
+        const Theme& t = *c.theme;
+        Loc& L = c.loc;
+        const Save& sv = c.save;
+        const bool rtl = L.rtl();
+        // hero: blob + name
+        const float bx = rtl ? 196.f : 74.f, tx = rtl ? 126.f : 150.f;
+        std::vector<BlobSprite> sp{plainSprite(bx, 130.f, sv.highestLevel, 0.05f, c.time)};
+        sp[0].ra = sp[0].rb = std::min(sp[0].ra * 1.5f, 38.f);
+        c.raster.clear();
+        c.raster.drawField(sp, t);
+        c.raster.drawLabels(sp, t);
+        g.raster(c.raster);
+        const std::string name = sv.playerName.empty() ? L.tr("tab.profile") : sv.playerName;
+        g.text(name, tx, 104, 1, t.text, Align::Center, TextFx::Outline, t.ink);
+        g.icon(IconId::Crown, tx - 22.f, 122.f, t.accent);
+        g.number(std::to_string(sv.streak), tx + 6.f, 123.f, 1, t.accent, Align::Left);
+        int medals = 0;
+        for (int i = 0; i < kAchCount; ++i) medals += sv.has(i);
+        g.disc(tx - 14.f, 148.f, 6.f, t.ink);
+        g.disc(tx - 14.f, 148.f, 5.f, rgb(0xffd23d));
+        g.number(std::to_string(medals), tx + 6.f, 145.f, 1, t.text, Align::Left);
+        g.rect(22, 184, 226, 1, t.panelLo);
+        // chips
+        const int h = sv.playSeconds / 3600, m = sv.playSeconds / 60 % 60;
+        const std::string tm = std::to_string(h) + "H " + std::to_string(m) + "M";
+        struct Chip { int glyph; std::string val; };
+        const Chip chips[] = {{0, std::to_string(sv.gamesPlayed)}, {1, std::to_string(sv.totalDrops)}, {2, std::to_string(sv.totalMerges)},
+                              {3, std::to_string(sv.longestChain)}, {4, std::to_string(1 << sv.highestLevel)}, {5, tm},
+                              {6, std::to_string(sv.puzzlesSolved())}, {7, std::to_string(sv.battleWins)}};
+        for (int i = 0; i < 8; ++i) {
+            const float cx = 22.f + 115.f * float(i % 2), cy = 194.f + 50.f * float(i / 2);
+            const float x = rtl ? 248.f - (cx - 22.f) - 111.f : cx;
+            g.rect(x, cy, 111, 44, mix(t.panel, t.blob[(i * 3) % 12], 0.14f));
+            g.border(x, cy, 111, 44, 1, t.ink);
+            const float gx = rtl ? x + 111.f - 20.f : x + 20.f, gy = cy + 22.f;
+            glyph(c, chips[i].glyph, gx, gy);
+            g.number(chips[i].val, rtl ? x + 111.f - 38.f : x + 38.f, cy + 19.f, 1, t.text, rtl ? Align::Right : Align::Left);
+        }
+    }
+
+    // Small hand-drawn pictures for the profile chips.
+    static void glyph(Ctx& c, int id, float x, float y) {
+        Gfx& g = c.gfx;
+        const Theme& t = *c.theme;
+        auto bead = [&](float bx, float by, float r, Color col) {
+            g.disc(bx, by, r + 1.f, t.ink);
+            g.disc(bx, by, r, col);
+        };
+        switch (id) {
+            case 0: g.icon(IconId::Play, x - 4.f, y - 5.f, t.accent); break;                                 // games
+            case 1: bead(x, y + 2.f, 6.f, t.blob[0]); g.rect(x - 1.f, y - 9.f, 3, 5, t.ink); break;        // drops
+            case 2: bead(x - 5.f, y, 6.f, t.blob[1]); bead(x + 5.f, y, 6.f, t.blob[3]); break;             // merges
+            case 3: g.icon(IconId::Crown, x - 6.f, y - 5.f, t.accent); break;                              // best chain
+            case 4: bead(x, y, 9.f, t.blob[6]); break;                                                      // highest tile
+            case 5:                                                                                         // play time
+                bead(x, y, 9.f, t.panelHi);
+                g.rect(x, y - 6.f, 1, 6, t.ink);
+                g.rect(x, y, 5, 1, t.ink);
+                break;
+            case 6: g.icon(IconId::Check, x - 4.f, y - 4.f, t.accent); break;                              // puzzles
+            default: bead(x - 4.f, y + 3.f, 5.f, t.blob[2]); bead(x + 5.f, y - 3.f, 5.f, t.danger); break;  // battles won
+        }
+    }
 };
 
 class SettingsScene final : public Scene {
@@ -255,12 +345,14 @@ std::unique_ptr<Scene> makePuzzleSelectScene() { return std::make_unique<PuzzleS
 std::unique_ptr<Scene> makeScene(SceneId id, Ctx& c) {
     switch (id) {
         case SceneId::ModeSelect: return makeModeSelectScene();
+        case SceneId::ModeInfo: return makeModeInfoScene();
         case SceneId::Progress: return makeProgressScene();
         case SceneId::Settings: return makeSettingsScene();
         case SceneId::Puzzle: return makePuzzleSelectScene();
         case SceneId::Credits: return makeCreditsScene();
         case SceneId::Battle: return makeBattleScene();
         case SceneId::Party: return makePartyScene();
+        case SceneId::Tilt: return makeTiltScene();
         case SceneId::Extras: return makeExtrasScene();
         case SceneId::Card: return makeCardScene();
         case SceneId::ThemeEditor: return makeThemeEditorScene();

@@ -4,9 +4,6 @@
 // A candidate is a random pre-filled pot, a random drop queue and a goal tile. A randomised solver (random
 // and merge-seeking drop positions) plays each candidate with the real physics; only candidates it can solve
 // are kept, and the fewest drops it needed becomes the level's par (3 stars). Difficulty rises with the index.
-
-#define _CRT_SECURE_NO_WARNINGS
-
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>

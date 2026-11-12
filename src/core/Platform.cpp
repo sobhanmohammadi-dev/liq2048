@@ -3,6 +3,7 @@
 #include <SDL.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
@@ -90,6 +91,47 @@ bool isMobile() {
 }
 
 int dayNumber() { return int(std::time(nullptr) / 86400); }
+
+namespace {
+SDL_Sensor* accelSensor() {
+    static SDL_Sensor* s = nullptr;
+    static bool tried = false;
+    if (!tried) {
+        tried = true;
+        if (const char* fake = SDL_getenv("LIQ_NO_SENSOR")) (void)fake;
+        else if (SDL_InitSubSystem(SDL_INIT_SENSOR) == 0) {
+            const int n = SDL_NumSensors();
+            for (int i = 0; i < n && !s; ++i)
+                if (SDL_SensorGetDeviceType(i) == SDL_SENSOR_ACCEL) s = SDL_SensorOpen(i);
+        }
+    }
+    return s;
+}
+}  // namespace
+
+bool accel(float& x, float& y, float& z) {
+    SDL_Sensor* s = accelSensor();
+    float d[3] = {0, 0, 0};
+    if (!s || SDL_SensorGetData(s, d, 3) != 0) return false;
+    x = d[0];
+    y = d[1];
+    z = d[2];
+    return true;
+}
+
+// A shake is a burst of acceleration well above gravity; the cooldown stops one shake from counting twice.
+bool shake() {
+    static Uint32 last = 0;
+    float x, y, z;
+    if (!accel(x, y, z)) return false;
+    const float mag = std::sqrt(x * x + y * y + z * z);
+    const Uint32 now = SDL_GetTicks();
+    if (std::fabs(mag - 9.81f) > 14.f && now - last > 900) {
+        last = now;
+        return true;
+    }
+    return false;
+}
 
 void vibrate(float strength, int ms) {
     if (!isMobile()) return;

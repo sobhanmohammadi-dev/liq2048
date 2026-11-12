@@ -36,7 +36,7 @@ inline constexpr float kCohesion = 0.4f;     // surface tension of a drop in mot
 inline constexpr float kHold = 0.06f;        // weak pull toward drop centroid (shape while falling)
 inline constexpr float kDamp = 0.9995f;         // velocity kept per substep
 inline constexpr float kHardSpeed = 900.f;     // absolute velocity cap after position corrections (px/s)
-inline constexpr int kPhysicsVersion = 2;      // stored in run codes: replays only match on the same physics
+inline constexpr int kPhysicsVersion = 3;      // stored in run codes: replays only match on the same physics
 inline constexpr float kSleepV = 25.f;          // below this speed (px/s) extra damping applies
 inline constexpr float kSleepF = 0.97f;         // ... by this factor per substep
 inline constexpr float kWallDrag = 0.97f;    // velocity kept per step while touching floor/walls (water slips along walls)
@@ -44,18 +44,19 @@ inline constexpr float kWallDrag = 0.97f;    // velocity kept per step while tou
 // ---- Gameplay ---------------------------------------------------------------
 inline constexpr float kDropCooldown = 0.40f;
 inline constexpr float kChainWindow = 0.7f;
-inline constexpr float kOverflowSeconds = 2.0f;
+inline constexpr float kOverflowSeconds = 1.6f;
 inline constexpr float kAimSpeed = 180.f;
 inline constexpr float kZenGravity = 0.35f;
 inline constexpr float kTimeAttackSeconds = 90.f;
 inline constexpr int kDailyDrops = 60;
 inline constexpr int kWeeklyDrops = 100;
-inline constexpr float kTideMaxShift = 230.f;   // how far the Rising Tide line can sink (px)
-inline constexpr float kTideRate = 1.6f;        // px per second
+inline constexpr float kTideMaxShift = 215.f;   // how far the Rising Tide line can sink (px)
+inline constexpr float kTideRate = 2.3f;         // px per second
 inline constexpr float kJellyDamp = 14.f;        // jelly liquids: damping of the motion inside a drop (1/s)
 inline constexpr float kMadnessPeriod = 10.f;     // Madhouse: seconds between changes
-inline constexpr float kTideSwell = 22.f;       // after the line has sunk fully it swells up and down by this much (px)
-inline constexpr float kTideSwellPeriod = 12.f; // seconds per swell
+inline constexpr float kTideSwell = 30.f;       // after the line has sunk fully it swells up and down by this much (px)
+inline constexpr float kTideReliefCap = 45.f;     // the most a run of merges can lift the line back (px)
+inline constexpr float kTideSwellPeriod = 9.f;  // seconds per swell
 
 }  // namespace liq::cfg
 

@@ -4,6 +4,7 @@
 //   5 wind, 6 earthquake                                                    (v1.8.0, physics)
 //   7 fog (the next drop and the aim guide are hidden)                      (v1.8.0)
 //   8 downpour (drops fall by themselves; was the mode "Endless Rain"),
+//   10 liquid mixing (every drop is a different liquid; v1.8.4)
 //   9 rising tide (the overflow line sinks; was the mode "Rising Tide")     (v1.8.0, moved from modes)
 // Everything here is a pure function of the physics step count, so runs and replays stay deterministic.
 #include <algorithm>
@@ -14,12 +15,12 @@
 
 namespace liq {
 
-enum Modifier { kModNone, kModLowG, kModHeavy, kModThick, kModBonus, kModWind, kModQuake, kModFog, kModRain, kModTide, kModifierCount };
+enum Modifier { kModNone, kModLowG, kModHeavy, kModThick, kModBonus, kModWind, kModQuake, kModFog, kModRain, kModTide, kModMix, kModifierCount };
 constexpr int kBattleModifiers = 7;  // Battle offers the ones that only change the physics (none .. earthquake)
 
 inline const char* modifierKey(int m) {
     static const char* k[kModifierCount] = {"mod.none", "mod.lowg", "mod.heavy", "mod.thick", "mod.bonus",
-                                            "mod.wind", "mod.quake", "mod.fog", "mod.rain", "mod.tide"};
+                                            "mod.wind", "mod.quake", "mod.fog", "mod.rain", "mod.tide", "mod.mix"};
     return k[m < 0 || m >= kModifierCount ? 0 : m];
 }
 
@@ -48,10 +49,12 @@ inline float rainInterval(float elapsed) { return std::max(1.1f, 3.2f - elapsed 
 // Rising tide: how far (px) the overflow line has sunk after `elapsed` seconds. It sinks at a steady rate until it is
 // kTideMaxShift lower, then keeps moving like a swell so it never looks stuck.
 inline float tideShift(float elapsed) {
-    const float raw = elapsed * cfg::kTideRate;
-    if (raw < cfg::kTideMaxShift) return raw;
-    const float t = (raw - cfg::kTideMaxShift) / cfg::kTideRate;
-    return cfg::kTideMaxShift + cfg::kTideSwell * std::min(1.f, t / 6.f) * std::sin(t * 6.2831853f / cfg::kTideSwellPeriod);
+    // v1.8.4: sinks faster and the swell starts at once (ramping in over 15 s), so the line never rests. Always within
+    // [0, kTideMaxShift + kTideSwell].
+    const float base = std::min(elapsed * cfg::kTideRate, cfg::kTideMaxShift);
+    const float env = std::min(1.f, elapsed / 15.f);
+    const float v = base + cfg::kTideSwell * env * std::sin(elapsed * 6.2831853f / cfg::kTideSwellPeriod);
+    return std::max(0.f, std::min(v, cfg::kTideMaxShift + cfg::kTideSwell));
 }
 
 }  // namespace liq

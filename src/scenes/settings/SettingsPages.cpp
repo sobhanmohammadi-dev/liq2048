@@ -66,7 +66,7 @@ struct LiquidPreview {
 }  // namespace
 
 // ---- page 0: general --------------------------------------------------------------------------
-void generalPage(SettingsForm& f, int& page, bool allowCustom) {
+void generalPage(SettingsForm& f, bool allowCustom) {
     Ctx& c = f.c;
     Loc& L = c.loc;
     Ui& ui = c.ui;
@@ -120,8 +120,7 @@ void generalPage(SettingsForm& f, int& page, bool allowCustom) {
         if (ui.button(L.tr("ct.title"), 26, f.y, 218, 20)) c.go(SceneId::ThemeEditor);
         f.skip(kRowH - 4.f);
     }
-    if (ui.button(L.tr("settings.liquid"), 26, f.y, 218, 20)) page = 3;
-    f.skip(22.f);
+    f.skip(8.f);
     if (!c.gfx.hasPersianFont() && !L.rtl()) c.gfx.text(L.tr("settings.nofont"), 135, f.y + 4.f, 1, c.theme->dim, Align::Center);
 }
 
@@ -134,7 +133,7 @@ void feelPage(SettingsForm& f) {
     f.toggle("settings.slowmo", s.slowmo);
     f.toggle("settings.calm", s.calm);
     f.toggle("settings.reduce", s.reduceMotion);
-    f.toggle("settings.lefthand", s.leftHand);
+    if (platform::isMobile()) f.toggle("settings.lefthand", s.leftHand);  // phone-only layout option
 }
 
 // ---- page 2: accessibility --------------------------------------------------------------------
@@ -146,7 +145,7 @@ void accessPage(SettingsForm& f) {
         c.save.store();
     }
     if (f.toggle("settings.contrast", c.save.highContrast)) c.refreshTheme();
-    f.toggle("settings.bigtouch", c.save.bigTouch);
+    if (platform::isMobile()) f.toggle("settings.bigtouch", c.save.bigTouch);  // phone-only
     widgets::swatches(c.gfx, *c.theme, 26.f, f.y + 6.f, 12);  // live preview of the droplet palette
 }
 

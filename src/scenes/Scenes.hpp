@@ -7,12 +7,15 @@ namespace liq {
 
 std::unique_ptr<Scene> makeMenuScene();
 std::unique_ptr<Scene> makeModeSelectScene();
+std::unique_ptr<Scene> makeModeInfoScene();   // title, description, looping preview, modifier and Start of one mode
+SceneId sceneForMode(ModeId m);              // the scene that plays a mode (Game, Puzzle list, Battle lobby or Party setup)
 std::unique_ptr<Scene> makeProgressScene();
 std::unique_ptr<Scene> makeSettingsScene();
 std::unique_ptr<Scene> makePuzzleSelectScene();
 std::unique_ptr<Scene> makeCreditsScene();
 std::unique_ptr<Scene> makeBattleScene();
 std::unique_ptr<Scene> makePartyScene();
+std::unique_ptr<Scene> makeTiltScene();
 std::unique_ptr<Scene> makeExtrasScene();
 std::unique_ptr<Scene> makeCardScene();
 std::unique_ptr<Scene> makeThemeEditorScene();

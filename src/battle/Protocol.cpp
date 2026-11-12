@@ -172,7 +172,7 @@ bool decode(const net::Bytes& b, Announce& m) {
     m.liquid = uint8_t(r.u8());
     m.players = uint8_t(r.u8());
     m.hostName = r.str();
-    return r.ok && m.tcpPort != 0;
+    return r.ok && m.tcpPort != 0 && m.modifier <= 6 && m.liquid < 8 && m.duration >= 10 && m.duration <= 900 && m.players <= 8;
 }
 
 }  // namespace liq::battle

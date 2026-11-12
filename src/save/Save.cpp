@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "core/Platform.hpp"
+#include "game/Modifier.hpp"
 
 namespace liq {
 
@@ -45,6 +46,13 @@ void Save::load() {
         else if (k == "streak") streak = iv;
         else if (k == "lastDay") lastDay = iv;
         else if (k == "tutorialDone") tutorialDone = iv != 0;
+        else if (k == "resumeCode") resumeCode = v;
+        else if (k == "resumeCur") resumeCur = iv;
+        else if (k == "resumeReserve") resumeReserve = iv;
+        else if (k == "resumeSwaps") resumeSwaps = iv;
+        else if (k == "resumeUndos") resumeUndos = iv;
+        else if (k == "coachStep") coachStep = iv;
+        else if (k == "tiltBest") tiltBest = iv;
         else if (k == "targetStage") targetStage = iv;
         else if (k == "dailyDay") dailyDay = iv;
         else if (k == "dailyToday") dailyToday = iv;
@@ -85,7 +93,18 @@ void Save::load() {
     }
     if (musicVol < 0.f || musicVol > 1.f) musicVol = 0.6f;
     if (sfxVol < 0.f || sfxVol > 1.f) sfxVol = 0.9f;
-    if (modifier < 0 || modifier >= 10) modifier = 0;
+    // A save file is untrusted input (backups, hand edits, sync): every value is forced into the range the game can use.
+    if (modifier < 0 || modifier >= kModifierCount) modifier = 0;
+    highestLevel = std::max(0, std::min(11, highestLevel));
+    resumeCur = std::max(0, std::min(11, resumeCur));
+    resumeReserve = std::max(0, std::min(11, resumeReserve));
+    resumeSwaps = std::max(0, std::min(9, resumeSwaps));
+    resumeUndos = std::max(0, std::min(3, resumeUndos));
+    coachStep = std::max(0, std::min(4, coachStep));
+    tiltBest = std::max(0, tiltBest);
+    streak = std::max(0, streak);
+    targetStage = std::max(0, std::min(3, targetStage));
+    if (resumeCode.size() > 600000) resumeCode.clear();
     if (colorVision < 0 || colorVision > 2) colorVision = 0;
     if (quality < 0 || quality > 2) quality = 1;
     if (liquid < 0 || liquid >= 8) liquid = 0;
@@ -103,7 +122,8 @@ void Save::store() const {
     for (int i = 0; i < kModeCount; ++i) o << "best" << i << "=" << best[i] << "\n";
     o << "music=" << musicVol << "\nsfx=" << sfxVol << "\nfullscreen=" << fullscreen << "\nlang=" << lang << "\ntheme=" << theme
       << "\nach=" << ach << "\nstreak=" << streak << "\nlastDay=" << lastDay
-      << "\ntutorialDone=" << tutorialDone << "\ntargetStage=" << targetStage << "\ndailyDay=" << dailyDay
+      << "\ntutorialDone=" << tutorialDone << "\nresumeCode=" << resumeCode << "\nresumeCur=" << resumeCur << "\nresumeReserve=" << resumeReserve
+      << "\nresumeSwaps=" << resumeSwaps << "\nresumeUndos=" << resumeUndos << "\ncoachStep=" << coachStep << "\ntiltBest=" << tiltBest << "\ntargetStage=" << targetStage << "\ndailyDay=" << dailyDay
       << "\ndailyToday=" << dailyToday << "\nfps=" << fpsIdx << "\nshowFps=" << showFps << "\nhaptics=" << haptics
       << "\nguide=" << guide << "\nshake=" << shake << "\nslowmo=" << slowmo << "\ncalm=" << calm << "\nquality=" << quality << "\nliquid=" << liquid << "\ncolorVision=" << colorVision
       << "\nhighContrast=" << highContrast << "\nreduceMotion=" << reduceMotion << "\nleftHand=" << leftHand

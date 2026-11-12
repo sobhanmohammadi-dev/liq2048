@@ -39,6 +39,10 @@ public:
     // Paints the window area outside the logical screen (phones taller than 9:16, wide desktop windows)
     // with the theme gradient, so the game always fills the whole display.
     void fillBars(const Theme& t);
+    // Maps a point given as a fraction of the window (0..1, as touch events report it) to logical 270x480 coordinates.
+    // Done here, with the same maths as the renderer, so that touches never depend on the renderer's own event
+    // conversion (which is briefly switched off while the letterbox bars are painted every frame).
+    void windowToLogical(float nx, float ny, float& lx, float& ly) const;
     void present() { SDL_RenderPresent(r_); }
 
     // ---- primitives (coordinates are pixel-grid units, rounded to whole pixels) ----
@@ -94,6 +98,7 @@ private:
     SDL_Texture* makeTexture(int w, int h, SDL_TextureAccess acc, bool blend);
 
     SDL_Renderer* r_ = nullptr;
+    int gpuFirst_ = 1 << 30, gpuLast_ = -1;  // rows of the raster texture that currently hold droplets
     Face latin_, fa_;
     bool persian_ = false;
     int ox_ = 0, oy_ = 0;

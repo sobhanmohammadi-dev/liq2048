@@ -36,6 +36,7 @@ Ui::Hit Ui::hit(float x, float y, float w, float h, bool enabled, bool focusable
     if (focusable && enabled) r.focus = (fidx_++ == focus_);
     if (enabled && in.pressed && r.hover) active_ = id;
     r.held = enabled && active_ == id && in.down;
+    if (platform::isMobile() && !in.down) r.hover = false;  // no finger, no hover: the last touched button must not stay lit
     // A tap may roll a few pixels between touch-down and touch-up: on phones the release only has to land near
     // the button the press started on.
     const float rs = platform::isMobile() ? m + 10.f : m;

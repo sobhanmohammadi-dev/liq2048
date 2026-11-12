@@ -44,7 +44,10 @@ Random drops are weighted: 1 (40 %), 2 (30 %), 4 (20 %), 8 (10 %).
 2. Subclass `Mode` in `src/game/Mode.cpp` (`nameKey`, `evaluate`, optional `seed`, `dropLimit`,
    `gravityScale`, `failable`, `status`, `progress`) and register it in `makeMode`.
 3. Add `mode.<name>`, `mode.<name>.desc` (and any HUD strings) to every `assets/lang/*.json`.
-4. Add the new entry to the arrays in `ModeSelectScene` / `ProgressScene` (`src/scenes/menu/MenuScenes.cpp`).
+4. Register the mode's keys in `src/game/ModeNames.hpp`, add a tile in `src/scenes/modes/ModesScene.cpp`
+   (`kTiles`), a tile animation in `ModeIcons.cpp` and a preview clip in `ModePreview.cpp` (`reset()` holds the
+   drop schedule, `drawDeco()` the decoration). The mode page (`ModeInfoScene.cpp`) needs a modifier rule
+   (`modKindOf`) and, if the mode has its own scene, an entry in `sceneForMode`.
 5. Add a test in `tests/test_main.cpp`.
 
 ## Adding a theme

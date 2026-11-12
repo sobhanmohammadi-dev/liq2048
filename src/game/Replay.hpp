@@ -12,6 +12,9 @@ namespace liq {
 // Drop positions are quantised to 1/128 px, so a run code stores them in 16 bits and loses nothing.
 inline float quantX(float x) { return float(int(x * 128.f + 0.5f)) / 128.f; }
 
+// Longest run a code may describe: 2 million steps is 9 hours of play.
+inline constexpr uint32_t kMaxReplaySteps = 2000000u;
+
 struct ReplayDrop {
     uint32_t step = 0;  // fixed physics steps simulated before this drop
     float x = 0;

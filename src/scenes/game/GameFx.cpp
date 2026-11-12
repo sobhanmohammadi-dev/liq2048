@@ -87,6 +87,33 @@ void GameScene::drawGuide(Ctx& c) {
     g.ring(holdX_, ly, int(r), mix(t.dim, t.tank, 0.2f), 2);
 }
 
+// Liquid mixing: a small coloured bead on every drop (and on the held and next drop) shows which liquid it is.
+static Color mixColor(int m) {
+    static const Color k[kMixPool] = {{90, 170, 255, 255}, {150, 235, 240, 255}, {235, 170, 60, 255},
+                                      {250, 215, 70, 255}, {110, 220, 100, 255}, {200, 205, 215, 255}};
+    return k[m < 0 || m >= kMixPool ? 0 : m];
+}
+
+void GameScene::drawMixMarks(Ctx& c, const World& W, int sx, int sy) {
+    Gfx& g = c.gfx;
+    std::vector<char> seen(W.drops.size(), 0);
+    for (const Particle& p : W.parts) {
+        if (p.g < 0 || size_t(p.g) >= seen.size() || seen[size_t(p.g)]) continue;
+        seen[size_t(p.g)] = 1;
+        const Drop& d = W.drops[size_t(p.g)];
+        const float r = World::radiusFor(d.level);
+        g.disc(d.x + float(sx), d.y + float(sy) - r * 0.62f, 2.6f, c.theme->ink);
+        g.disc(d.x + float(sx), d.y + float(sy) - r * 0.62f, 1.7f, mixColor(p.mat));
+    }
+    if (st_ == St::Over) return;
+    const float hr = World::radiusFor(cur_);
+    const int mc = mixLiquidOf(rec_.seed, drops_);
+    g.disc(holdX_ + float(sx), cfg::kSpawnY + float(sy) - hr * 0.62f, 2.6f, c.theme->ink);
+    g.disc(holdX_ + float(sx), cfg::kSpawnY + float(sy) - hr * 0.62f, 1.7f, mixColor(mc));
+    g.disc(c.ui.mx(8, 44) + 36.f, 26.f, 2.6f, c.theme->ink);
+    g.disc(c.ui.mx(8, 44) + 36.f, 26.f, 1.7f, mixColor(mixLiquidOf(rec_.seed, drops_ + 1)));
+}
+
 void GameScene::drawBlobs(Ctx& c, int sx, int sy) {
     const float alpha = clampv(acc_ / cfg::kStep, 0.f, 1.f);
     const bool spec = viewing();
@@ -142,6 +169,7 @@ void GameScene::drawBlobs(Ctx& c, int sx, int sy) {
         if (mid_ != ModeId::Blind) c.raster.drawLabels(nxt, *c.theme);
     }
     c.gfx.raster(c.raster);
+    if (mod_ == kModMix) drawMixMarks(c, W, sx, sy);
     if (blind) {  // hidden values: a question mark on every drop, bobbing a little
         std::vector<BlobSprite> ql;
         W.labelSprites(ql);

@@ -53,7 +53,7 @@ public:
     void frame(Ctx& c, float dt) override;
 
 private:
-    enum class St { Tutorial, Playing, Paused, Settings, Over };
+    enum class St { Tutorial, Playing, Paused, Settings, Over, Photo };
 
     // ----- run state -----
     ModeId mid_;
@@ -92,9 +92,29 @@ private:
         int score = 0, drops = 0, cur = 0, next = 0, maxLevel = 0;
         float elapsed = 0, quiet = 0;
         uint32_t simStep = 0;
+        float relief = 0, deadY = 0, comboT = 0;
+        int combo = 0, reserve = 0;
         bool valid = false;
     } snap_;
     int undos_ = 1;
+    // Combo meter (v1.8.4): merges that follow each other within kComboWindow seconds build a score multiplier (x1..x5).
+    static constexpr float kComboWindow = 3.5f;
+    // Quick resume (v1.8.5)
+    Ctx* ctx_ = nullptr;
+    bool stashDue_ = false;
+    bool resuming_ = false;           // fast-forwarding a saved run
+    St lastSt_ = St::Playing;
+    void stashResume(Ctx& c);
+    void finishResume(Ctx& c);
+    int combo_ = 0;
+    float comboT_ = 0.f;
+    int comboMult() const { return 1 + std::min(4, combo_ / 3); }
+    // Reserve (v1.8.4): park the drop in your hand and take the parked one instead. A few swaps per run; chains earn more.
+    int reserve_ = 0, swaps_ = 3;
+    bool swapAllowed() const {
+        return !hot_ && !replaying_ && !battle_ && mid_ != ModeId::Daily && mid_ != ModeId::Weekly && mid_ != ModeId::Puzzle;
+    }
+    void doSwap(Ctx& c);
     // Battle (v1.7.0)
     bool battle_ = false;
     battle::MatchConfig bcfg_;
@@ -132,8 +152,14 @@ private:
     }
     bool undoAllowed() const { return !hot_ && !replaying_ && (mid_ == ModeId::Classic || mid_ == ModeId::Zen); }
 
+    // Haptic textures (v1.8.4): every liquid feels different - thick ones give long, soft rumbles, mercury a short sharp tick,
+    // jelly and bubble a springy, stronger thump.
     void buzz(Ctx& c, float strength, int ms) const {
-        if (c.save.haptics) platform::vibrate(strength, ms);
+        if (!c.save.haptics || resuming_) return;
+        static const float ks[kLiquidCount] = {1.0f, 0.7f, 0.85f, 0.7f, 0.6f, 1.2f, 1.15f, 0.9f};
+        static const float km[kLiquidCount] = {1.0f, 0.7f, 1.3f, 1.8f, 2.2f, 0.5f, 1.4f, 0.8f};
+        const int l = mod_ == kModMix ? 0 : liquid_ < 0 || liquid_ >= kLiquidCount ? 0 : liquid_;
+        platform::vibrate(std::min(1.f, strength * ks[l]), std::max(5, int(float(ms) * km[l])));
     }
 
     void saveSnap();
@@ -147,6 +173,7 @@ private:
     std::vector<PopRing> rings_;
 
     int roll();
+    int rampDiv() const { return mid_ == ModeId::Daily || mid_ == ModeId::Weekly ? 12 : 9; }  // harder than before (v1.8.4)
 
     void start(Ctx& c);
 
@@ -221,11 +248,13 @@ private:
     void madShuffle(Ctx& c);
 
     void drawBlobs(Ctx& c, int sx, int sy);
+    void drawMixMarks(Ctx& c, const World& W, int sx, int sy);
 
     void drawNextPanel(Ctx& c);
 
     // Share card: the final pot with a caption, saved as a PNG next to the save file (the overlay is hidden for it).
     void captureCard(Ctx& c);
+    void resultPicture(Ctx& c, float y);
 
     bool ghostMode() const {
         return !hot_ && mod_ == 0 && (mid_ == ModeId::Classic || mid_ == ModeId::Timed || mid_ == ModeId::Rain || mid_ == ModeId::Tide ||

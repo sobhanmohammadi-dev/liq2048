@@ -1,6 +1,5 @@
 // Dependency-free unit tests (run with `ctest` from the build directory).
 // Logic only: no window, renderer or audio device is created.
-#define _CRT_SECURE_NO_WARNINGS
 #define SDL_MAIN_HANDLED
 #include "gfx/Png.hpp"
 #include <cmath>
@@ -23,6 +22,7 @@
 #include "core/Platform.hpp"
 #include "battle/Protocol.hpp"
 #include "game/Liquid.hpp"
+#include "game/ModeNames.hpp"
 #include "game/Modifier.hpp"
 #include "game/Mode.hpp"
 #include "game/Puzzle.hpp"
@@ -72,6 +72,43 @@ BlobSprite plainSprite0(float x, float y, int level) {
 
 void stepFor(World& w, float seconds) {
     for (float t = 0; t < seconds; t += cfg::kStep) w.step(cfg::kStep, cfg::kGravity);
+}
+
+TEST(save_keeps_liquid_mixing_and_clamps_hostile_values) {
+    Save::pathOverride() = "liq_sec_save.txt";
+    {
+        Save a;
+        a.modifier = kModMix;
+        a.store();
+        Save b;
+        b.load();
+        CHECK(b.modifier == kModMix);  // v1.8.4 reset it to None because the range check was still 10
+    }
+    if (FILE* f = std::fopen("liq_sec_save.txt", "wb")) {
+        std::fputs("highestLevel=99\nresumeCur=-5\nresumeReserve=77\nresumeSwaps=1000\ncoachStep=9\nliquid=40\nmodifier=-3\nstreak=-9\n", f);
+        std::fclose(f);
+    }
+    Save h;
+    h.load();
+    CHECK(h.highestLevel == 11 && h.resumeCur == 0 && h.resumeReserve == 11 && h.resumeSwaps == 9 && h.coachStep == 4);
+    CHECK(h.liquid == 0 && h.modifier == 0 && h.streak == 0);
+    Save::pathOverride().clear();
+    std::remove("liq_sec_save.txt");
+}
+
+TEST(hostile_run_codes_are_rejected) {
+    Replay r;
+    r.mode = 0;
+    r.seed = 5;
+    r.gravity = cfg::kGravity;
+    r.substeps = 2;
+    r.physics = cfg::kPhysicsVersion;
+    r.drops.push_back({kMaxReplaySteps + 10u, 100.f, 1});  // a drop millions of steps in the future
+    Replay out;
+    CHECK(!Replay::fromCode(r.toCode(), out));
+    r.drops.clear();
+    r.drops.push_back({60u, 100000.f, 1});  // far outside the pot is pulled back inside
+    if (Replay::fromCode(r.toCode(), out) && !out.drops.empty()) CHECK(out.drops[0].x <= cfg::kFieldR);
 }
 
 TEST(radius_grows_with_level) {
@@ -619,6 +656,21 @@ TEST(all_languages_complete) {
     }
 }
 
+TEST(mode_names_resolve_in_every_language) {
+    // Each playable mode needs a name and a description in every language (the mode list and the mode page show both);
+    // the removed Mirror slot must not point at a deleted key.
+    for (int i = 0; i < kLangCount; ++i) {
+        auto d = liq::platform::readAsset(std::string("lang/") + langAt(i).code + ".json");
+        const auto t = parseFlatJson(std::string(d.begin(), d.end()));
+        for (int m = 0; m < kModeCount; ++m) {
+            CHECK(t.count(modeNameKey(ModeId(m))) == 1);
+            CHECK(t.count(modeDescKey(ModeId(m))) == 1);
+        }
+    }
+    CHECK(modeRetired(ModeId::Mirror));
+    CHECK(!modeRetired(ModeId::BigBox));
+}
+
 TEST(pixel_font_folds_accents) {
     PixelFont::setGermanFold(false);
     CHECK(PixelFont::ascii("Atr\xC3\xA1s \xC3\xA9\xC3\xB1 \xC3\xA7\xC4\x9F\xC5\x9F\xC4\xB1") == "AtrAs EN CGSI");
@@ -868,7 +920,7 @@ TEST(replay_v2_code) {
 }
 
 TEST(modifiers_v18) {
-    CHECK(kModifierCount == 10 && kBattleModifiers == 7);
+    CHECK(kModifierCount == 11 && kBattleModifiers == 7);
     // Wind and earthquake are pure functions of the step count, and the quake is quiet most of the time.
     CHECK(modifierSideways(kModWind, 123) == modifierSideways(kModWind, 123));
     CHECK(modifierSideways(kModNone, 123) == 0.f && modifierSideways(kModFog, 5) == 0.f);
@@ -878,6 +930,18 @@ TEST(modifiers_v18) {
     CHECK(quakeAmount(kModQuake, 600) == 0.f && quakeAmount(kModQuake, 27) > 0.9f);
     CHECK(rainInterval(0.f) > rainInterval(200.f) && rainInterval(1000.f) >= 1.1f);
     CHECK(tideShift(10.f) < tideShift(30.f));
+    {   // Tide v2: bounded, never negative, never jumps faster than the line may move (50 px/s), deterministic
+        bool ok = true;
+        float prev = tideShift(0.f);
+        for (int i = 1; i < 60 * 1200; ++i) {
+            const float v = tideShift(float(i) / 60.f);
+            if (v < 0.f || v > cfg::kTideMaxShift + cfg::kTideSwell + 0.01f || std::fabs(v - prev) * 60.f > 50.f) ok = false;
+            prev = v;
+        }
+        CHECK(ok);
+        CHECK(tideShift(123.456f) == tideShift(123.456f));
+        CHECK(cfg::kDeadY + cfg::kTideMaxShift + cfg::kTideSwell < cfg::kFloor - 60.f + 0.01f);
+    }
     for (int w = 0; w < 30; ++w) CHECK(weeklyRuleOf(w) >= 1 && weeklyRuleOf(w) <= 7);
     // Replays with the new modifiers are accepted and deterministic.
     Replay r;

@@ -5,7 +5,9 @@
 #include <string>
 #include <vector>
 
+#include "game/ModeNames.hpp"
 #include "scenes/game/GameScene.hpp"
+#include "ui/widgets/Widgets.hpp"
 
 namespace liq {
 
@@ -14,11 +16,13 @@ ModeId GameScene::takeMode(Ctx& c) {  // a pasted run code decides the mode
     return c.mode;
 }
 
-GameScene::GameScene(Ctx& c) : mid_(takeMode(c)) {
+GameScene::GameScene(Ctx& c) : mid_(takeMode(c)), ctx_(&c) {
     if (c.hasPendingReplay) {
         rec_ = c.pendingReplay;
         c.hasPendingReplay = false;
         replaying_ = true;
+        resuming_ = c.resumeRun;
+        c.resumeRun = false;
         c.puzzleLevel = rec_.puzzle;
     }
     hot_ = c.hotseat && mid_ == ModeId::Classic && !c.hasPendingReplay;
@@ -41,16 +45,56 @@ GameScene::GameScene(Ctx& c) : mid_(takeMode(c)) {
     st_ = c.save.tutorialDone || replaying_ || battle_ ? St::Playing : St::Tutorial;
     c.in.focusLost = false;
     start(c);
+    if (resuming_) c.audio.setSfxVolume(0.f);  // the fast-forward is silent
+}
+
+// Called whenever play stops: the run so far becomes a replay code in the save file (see Save::resumeCode).
+void GameScene::stashResume(Ctx& c) {
+    if (battle_ || hot_ || replaying_ || rec_.empty() || rec_.drops.back().step >= simStep_ || outcome_ != Outcome::Running || mid_ == ModeId::Daily || mid_ == ModeId::Weekly) return;
+    Replay r = rec_;
+    r.endStep = simStep_;
+    r.outcome = 0;
+    c.save.resumeCode = r.toCode();
+    c.save.resumeCur = cur_;
+    c.save.resumeReserve = reserve_;
+    c.save.resumeSwaps = swaps_;
+    c.save.resumeUndos = undos_;
+}
+
+// The saved run has been replayed to its last step: from here on it is a normal live run again.
+void GameScene::finishResume(Ctx& c) {
+    resuming_ = false;
+    replaying_ = false;
+    rec_.endStep = 0;
+    rec_.outcome = 0;
+    cur_ = c.save.resumeCur;
+    reserve_ = c.save.resumeReserve;
+    swaps_ = c.save.resumeSwaps;
+    undos_ = c.save.resumeUndos;
+    elapsed_ = float(simStep_) * cfg::kStep;
+    autoT_ = autoFill_ = 0.f;
+    parts_.clear();
+    texts_.clear();
+    rings_.clear();
+    shake_ = chainT_ = slowT_ = 0.f;
+    cooldown_ = 0.5f;
+    snap_.valid = false;
+    c.audio.setSfxVolume(c.save.sfxVol);
+    st_ = St::Paused;  // let the player get ready
+    lastSt_ = St::Paused;
+    c.ui.resetFocus();
+    setHint(c.loc.tr("resume.ready"), 3.f);
 }
 
 GameScene::~GameScene() {
+    if (resuming_ && ctx_) ctx_->audio.setSfxVolume(ctx_->save.sfxVol);
     if (opp_) opp_->leave();  // closes a LAN link politely
 }
 
 void GameScene::frame(Ctx& c, float dt) {
     Gfx& g = c.gfx;
-    c.ui.setMirror(c.save.leftHand);
-    const bool paused = st_ == St::Paused || st_ == St::Settings;
+    c.ui.setMirror(c.save.leftHand && platform::isMobile());  // phone-only option
+    const bool paused = st_ == St::Paused || st_ == St::Settings || st_ == St::Photo;
     if (c.in.focusLost) {  // window lost focus / app went to background: never lose a run
         c.in.focusLost = false;
         if (st_ == St::Playing) {
@@ -58,10 +102,22 @@ void GameScene::frame(Ctx& c, float dt) {
             c.ui.resetFocus();
         }
     }
+    if (st_ != lastSt_) {  // leaving play (pause, app in background, ...): keep the run so it can be resumed
+        if (lastSt_ == St::Playing && st_ != St::Over) {
+            stashResume(c);
+            c.save.store();
+        }
+        lastSt_ = st_;
+    }
+    if (resuming_ && st_ == St::Playing) {  // replay the saved run at full speed, a slice per frame, then hand over
+        const Uint64 t0 = SDL_GetPerformanceCounter();
+        const double lim = double(SDL_GetPerformanceFrequency()) * 0.012;
+        while (resuming_ && st_ == St::Playing && double(SDL_GetPerformanceCounter() - t0) < lim) simulate(c, cfg::kStep);
+    }
     if (slowT_ > 0.f) slowT_ = std::max(0.f, slowT_ - dt);
     const float slow = c.save.effSlowmo() && slowT_ > 0.f ? 1.f - 0.6f * std::min(1.f, slowT_ * 4.f) : 1.f;
     if (battle_) battleFrame(c, dt, slow);
-    else if (st_ == St::Playing) simulate(c, std::min(dt, 0.05f) * slow);
+    else if (st_ == St::Playing && !resuming_) simulate(c, std::min(dt, 0.05f) * slow);
     updateAudio(c, dt);
     if (!paused) {
         updateFx(dt);
@@ -84,24 +140,42 @@ void GameScene::frame(Ctx& c, float dt) {
     }
     g.setOffset(sx, sy);
     g.drawTankBg();
-    drawBubbles(c);
+    if (!perfLow_) drawBubbles(c);  // ambience is the first thing to go when the device struggles
     drawDeadLine(c, !spec && world_.overflow() > 0.2f, spec ? cfg::kDeadY + 22.f : deadY_);
     if (!spec) drawGuide(c);
     drawBlobs(c, sx, sy);
     drawTankFrame(c);
     if (!spec) drawFx(c);
     g.setOffset(0, 0);
-    drawHud(c);
-    if (battle_) drawViewButton(c);
-    else drawHistory(c);
+    const bool photo = st_ == St::Photo;
+    if (!photo) {
+        drawHud(c);
+        if (battle_) drawViewButton(c);
+        else drawHistory(c);
+    }
     drawToast(c);
-    if (!replaying_) drawHint(c, paused);
-    if (replaying_ && st_ == St::Playing) replayBar(c);
-    if (replaying_ && st_ != St::Over) c.gfx.text(c.loc.tr(replayPaused_ ? "replay.paused" : "replay.banner"), cfg::kW / 2.f, 78, 1, c.theme->accent, Align::Center, TextFx::Outline, c.theme->ink);
+    if (!replaying_ && !photo) drawHint(c, paused);
+    if (replaying_ && !resuming_ && st_ == St::Playing) replayBar(c);
+    if (resuming_) {
+        const float f = rec_.endStep ? clampv(float(simStep_) / float(rec_.endStep), 0.f, 1.f) : 1.f;
+        c.gfx.text(c.loc.tr("resume.loading"), cfg::kW / 2.f, 78, 1, c.theme->accent, Align::Center, TextFx::Outline, c.theme->ink);
+        widgets::meter(c.gfx, *c.theme, cfg::kW / 2.f - 50.f, 92.f, 100.f, 8.f, f);
+    }
+    if (replaying_ && !resuming_ && st_ != St::Over && !photo) c.gfx.text(c.loc.tr(replayPaused_ ? "replay.paused" : "replay.banner"), cfg::kW / 2.f, 78, 1, c.theme->accent, Align::Center, TextFx::Outline, c.theme->ink);
 
     switch (st_) {
         case St::Tutorial: tutorial(c); break;
         case St::Paused: pauseMenu(c); break;
+        case St::Photo:  // photo mode: clean pot, tap to save a PNG, Esc to go back
+            if (c.in.esc) st_ = St::Paused;
+            else if (c.in.pressed || c.in.confirm) {
+                const bool ok = g.capturePng(platform::prefPath() + "liq2048-photo.png");
+                toast_ = c.loc.tr(ok ? "card.saved" : "extras.fail");
+                toastT_ = 2.5f;
+            } else if (toastT_ <= 0.f) {
+                g.text(c.loc.tr("photo.hint"), cfg::kW / 2.f, cfg::kH - 30.f, 1, c.theme->dim, Align::Center);
+            }
+            break;
         case St::Settings:
             g.dim(*c.theme, 1);
             if (drawSettings(c, 72, false) || c.in.esc) st_ = St::Paused;
@@ -129,13 +203,15 @@ void GameScene::start(Ctx& c) {
     world_.clear();
     // Daily, Puzzle and Weekly are always Water so everyone plays the same physics; Battle uses the host's liquid.
     liquid_ = battle_ ? bcfg_.liquid : (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle || mid_ == ModeId::Weekly) ? 0 : c.save.liquid;
-    applyLiquid(world_, liquid_, mod_ == kModThick);
+    if (mod_ == kModMix) applyMixing(world_, false);
+    else applyLiquid(world_, liquid_, mod_ == kModThick);
     // Daily and Puzzle must play identically for everyone, so they always use the reference quality.
     world_.substeps = (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle || mid_ == ModeId::Battle) ? 2 : c.save.quality + 1;
     if (replaying_) {
         mod_ = rec_.modifier;
         liquid_ = rec_.liquid;
-        applyLiquid(world_, liquid_, mod_ == kModThick);
+        if (mod_ == kModMix) applyMixing(world_, false);
+        else applyLiquid(world_, liquid_, mod_ == kModThick);
         world_.substeps = rec_.substeps;
     }
     wantSub_ = world_.substeps;
@@ -193,6 +269,10 @@ void GameScene::start(Ctx& c) {
     }
     cur_ = roll();
     next_ = roll();
+    reserve_ = roll();
+    swaps_ = 3;
+    combo_ = 0;
+    comboT_ = 0.f;
     introHint(c);
     aimX_ = holdX_ = (cfg::kFieldL + cfg::kFieldR) / 2;
     holdPop_ = Spring{-0.4f, 6.f};
@@ -202,14 +282,11 @@ void GameScene::start(Ctx& c) {
 // The first time a mode is played (and for rules that change), show a short hint inside the pot.
 void GameScene::introHint(Ctx& c) {
     if (mid_ == ModeId::Battle) return;
-    static const char* desc[kModeCount] = {"mode.classic.desc", "mode.timed.desc", "mode.target.desc", "mode.daily.desc",
-                                           "mode.zen.desc", "mode.rain.desc", "mode.tide.desc", "mode.weekly.desc", "mode.puzzle.desc", "mode.battle.desc",
-                                           "mode.mirror.desc", "mode.bigbox.desc", "mode.madhouse.desc", "mode.blind.desc"};
     const uint32_t bit = 1u << int(mid_);
     std::string s;
     if (!(c.save.seenModes & bit) && st_ != St::Tutorial) {
         c.save.seenModes |= bit;
-        s = c.loc.tr(desc[int(mid_)]);
+        s = c.loc.tr(modeDescKey(mid_));
     }
     if (mid_ == ModeId::Weekly) s = (s.empty() ? "" : s + " ") + c.loc.fmt("mod.rule", c.loc.tr(modifierKey(mod_)));
     else if (mid_ == ModeId::Puzzle) {

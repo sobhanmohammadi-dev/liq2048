@@ -28,6 +28,11 @@ public:
     int streak = 0;             // consecutive days played (non-punitive: resets quietly)
     int lastDay = 0;
     bool tutorialDone = false;
+    // Quick resume (v1.8.5): the unfinished run as a replay code plus the bits a replay cannot know.
+    std::string resumeCode;
+    int resumeCur = 0, resumeReserve = 0, resumeSwaps = 3, resumeUndos = 1;
+    int tiltBest = 0;           // Tilt maze (phones): best score
+    int coachStep = 0;          // first-run coach: 0 = not started, 1..3 menu/mode page/in game, 4 = done
     int targetStage = 0;        // Target mode escalates 256 -> 512 -> 1024
     int dailyDay = 0;
     int dailyToday = 0;         // best score on dailyDay

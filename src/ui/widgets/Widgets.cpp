@@ -84,4 +84,16 @@ void crownCaption(Gfx& g, const Theme& t, float cx, float y, const std::string& 
     g.icon(IconId::Crown, cx + w / 2.f + 5.f, y, t.accent);
 }
 
+void coachRing(Gfx& g, const Theme& t, float time, float x, float y, float w, float h, const std::string& caption, bool captionBelow) {
+    const float pulse = 0.5f + 0.5f * std::sin(time * 5.f);
+    const float e = 2.f + 3.f * pulse;
+    g.border(x - e, y - e, w + 2.f * e, h + 2.f * e, 2, withAlpha(t.accent, 150 + int(100.f * pulse)));
+    const float cx = float(cfg::kW) / 2.f;
+    const float ty = captionBelow ? y + h + e + 8.f : y - e - 14.f;
+    const float tw = float(g.textW(caption, 1)) + 12.f;
+    g.rect(cx - tw / 2.f, ty - 8.f, tw, 15.f, withAlpha(t.ink, 220));
+    g.border(cx - tw / 2.f, ty - 8.f, tw, 15.f, 1, t.accent);
+    g.text(caption, cx, ty, 1, t.accent, Align::Center);
+}
+
 }  // namespace liq::widgets

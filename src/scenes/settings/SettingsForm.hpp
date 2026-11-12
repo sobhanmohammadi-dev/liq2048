@@ -38,7 +38,7 @@ struct SettingsForm {
 };
 
 // One function per page. Each draws its rows; navigation (Back / next page) is drawn by drawSettings().
-void generalPage(SettingsForm& f, int& page, bool allowCustom);
+void generalPage(SettingsForm& f, bool allowCustom);
 void feelPage(SettingsForm& f);
 void accessPage(SettingsForm& f);
 void liquidPage(SettingsForm& f);

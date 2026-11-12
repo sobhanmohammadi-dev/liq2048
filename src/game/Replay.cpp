@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "core/Config.hpp"
+#include "core/Util.hpp"
 #include "game/World.hpp"
 
 namespace liq {
@@ -178,7 +179,7 @@ bool Replay::fromCode(const std::string& in, Replay& out) {
     r.seed = u32();
     const uint32_t gb = u32();
     std::memcpy(&r.gravity, &gb, 4);
-    if (r.substeps > 3 || r.modifier >= kModifierCount || r.mode > 15 || !(r.gravity >= 0.f && r.gravity < 100000.f)) return false;
+    if (r.substeps > 3 || r.modifier >= kModifierCount || r.mode >= kModeCount || r.mode > 15 || !(r.gravity >= 0.f && r.gravity < 100000.f)) return false;
     r.physics = 1;
     if (ver == 2) {
         if (i + 2 > b.size()) return false;
@@ -186,12 +187,13 @@ bool Replay::fromCode(const std::string& in, Replay& out) {
         r.outcome = b[i] & 3;
         r.liquid = b[i++] >> 2;
         uint32_t n = 0;
-        if (r.liquid >= kLiquidCount || !getVar(b, i, r.endStep) || !getVar(b, i, n) || n > 100000) return false;
+        if (r.liquid >= kLiquidCount || !getVar(b, i, r.endStep) || !getVar(b, i, n) || n > 100000 || r.endStep > kMaxReplaySteps) return false;
         uint32_t st = 0;
         for (uint32_t k = 0; k < n; ++k) {
             uint32_t d = 0;
             if (!getVar(b, i, d) || i >= b.size()) return false;
             st += d;
+            if (st > kMaxReplaySteps) return false;
             const uint8_t v = b[i++];
             if (v < 1 || v > 3) return false;
             r.subs.push_back({st, v});
@@ -203,9 +205,10 @@ bool Replay::fromCode(const std::string& in, Replay& out) {
         if (!getVar(b, i, delta)) return false;
         if (i + 3 > b.size()) return false;
         step += delta;
+        if (step > kMaxReplaySteps || delta > kMaxReplaySteps) return false;  // a hostile code must not make us simulate for hours
         ReplayDrop d;
         d.step = step;
-        d.x = float(b[i] | b[i + 1] << 8) / 128.f;
+        d.x = clampv(float(b[i] | b[i + 1] << 8) / 128.f, cfg::kFieldL, cfg::kFieldR);
         d.level = b[i + 2];
         i += 3;
         if (d.level > 11) return false;
@@ -218,14 +221,15 @@ bool Replay::fromCode(const std::string& in, Replay& out) {
 uint64_t replayChecksum(const Replay& r, int tailSteps) {
     World w;
     w.substeps = r.substeps;
-    applyLiquid(w, r.liquid, r.modifier == kModThick);
+    if (r.modifier == kModMix) applyMixing(w);
+    else applyLiquid(w, r.liquid, r.modifier == kModThick);
     size_t i = 0, si = 0;
     uint32_t step = 0;
     const uint32_t end = (r.drops.empty() ? 0u : r.drops.back().step) + uint32_t(tailSteps);
     for (; step < end; ++step) {
         while (si < r.subs.size() && r.subs[si].first <= step) w.substeps = r.subs[si++].second;
         while (i < r.drops.size() && r.drops[i].step <= step) {
-            w.spawn(r.drops[i].x, cfg::kSpawnY, r.drops[i].level);
+            w.spawn(r.drops[i].x, cfg::kSpawnY, r.drops[i].level, r.modifier == kModMix ? mixLiquidOf(r.seed, int(i)) : 0);
             ++i;
         }
         w.step(cfg::kStep, r.gravity, modifierSideways(r.modifier, uint32_t(step)));

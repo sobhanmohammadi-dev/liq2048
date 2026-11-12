@@ -127,7 +127,7 @@ Classic and Zen: 1 charge at the start of a run, +1 for every chain of 3 or more
 | 7 | **Puzzle** | 26 levels. Filled tank, a fixed drop queue, reach the goal droplet before the queue runs out | Goal reached or queue empty | 3 stars at par, 2 at par + 2, 1 for any solution |
 | 8 | **Battle** | Timed duel (60, 90, 120 or 180 s). Both players get the identical queue in their own pot. Higher score wins; a tie goes to the higher droplet level; otherwise a draw | Time out or both pots finished | vs Bot (Easy, Medium, Hard, Adaptive), vs Human on the same Wi-Fi, or pass-and-play on one device |
 
-| 9 | **Mirror** (1.8) | Two narrow pots, one queue; drops alternate pots; aim is mirrored for the right pot | Either pot overflows | Shared score |
+| 9 | ~~Mirror~~ (1.8, removed in 1.8.3) | The slot is kept only so old saves keep their numbering | - | - |
 | 10 | **Big Container** (1.8) | 1-8 hot-seat players in one wide pot (auto size from player count or 1x-2.5x); the camera follows each drop down and returns | Overflow | Per-player scores, credit to the last dropper |
 | 11 | **Madhouse** (1.8) | Every 10 s about half of the drops change one level, as do the held and next drops | Overflow | Deterministic: own seeded stream, step-based |
 | 12 | **I Don't Know** (1.8) | Liquid drawn in one colour with question marks; held drop known; 3 peeks (2 s each) | Overflow | |

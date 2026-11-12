@@ -1,7 +1,4 @@
 // GameScene simulation: drops, merges, undo, the fixed-step loop, scoring and run completion.
-
-#define _CRT_SECURE_NO_WARNINGS
-
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -23,7 +20,21 @@ void GameScene::saveSnap() {
     snap_.elapsed = elapsed_;
     snap_.quiet = quiet_;
     snap_.simStep = simStep_;
+    snap_.relief = tideRelief_;
+    snap_.combo = combo_;
+    snap_.comboT = comboT_;
+    snap_.reserve = reserve_;
+    snap_.deadY = deadY_;
     snap_.valid = true;
+}
+
+void GameScene::doSwap(Ctx& c) {
+    if (!swapAllowed() || st_ != St::Playing || swaps_ <= 0 || cooldown_ > 0.f || (mode_->dropLimit() >= 0 && drops_ >= mode_->dropLimit())) return;
+    std::swap(cur_, reserve_);
+    --swaps_;
+    holdPop_ = Spring{-0.35f, 7.f};
+    c.audio.play(Sfx::Click);
+    buzz(c, 0.2f, 10);
 }
 
 void GameScene::doUndo(Ctx& c) {
@@ -38,6 +49,11 @@ void GameScene::doUndo(Ctx& c) {
     elapsed_ = snap_.elapsed;
     quiet_ = snap_.quiet;
     simStep_ = snap_.simStep;
+    tideRelief_ = snap_.relief;
+    combo_ = snap_.combo;
+    comboT_ = snap_.comboT;
+    reserve_ = snap_.reserve;
+    deadY_ = snap_.deadY;
     rec_.truncateFrom(simStep_);
     snap_.valid = false;
     --undos_;
@@ -66,7 +82,7 @@ int GameScene::roll() {
     // Everyone else gets bigger drops the longer a run lasts (cumulative weights for levels 0..5).
     static const int w[5][6] = {{38, 70, 90, 100, 100, 100}, {28, 56, 78, 93, 100, 100}, {20, 42, 66, 86, 100, 100},
                                 {14, 32, 54, 78, 100, 100}, {10, 24, 44, 68, 88, 100}};
-    const int tier = std::min(4, drops_ / 12);
+    const int tier = std::min(4, drops_ / rampDiv());
     int lvl = 0;
     while (lvl < 5 && r >= w[tier][lvl]) ++lvl;
     return lvl;
@@ -80,12 +96,13 @@ void GameScene::tryDrop(Ctx& c, bool force, int levelOverride) {
     aimX_ = quantX(aimX_);  // run codes store positions in 1/128 px
     if (!replaying_) rec_.drops.push_back({simStep_, aimX_, lvl});
     if (!replaying_ && trail_.size() < size_t(Save::kGhostMax)) trail_.push_back(score_);
-    world_.spawn(aimX_, cfg::kSpawnY, lvl);
+    world_.spawn(aimX_, cfg::kSpawnY, lvl, mod_ == kModMix ? mixLiquidOf(rec_.seed, drops_) : 0);
     ++drops_;
     cur_ = next_;
     next_ = roll();
     cooldown_ = cfg::kDropCooldown;
     quiet_ = 0;
+    stashDue_ = !replaying_;
     if (hot_) {
         lastDropper_ = turn_;
         turn_ ^= 1;
@@ -115,14 +132,17 @@ void GameScene::onMerge(Ctx& c, const MergeEvent& e) {
     const int value = 1 << e.level;
     ++runMerges_;
     runChain_ = std::max(runChain_, e.chain);
-    tideRelief_ += 3.f + 1.5f * float(e.level);
+    tideRelief_ = std::min(cfg::kTideReliefCap, tideRelief_ + 2.f + 1.f * float(e.level));
     if (coach_ == 1) {
         coach_ = 2;
         setHint(c.loc.tr("coach.3"), 3.5f);
     }
     if (e.chain >= 7) grant(c, kChain7);
-    score_ += value * e.chain;
-    if (hot_) hs_[lastDropper_] += value * e.chain;
+    ++combo_;
+    comboT_ = kComboWindow;
+    const int gain = value * e.chain * comboMult();
+    score_ += gain;
+    if (hot_) hs_[lastDropper_] += gain;
     quiet_ = 0;
     maxLevel_ = std::max(maxLevel_, e.level);
     c.audio.play(Sfx::Merge, 0.5f, e.level, e.chain);
@@ -135,9 +155,10 @@ void GameScene::onMerge(Ctx& c, const MergeEvent& e) {
     }
     if (!c.save.reduceMotion) rings_.push_back({e.x, e.y, 0.f, World::radiusFor(e.level) * 0.8f, col});
     texts_.push_back({e.x, e.y - World::radiusFor(e.level) - 4.f, e.chain >= 3 ? 1.3f : 0.9f,
-                      "+" + std::to_string(value * e.chain), e.chain >= 3 ? t.accent : t.text, e.chain >= 3 ? 2 : 1});
+                      "+" + std::to_string(gain), e.chain >= 3 ? t.accent : t.text, e.chain >= 3 ? 2 : 1});
     buzz(c, 0.35f + 0.05f * float(std::min(e.level, 8)) + 0.1f * float(std::min(e.chain, 4)), 18 + 6 * std::min(e.level, 8) + 15 * std::min(e.chain - 1, 3));
     if (e.level >= 8 || e.chain >= 4) slowT_ = 0.45f;
+    if (e.chain >= 4 && swaps_ < 5 && swapAllowed()) ++swaps_;
     if (e.chain >= 3 && undoAllowed() && undos_ < 3) {
         ++undos_;
         texts_.push_back({e.x, e.y + 8.f, 1.2f, "+" + c.loc.tr("hud.undo"), t.accent, 1});
@@ -244,8 +265,9 @@ void GameScene::simulate(Ctx& c, float dt, bool locked) {
     // the physics need not be identical for everyone.
     if (!replaying_ && mid_ != ModeId::Daily && mid_ != ModeId::Puzzle && mid_ != ModeId::Battle) {
         perfEma_ += (dt - perfEma_) * 0.04f;
-        if (!perfLow_ && perfEma_ > 0.024f) perfLow_ = true;
-        if (perfLow_ && perfEma_ < 0.017f) perfLow_ = false;
+        const bool ph = platform::isMobile();  // phones react earlier: a steady 50 fps beats a stuttering 60
+        if (!perfLow_ && perfEma_ > (ph ? 0.0205f : 0.024f)) perfLow_ = true;
+        if (perfLow_ && perfEma_ < (ph ? 0.0172f : 0.017f)) perfLow_ = false;
         wantSub_ = perfLow_ ? 1 : c.save.quality + 1;
     }
     while (!frozen && acc_ >= cfg::kStep) {
@@ -265,6 +287,7 @@ void GameScene::simulate(Ctx& c, float dt, bool locked) {
         if (mid_ == ModeId::Madhouse && simStep_ > 0 && simStep_ % kMadSteps == 0) madShuffle(c);
         world_.step(cfg::kStep, gravityNow(), modifierSideways(mod_, simStep_));
         ++simStep_;
+        if (comboT_ > 0.f && (comboT_ -= cfg::kStep) <= 0.f) combo_ = 0, comboT_ = 0.f;
         acc_ -= cfg::kStep;
         for (const auto& e : world_.events) onMerge(c, e);
         world_.events.clear();
@@ -274,16 +297,24 @@ void GameScene::simulate(Ctx& c, float dt, bool locked) {
             const float shift = mid_ == ModeId::Tide ? mode_->deadLineShift(float(simStep_) * cfg::kStep) : tideShift(float(simStep_) * cfg::kStep);
             tideRelief_ = std::min(tideRelief_, shift);
             // The line keeps moving all game (see Tide::deadLineShift); merges lift it, but never above its start.
-            const float target = cfg::kDeadY + shift - tideRelief_;
+            const float target = std::min(cfg::kDeadY + shift - tideRelief_, cfg::kFloor - 60.f);
             deadY_ += clampv(target - deadY_, -50.f * cfg::kStep, 50.f * cfg::kStep);
         }
         world_.updateOverflow(deadY_, cfg::kStep);
         if (!mode_->failable() && world_.overflow() > 1.5f) popOverflow(c);
         if (replaying_ && rec_.endStep && simStep_ >= rec_.endStep) break;
     }
+    if (stashDue_ && !replaying_ && !rec_.empty() && simStep_ > rec_.drops.back().step) {
+        stashDue_ = false;
+        stashResume(c);
+    }
 
     if (replaying_ && rec_.endStep) {  // a code that knows where the run ended plays exactly to that point
         if (simStep_ >= rec_.endStep && repIdx_ >= rec_.drops.size()) {
+            if (resuming_) {
+                finishResume(c);
+                return;
+            }
             finish(c, rec_.outcome == 1 ? Outcome::Won : rec_.outcome == 2 ? Outcome::Lost : Outcome::Finished);
             return;
         }
@@ -343,6 +374,7 @@ void GameScene::commit(Ctx& c) {
 
 void GameScene::finish(Ctx& c, Outcome o) {
     outcome_ = o;
+    if (!replaying_) c.save.resumeCode.clear();
     if (!replaying_) {
         rec_.endStep = simStep_;
         rec_.outcome = o == Outcome::Won ? 1 : o == Outcome::Lost ? 2 : 3;

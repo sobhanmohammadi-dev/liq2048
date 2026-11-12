@@ -4,9 +4,6 @@
 //                                 with palette = default, steel, sunset, jungle
 // tools/audiogen/build_audio.py then stores the masters as FLAC in original_assets/ and encodes the optimized
 // OGG files into assets/. Re-run it after changing Synth.cpp.
-
-#define _CRT_SECURE_NO_WARNINGS
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>

@@ -8,6 +8,65 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.9.0] "Mobile first"
+### Fixed
+- Taps needing several tries and the drop jumping to the right edge: the renderer converted touch positions while its logical size was briefly switched off (every frame, to paint the letterbox bars), so some touches arrived unscaled. Fingers are now read directly and mapped to the screen with our own maths.
+- Every press and release is queued with its own position and handed to the game one per frame, so quick taps are never merged or lost.
+- The last touched button no longer stays highlighted on phones.
+- Android build: versionCode had become '1.8.4'/'1.8.5' (a version-bump slip in v1.8.4 and v1.8.5) and could not be converted to a number; it is 10900 again.
+- Saves lost the Liquid mixing modifier (range check was still 10).
+### Added
+- Pause button (and a pause panel) in Big Container; the app going to the background pauses it too.
+- Tilt maze (phones, under Additional features): tilt the phone to roll a small drop through a maze and merge with the other drop; shake for a hint. Drag a finger steers when there is no motion sensor.
+### Changed
+- Phone performance: only the changed rows of the liquid texture are uploaded, the governor reacts earlier on phones and drops ambient bubbles first.
+- Left-handed layout and large touch areas are phone-only options (hidden on PC).
+### Security
+- Run codes: step counts are capped (no more hour-long simulations from a hostile code), modes are range-checked, drop positions are kept inside the pot.
+- Save files: every value is clamped to what the game can use; LAN announcements are range-checked.
+
+## [1.8.5] "Pick up where you left off"
+### Added
+- Quick resume: leaving a run (pause, app in background, quit) keeps it; a Continue button on the menu restores the exact pot and plays on.
+- First-run coach: new players are guided Start, then Classic, then Start, with a pulsing frame and a short caption.
+- Big Container co-op: a Versus/Co-op choice; in co-op the team shares one score and works toward a goal tile (512, or 1024 with 4+ players).
+- Profile as pictures: your biggest drop as a real blob, icon chips for your numbers, and awards as a grid of medals.
+
+## [1.8.4] "Harder tides"
+### Added
+- Liquid mixing modifier: every drop is a different liquid (viscosity, surface tension, wall friction); a bead on each drop shows which.
+- Combo meter: merges in quick succession build a score multiplier up to x5.
+- Reserve slot: park the drop in hand and swap (3 per run, chains earn more) in the free modes.
+- Photo mode (pause menu): clean pot, tap to save a PNG.
+- Run result shows a picture (biggest drop, merges, drops, chain) instead of text only, also on the share image.
+- Haptics feel different per liquid.
+### Changed
+- Rising Tide is much harder: faster sink, swell from the start, merge relief capped, undo restores the line.
+- Faster drop-size ramp outside Daily/Weekly, shorter overflow grace. Physics version 3.
+
+## [1.8.3] "Simple modes"
+### Changed
+- **New mode list**, rebuilt from scratch after the design sketch: one screen without scrolling. Battle on top,
+  Puzzle beside Classic and Zen, *Limited challenges* (Weekly, Daily) and *Twists* (Time Attack, Target,
+  Big Container, Madhouse, I Don't Know). Every tile has its own animation.
+- **Mode page** (new): tap a mode to see its title, description, a looping preview clip, your record and the
+  modifier picker, then press Start. The clip runs on the real liquid physics and is unique per mode
+  (aim and merge, calm ripples, draining clock, target burst, calendar flip, wind week, star goals, rival pot
+  with an attack drop, camera frame over a wide pot, shuffling Madhouse, fogged pot with peeks).
+  Modes that ignore modifiers (Daily, Puzzle, Big Container) say so; Weekly shows its fixed rule; Battle offers
+  its seven physics modifiers.
+- **Settings** now has a tab strip (General, Game, Liquid, Access): one tap reaches any page instead of a
+  paging button; every page uses the same eight-row panel.
+
+### Removed
+- **Mirror mode.** Big Container is the only party mode now. The mode slot stays reserved so saves and run
+  codes keep their numbering; its text was removed from all languages.
+
+### Notes
+- New strings (`select.limited`, `modeinfo.nomod`, `tab.feel`, `tab.liquid`) are translated in all eight
+  languages but have not been reviewed by native speakers.
+- The preview clips and the new screens have been checked on screenshots only, not played on a device.
+
 ## [1.8.2] "Tidy and fast"
 Behaviour-preserving release: no gameplay, physics or save-format change. Run codes from 1.8.x stay valid.
 

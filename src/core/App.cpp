@@ -1,11 +1,11 @@
-#define _CRT_SECURE_NO_WARNINGS
-
 #include "core/App.hpp"
 
 #include <SDL.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
+#include <deque>
 #include <vector>
 #include <memory>
 
@@ -25,10 +25,12 @@ SceneId sceneFromName(const std::string& n, Ctx& c) {
     if (n == "game") return SceneId::Game;
     if (n == "credits") return SceneId::Credits;
     if (n == "battle") return SceneId::Battle;
-    if (n == "mirror" || n == "bigbox") {  // dev: the party modes
-        c.mode = n == "mirror" ? ModeId::Mirror : ModeId::BigBox;
+    if (n == "bigbox") {  // dev: the party mode
+        c.mode = ModeId::BigBox;
         return SceneId::Party;
     }
+    if (n == "tilt") return SceneId::Tilt;  // dev
+    if (n == "modeinfo") return SceneId::ModeInfo;  // dev: pick the mode with --set mode=N
     if (n == "hotseat") {
         c.mode = ModeId::Classic;
         c.hotseat = true;
@@ -81,7 +83,7 @@ void scriptedInput(Input& in, int frame) {
 int App::run(const AppOptions& opt) {
     const bool shot = !opt.shotPath.empty();
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");  // nearest: crisp pixels
-    SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
+    SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");  // fingers are handled directly (see the pointer queue below)
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
     if (platform::isMobile()) SDL_SetHint(SDL_HINT_ORIENTATIONS, "Portrait");
     if (shot && !SDL_getenv("SDL_VIDEODRIVER")) SDL_setenv("SDL_VIDEODRIVER", "dummy", 0);
@@ -94,7 +96,7 @@ int App::run(const AppOptions& opt) {
     if (platform::isMobile()) flags |= SDL_WINDOW_FULLSCREEN;
     int ww = shot ? cfg::kW * 2 : cfg::kW * 3, wh = shot ? cfg::kH * 2 : cfg::kH * 3 / 2 * 2;
     if (shot)  // dev: LIQ_SHOT_SIZE=720x1600 previews phones with a different aspect ratio
-        if (const char* sz = SDL_getenv("LIQ_SHOT_SIZE")) {std::sscanf(sz, "%dx%d", &ww, &wh);}
+        if (const char* sz = SDL_getenv("LIQ_SHOT_SIZE")) std::sscanf(sz, "%dx%d", &ww, &wh);
     SDL_Window* window = SDL_CreateWindow("Liq2048", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, ww, wh, flags);
     if (!window) {
         SDL_Log("Window failed: %s", SDL_GetError());
@@ -152,6 +154,7 @@ int App::run(const AppOptions& opt) {
                 else if (k == "puzzle") c.puzzleLevel = v;
                 else if (k == "modifier") s.modifier = v;
                 else if (k == "liquid") s.liquid = v;
+                else if (k == "coachstep") s.tutorialDone = false, s.coachStep = v;
             }
         }
         if (shot) setSettingsPage(opt.shotPage);
@@ -174,6 +177,15 @@ int App::run(const AppOptions& opt) {
         constexpr float kBlinds = 0.22f;
 
         std::vector<SDL_GameController*> pads;
+        // Pointer queue (v1.9.0): every press / release / move of the mouse or the first finger is queued with its own
+        // position. One press or release is handed to the game per frame, so a quick tap is always seen as two separate
+        // frames (never a lost or merged click), and each edge carries the exact spot where it happened.
+        struct PtrEv {
+            int kind;  // 0 move, 1 down, 2 up
+            float x, y;
+        };
+        std::deque<PtrEv> ptrQ;
+        SDL_FingerID mainFinger = -1;
         bool perfOverlay = false;
         float frameMs[90] = {};
         int frameIdx = 0;
@@ -215,24 +227,46 @@ int App::run(const AppOptions& opt) {
                             default: break;
                         }
                         break;
-                    case SDL_MOUSEMOTION: c.in.mx = float(e.motion.x); c.in.my = float(e.motion.y); break;
+                    case SDL_MOUSEMOTION:
+                        if (e.motion.which != SDL_TOUCH_MOUSEID) ptrQ.push_back({0, float(e.motion.x), float(e.motion.y)});
+                        break;
                     case SDL_MOUSEBUTTONDOWN:
-                        if (e.button.button == SDL_BUTTON_LEFT) {
-                            c.in.mx = float(e.button.x); c.in.my = float(e.button.y);
-                            c.in.down = c.in.pressed = true;
-                        }
+                        if (e.button.button == SDL_BUTTON_LEFT && e.button.which != SDL_TOUCH_MOUSEID) ptrQ.push_back({1, float(e.button.x), float(e.button.y)});
                         break;
                     case SDL_MOUSEBUTTONUP:
-                        if (e.button.button == SDL_BUTTON_LEFT) {
-                            c.in.mx = float(e.button.x); c.in.my = float(e.button.y);
-                            c.in.down = false;
-                            c.in.released = true;
+                        if (e.button.button == SDL_BUTTON_LEFT && e.button.which != SDL_TOUCH_MOUSEID) ptrQ.push_back({2, float(e.button.x), float(e.button.y)});
+                        break;
+                    case SDL_FINGERDOWN:
+                        if (mainFinger == -1) {
+                            mainFinger = e.tfinger.fingerId;
+                            float lx, ly;
+                            c.gfx.windowToLogical(e.tfinger.x, e.tfinger.y, lx, ly);
+                            ptrQ.push_back({1, lx, ly});
+                        }
+                        break;
+                    case SDL_FINGERMOTION:
+                        if (e.tfinger.fingerId == mainFinger) {
+                            float lx, ly;
+                            c.gfx.windowToLogical(e.tfinger.x, e.tfinger.y, lx, ly);
+                            ptrQ.push_back({0, lx, ly});
+                        }
+                        break;
+                    case SDL_FINGERUP:
+                        if (e.tfinger.fingerId == mainFinger) {
+                            mainFinger = -1;
+                            float lx, ly;
+                            c.gfx.windowToLogical(e.tfinger.x, e.tfinger.y, lx, ly);
+                            ptrQ.push_back({2, lx, ly});
                         }
                         break;
                     case SDL_WINDOWEVENT:
                         if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) hadFocus = true;
                         if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST && hadFocus && !shot) c.in.focusLost = true;
-                        if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) hadFocus = false;
+                        if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+                            hadFocus = false;
+                            mainFinger = -1;
+                            if (c.in.down) ptrQ.push_back({2, -100.f, -100.f});  // never leave a press stuck (released off-screen: no click)
+                        }
                         break;
                     case SDL_KEYDOWN:
                         if (e.key.repeat) break;
@@ -267,6 +301,20 @@ int App::run(const AppOptions& opt) {
                     default: break;
                 }
             }
+            for (bool edge = false; !ptrQ.empty() && !edge;) {  // apply queued pointer events, stopping after one press / release
+                const PtrEv p = ptrQ.front();
+                ptrQ.pop_front();
+                if (!std::isfinite(p.x) || !std::isfinite(p.y)) continue;
+                c.in.mx = std::max(-40.f, std::min(float(cfg::kW) + 40.f, p.x));
+                c.in.my = std::max(-40.f, std::min(float(cfg::kH) + 40.f, p.y));
+                if (p.kind == 1) c.in.down = c.in.pressed = edge = true;
+                else if (p.kind == 2) {
+                    c.in.down = false;
+                    c.in.released = edge = true;
+                }
+            }
+            if (ptrQ.size() > 64)  // never let a stalled frame build up a backlog (moves are expendable, edges are not)
+                ptrQ.erase(std::remove_if(ptrQ.begin(), ptrQ.end(), [](const PtrEv& p) { return p.kind == 0; }), ptrQ.end());
             const Uint8* ks = SDL_GetKeyboardState(nullptr);
             c.in.left = ks[SDL_SCANCODE_LEFT] || ks[SDL_SCANCODE_A];
             c.in.right = ks[SDL_SCANCODE_RIGHT] || ks[SDL_SCANCODE_D];

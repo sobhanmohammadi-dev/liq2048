@@ -21,6 +21,7 @@ struct Particle {
     float ox = 0, oy = 0;  // position at the start of the last fixed step (interpolation)
     float rx = 0, ry = 0;  // rest offset from the drop's centroid (jelly liquids spring back to it)
     int g = 0;             // owning drop index
+    uint8_t mat = 0;       // Liquid mixing: material of this particle (index into World::mix)
 };
 
 // One drop of liquid (a group of particles). Derived fields are refreshed every step.
@@ -55,7 +56,7 @@ public:
     static float radiusFor(int level);       // nominal radius of a round drop of that level
     static int particlesFor(int level);      // particle count (constant volume per level)
     void clear();                            // keeps the container geometry
-    void spawn(float x, float y, int level);
+    void spawn(float x, float y, int level, int mat = 0);
     void step(float dt, float gravity, float gx = 0.f);  // one fixed frame (substeps inside); gx = sideways acceleration (wind)
     void updateOverflow(float deadY, float dt);
     float overflow() const { return overflow_; }
@@ -87,6 +88,11 @@ public:
     float jelly = 0.f;  // shape memory (spring, 1/s^2; 0 = none): a drop springs back to its round shape and wobbles
     float shear = 0.f;  // velocity averaging between neighbours (0 = none): the liquid moves as one gooey mass
     float wallVy = 0.9f;  // vertical velocity kept on touching the floor or a wall (low = the liquid lands with a plop)
+    // Liquid mixing (v1.8.4): every drop is its own liquid. When `mixed`, viscosity, surface tension and wall friction come
+    // from the particles' material instead of the world-wide values above.
+    struct MixMat { float visc = 1.f, coh = 1.f, rest = 0.f, drag = 0.97f, vy = 0.9f; };
+    bool mixed = false;
+    MixMat mix[8];
     float cohesion = 1.f, restCohesion = 0.f, wallDrag = cfg::kWallDrag, damp = cfg::kDamp;
 
     std::vector<Particle> parts;
