@@ -471,6 +471,7 @@ endif()
 
 if(NOT ANDROID AND NOT IOS)
 
+    # Copy assets next to the main executable.
     add_custom_command(
         TARGET liq2048
         POST_BUILD
@@ -480,8 +481,25 @@ if(NOT ANDROID AND NOT IOS)
             "${CMAKE_CURRENT_SOURCE_DIR}/assets"
             "$<TARGET_FILE_DIR:liq2048>/assets"
 
-        COMMENT "Copying game assets..."
+        COMMENT "Copying game assets to liq2048..."
     )
+
+    # Copy assets next to the test executable.
+    if(LIQ_BUILD_TESTS)
+
+        add_custom_command(
+            TARGET liq_tests
+            POST_BUILD
+
+            COMMAND
+                ${CMAKE_COMMAND} -E copy_directory
+                "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+                "$<TARGET_FILE_DIR:liq_tests>/assets"
+
+            COMMENT "Copying game assets to liq_tests..."
+        )
+
+    endif()
 
 endif()
 
@@ -543,6 +561,10 @@ if(LIQ_BUILD_TESTS)
     add_test(
         NAME liq_tests
         COMMAND liq_tests
+    )
+
+    set_tests_properties(liq_tests PROPERTIES
+        WORKING_DIRECTORY "$<TARGET_FILE_DIR:liq_tests>"
     )
 endif()
 
