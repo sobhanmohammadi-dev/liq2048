@@ -1,7 +1,8 @@
+
 cmake_minimum_required(VERSION 3.21)
 
 project(Liq2048
-    VERSION 1.9.4
+    VERSION 1.9.6
     LANGUAGES C CXX
     DESCRIPTION "Physics-based blob merging puzzle in C++17 and SDL2"
     HOMEPAGE_URL "https://github.com/sobhanmohammadi-dev/Liq2048"
@@ -24,44 +25,15 @@ endif()
 # Options
 # ---------------------------------------------------------------------------
 
-option(LIQ_FETCH_DEPS
-    "Download and build SDL2 and SDL2_ttf from source"
-    OFF
-)
-
-option(LIQ_BUILD_TESTS
-    "Build the unit tests"
-    ON
-)
-
-option(LIQ_BUILD_TOOLS
-    "Build developer tools (liq_audiogen, liq_puzzlegen and liq_bench)"
-    OFF
-)
-
-option(LIQ_LTO
-    "Link-time optimisation for Release builds (smaller and usually faster; ignored when unsupported)"
-    ON
-)
-
-option(LIQ_STRIP
-    "Strip symbols from the Release executable"
-    ON
-)
-
-option(LIQ_WARNINGS_AS_ERRORS
-    "Treat compiler warnings as errors"
-    OFF
-)
+option(LIQ_FETCH_DEPS "Download and build SDL2 and SDL2_ttf from source" OFF)
+option(LIQ_BUILD_TESTS "Build the unit tests" ON)
+option(LIQ_BUILD_TOOLS "Build developer tools" OFF)
+option(LIQ_LTO "Enable link-time optimisation in Release builds" ON)
+option(LIQ_STRIP "Strip symbols from the Release executable" ON)
+option(LIQ_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 # ---------------------------------------------------------------------------
 # Dependencies
-#
-# Desktop:
-#   Use installed SDL2 / SDL2_ttf unless LIQ_FETCH_DEPS is enabled.
-#
-# Android / iOS:
-#   Build dependencies from source using FetchContent.
 # ---------------------------------------------------------------------------
 
 if(ANDROID OR IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
@@ -72,40 +44,19 @@ if(LIQ_FETCH_DEPS)
 
     include(FetchContent)
 
-    # -----------------------------------------------------------------------
-    # SDL2 library configuration
-    # -----------------------------------------------------------------------
-
     if(ANDROID)
-
         set(SDL_SHARED ON CACHE BOOL "" FORCE)
         set(SDL_STATIC OFF CACHE BOOL "" FORCE)
-
-        # SDL2_ttf must use the shared SDL2 target on Android.
         set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
-
     else()
-
         set(SDL_SHARED OFF CACHE BOOL "" FORCE)
         set(SDL_STATIC ON CACHE BOOL "" FORCE)
-
-        # SDL2_ttf uses the static SDL2 target on desktop and iOS.
         set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-
     endif()
 
     set(SDL2_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
-
-    # -----------------------------------------------------------------------
-    # SDL2_ttf configuration
-    # -----------------------------------------------------------------------
-
     set(SDL2TTF_INSTALL OFF CACHE BOOL "" FORCE)
     set(SDL2TTF_VENDORED ON CACHE BOOL "" FORCE)
-
-    # -----------------------------------------------------------------------
-    # Fetch SDL2
-    # -----------------------------------------------------------------------
 
     FetchContent_Declare(
         SDL2
@@ -113,10 +64,6 @@ if(LIQ_FETCH_DEPS)
         GIT_TAG release-2.30.9
         GIT_SHALLOW TRUE
     )
-
-    # -----------------------------------------------------------------------
-    # Fetch SDL2_ttf and its FreeType submodule
-    # -----------------------------------------------------------------------
 
     FetchContent_Declare(
         SDL2_ttf
@@ -140,28 +87,18 @@ endif()
 # ---------------------------------------------------------------------------
 
 if(TARGET SDL2::SDL2)
-
     set(LIQ_SDL_TARGET SDL2::SDL2)
-
 elseif(TARGET SDL2::SDL2-static)
-
     set(LIQ_SDL_TARGET SDL2::SDL2-static)
-
 elseif(TARGET SDL2)
-
     set(LIQ_SDL_TARGET SDL2)
-
 elseif(TARGET SDL2-static)
-
     set(LIQ_SDL_TARGET SDL2-static)
-
 else()
-
     message(FATAL_ERROR
         "No compatible SDL2 target found. "
         "Expected SDL2::SDL2 or SDL2::SDL2-static."
     )
-
 endif()
 
 # ---------------------------------------------------------------------------
@@ -169,27 +106,15 @@ endif()
 # ---------------------------------------------------------------------------
 
 if(TARGET SDL2_ttf::SDL2_ttf)
-
     set(LIQ_SDL_TTF_TARGET SDL2_ttf::SDL2_ttf)
-
 elseif(TARGET SDL2_ttf::SDL2_ttf-static)
-
     set(LIQ_SDL_TTF_TARGET SDL2_ttf::SDL2_ttf-static)
-
 elseif(TARGET SDL2_ttf)
-
     set(LIQ_SDL_TTF_TARGET SDL2_ttf)
-
 elseif(TARGET SDL2::ttf)
-
     set(LIQ_SDL_TTF_TARGET SDL2::ttf)
-
 else()
-
-    message(FATAL_ERROR
-        "No compatible SDL2_ttf target found."
-    )
-
+    message(FATAL_ERROR "No compatible SDL2_ttf target found.")
 endif()
 
 message(STATUS "Liq2048 SDL2 target: ${LIQ_SDL_TARGET}")
@@ -212,9 +137,6 @@ list(
 
 # ---------------------------------------------------------------------------
 # stb_vorbis
-#
-# Public-domain OGG Vorbis decoder.
-# Compiled as C without project warning flags.
 # ---------------------------------------------------------------------------
 
 add_library(stb_vorbis STATIC
@@ -236,9 +158,6 @@ endif()
 
 # ---------------------------------------------------------------------------
 # Core library
-#
-# Contains all game code except main.cpp.
-# SDL2 and SDL2_ttf must be PUBLIC dependencies because liq_core is static.
 # ---------------------------------------------------------------------------
 
 add_library(liq_core STATIC
@@ -256,8 +175,9 @@ target_link_libraries(liq_core
         ${LIQ_SDL_TARGET}
         ${LIQ_SDL_TTF_TARGET}
 )
+
 if(WIN32)
-    target_link_libraries(liq_core PUBLIC ws2_32)  # LAN Battle sockets
+    target_link_libraries(liq_core PUBLIC ws2_32)
 endif()
 
 target_compile_definitions(liq_core
@@ -274,10 +194,13 @@ if(MSVC)
     target_compile_options(liq_core PRIVATE
         /W4
         /utf-8
-        /wd4244  # int/float narrowing: checked by clang and gcc -Wall -Wextra instead
+        /wd4244
         /wd4267
     )
-    target_compile_definitions(liq_core PRIVATE _CRT_SECURE_NO_WARNINGS)
+
+    target_compile_definitions(liq_core PRIVATE
+        _CRT_SECURE_NO_WARNINGS
+    )
 
     if(LIQ_WARNINGS_AS_ERRORS)
         target_compile_options(liq_core PRIVATE /WX)
@@ -298,37 +221,48 @@ else()
 endif()
 
 # ---------------------------------------------------------------------------
-# Size and speed: dead-code elimination, optional LTO and symbol stripping
-#
-# Every function and data object gets its own section so the linker can drop what nothing uses;
-# LTO lets the optimiser inline across translation units (the game is split into many small modules).
-# None of this changes behaviour: floating-point semantics are untouched (no -ffast-math).
+# Link-time optimisations and dead-code elimination
 # ---------------------------------------------------------------------------
 
 if(NOT MSVC)
-    target_compile_options(liq_core PRIVATE -ffunction-sections -fdata-sections)
+
+    target_compile_options(liq_core PRIVATE
+        -ffunction-sections
+        -fdata-sections
+    )
+
     if(APPLE)
         set(LIQ_GC_LINK_FLAG -Wl,-dead_strip)
     else()
         set(LIQ_GC_LINK_FLAG -Wl,--gc-sections)
     endif()
+
 endif()
 
 if(LIQ_LTO AND CMAKE_BUILD_TYPE STREQUAL "Release")
+
     include(CheckIPOSupported)
-    check_ipo_supported(RESULT LIQ_IPO_OK OUTPUT LIQ_IPO_MSG LANGUAGES CXX)
+
+    check_ipo_supported(
+        RESULT LIQ_IPO_OK
+        OUTPUT LIQ_IPO_MSG
+        LANGUAGES CXX
+    )
+
     if(LIQ_IPO_OK)
-        set_property(TARGET liq_core PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
+        set_property(
+            TARGET liq_core
+            PROPERTY INTERPROCEDURAL_OPTIMIZATION ON
+        )
         set(LIQ_USE_LTO ON)
     else()
         message(STATUS "LTO unavailable: ${LIQ_IPO_MSG}")
     endif()
+
 endif()
 
 # ---------------------------------------------------------------------------
 # Main executable
-#
-# Android requires a shared library named "main".
 # ---------------------------------------------------------------------------
 
 if(ANDROID)
@@ -349,26 +283,34 @@ else()
 
 endif()
 
-# ---------------------------------------------------------------------------
-# Main executable linking
-# ---------------------------------------------------------------------------
-
 target_link_libraries(liq2048
     PRIVATE
         liq_core
 )
 
 if(LIQ_USE_LTO)
-    set_property(TARGET liq2048 PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
+    set_property(
+        TARGET liq2048
+        PROPERTY INTERPROCEDURAL_OPTIMIZATION ON
+    )
 endif()
+
 if(LIQ_GC_LINK_FLAG)
-    target_link_options(liq2048 PRIVATE ${LIQ_GC_LINK_FLAG})
+    target_link_options(liq2048 PRIVATE
+        ${LIQ_GC_LINK_FLAG}
+    )
 endif()
-if(LIQ_STRIP AND CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT MSVC AND NOT APPLE AND NOT ANDROID)
+
+if(
+    LIQ_STRIP
+    AND CMAKE_BUILD_TYPE STREQUAL "Release"
+    AND NOT MSVC
+    AND NOT APPLE
+    AND NOT ANDROID
+)
     target_link_options(liq2048 PRIVATE -s)
 endif()
 
-# SDL2main is only needed when the platform provides it.
 if(TARGET SDL2::SDL2main)
     target_link_libraries(liq2048 PRIVATE SDL2::SDL2main)
 endif()
@@ -378,11 +320,9 @@ endif()
 # ---------------------------------------------------------------------------
 
 if(WIN32)
-
     set_target_properties(liq2048 PROPERTIES
         WIN32_EXECUTABLE ON
     )
-
 endif()
 
 # ---------------------------------------------------------------------------
@@ -434,7 +374,6 @@ if(IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set_target_properties(liq2048 PROPERTIES
 
         MACOSX_BUNDLE ON
-
         OUTPUT_NAME "Liq2048"
 
         MACOSX_BUNDLE_INFO_PLIST
@@ -462,44 +401,6 @@ if(IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
         XCODE_ATTRIBUTE_ENABLE_BITCODE "NO"
 
     )
-
-endif()
-
-# ---------------------------------------------------------------------------
-# Desktop assets
-# ---------------------------------------------------------------------------
-
-if(NOT ANDROID AND NOT IOS)
-
-    # Copy assets next to the main executable.
-    add_custom_command(
-        TARGET liq2048
-        POST_BUILD
-
-        COMMAND
-            ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/assets"
-            "$<TARGET_FILE_DIR:liq2048>/assets"
-
-        COMMENT "Copying game assets to liq2048..."
-    )
-
-    # Copy assets next to the test executable.
-    if(LIQ_BUILD_TESTS)
-
-        add_custom_command(
-            TARGET liq_tests
-            POST_BUILD
-
-            COMMAND
-                ${CMAKE_COMMAND} -E copy_directory
-                "${CMAKE_CURRENT_SOURCE_DIR}/assets"
-                "$<TARGET_FILE_DIR:liq_tests>/assets"
-
-            COMMENT "Copying game assets to liq_tests..."
-        )
-
-    endif()
 
 endif()
 
@@ -539,6 +440,7 @@ endif()
 # ---------------------------------------------------------------------------
 
 if(LIQ_BUILD_TESTS)
+
     enable_testing()
 
     add_executable(liq_tests
@@ -550,7 +452,6 @@ if(LIQ_BUILD_TESTS)
             liq_core
     )
 
-    # Keep IPO/LTO settings consistent with liq_core.
     if(LIQ_USE_LTO)
         set_property(
             TARGET liq_tests
@@ -566,6 +467,85 @@ if(LIQ_BUILD_TESTS)
     set_tests_properties(liq_tests PROPERTIES
         WORKING_DIRECTORY "$<TARGET_FILE_DIR:liq_tests>"
     )
+
+endif()
+
+# ---------------------------------------------------------------------------
+# Desktop assets
+#
+# IMPORTANT:
+# These commands must appear AFTER liq_tests is created.
+# ---------------------------------------------------------------------------
+
+if(NOT ANDROID AND NOT IOS)
+
+    # Copy game assets beside the main executable.
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
+
+        add_custom_command(
+            TARGET liq2048
+            POST_BUILD
+
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+                "$<TARGET_FILE_DIR:liq2048>/assets"
+
+            COMMENT "Copying game assets to liq2048..."
+        )
+
+    endif()
+
+    # Copy fonts beside the main executable.
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/fonts")
+
+        add_custom_command(
+            TARGET liq2048
+            POST_BUILD
+
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${CMAKE_CURRENT_SOURCE_DIR}/fonts"
+                "$<TARGET_FILE_DIR:liq2048>/fonts"
+
+            COMMENT "Copying fonts to liq2048..."
+        )
+
+    endif()
+
+    # Copy assets beside the test executable.
+    if(LIQ_BUILD_TESTS)
+
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
+
+            add_custom_command(
+                TARGET liq_tests
+                POST_BUILD
+
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+                    "$<TARGET_FILE_DIR:liq_tests>/assets"
+
+                COMMENT "Copying assets to liq_tests..."
+            )
+
+        endif()
+
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/fonts")
+
+            add_custom_command(
+                TARGET liq_tests
+                POST_BUILD
+
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${CMAKE_CURRENT_SOURCE_DIR}/fonts"
+                    "$<TARGET_FILE_DIR:liq_tests>/fonts"
+
+                COMMENT "Copying fonts to liq_tests..."
+            )
+
+        endif()
+
+    endif()
+
 endif()
 
 # ---------------------------------------------------------------------------
