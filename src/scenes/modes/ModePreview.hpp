@@ -19,7 +19,7 @@ public:
     static constexpr float kH = 178.f;
 
     // Advances the clip by dt seconds and draws it with its top-left corner at (x, y).
-    void draw(Ctx& c, ModeId mode, float x, float y, float dt);
+    void draw(Ctx& c, ModeId mode, float x, float y, float dt, int pot = 0);
 
 private:
     struct Drp {  // one scheduled drop: when, where (0..1 across the pot), level and pot
@@ -52,6 +52,7 @@ private:
     float potY() const { return fy_ + kH - potH_ - 14.f; }
 
     ModeId mode_ = ModeId::Classic;
+    int shape_ = 0;  // obstacle pot shown (game/Pot.hpp)
     bool ready_ = false;
     float fx_ = 0.f, fy_ = 0.f;  // frame origin of the current draw
     float acc_ = 0.f, simT_ = 0.f, loop_ = 10.f, gravity_ = 1.f;

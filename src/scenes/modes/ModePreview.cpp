@@ -1,4 +1,6 @@
 #include "scenes/modes/ModePreview.hpp"
+#include "game/Pot.hpp"
+#include "ui/widgets/PotDraw.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -113,6 +115,7 @@ void ModePreview::reset(Ctx& c, ModeId mode) {
         w.worldW = potW_ + 30.f;
         w.worldH = potH_ + 60.f;
         applyLiquid(w, c.save.liquid);
+        applyPot(w, shape_);
         w.substeps = 2;
     }
 }
@@ -436,6 +439,7 @@ void ModePreview::drawScene(Ctx& c, float x, float y) {
         if (!blind) c.raster.drawLabels(held, t);
     }
     g.raster(c.raster);
+    for (int i = 0; i < pots_; ++i) drawObstacles(g, t, w_[i].obstacles, potX(i), potY());
 
     if (blind) {  // fog over the pot with question marks where the drops are
         const float fog = 0.86f * (1.f - peek);
@@ -454,8 +458,11 @@ void ModePreview::drawScene(Ctx& c, float x, float y) {
     if (f > 0.f) g.rect(x, y, kW, kH, withAlpha(t.ink, int(255.f * f)));
 }
 
-void ModePreview::draw(Ctx& c, ModeId mode, float x, float y, float dt) {
-    if (!ready_ || mode != mode_) reset(c, mode);
+void ModePreview::draw(Ctx& c, ModeId mode, float x, float y, float dt, int pot) {
+    if (!ready_ || mode != mode_ || pot != shape_) {  // a new pot restarts the clip so the change shows at once
+        shape_ = pot;
+        reset(c, mode);
+    }
     // reduce motion: show a still frame from the middle of the clip
     if (c.save.reduceMotion && simT_ >= loop_ * 0.55f) dt = 0.f;
     acc_ += std::min(dt, 0.05f);

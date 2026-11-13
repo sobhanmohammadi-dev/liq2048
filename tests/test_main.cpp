@@ -24,6 +24,8 @@
 #include "game/Liquid.hpp"
 #include "game/ModeNames.hpp"
 #include "game/Modifier.hpp"
+#include "game/Pot.hpp"
+#include "scenes/Ctx.hpp"
 #include "game/Mode.hpp"
 #include "game/Puzzle.hpp"
 #include "game/Replay.hpp"
@@ -1090,6 +1092,157 @@ TEST(base64_roundtrip) {
     }
     std::vector<unsigned char> o;
     CHECK(!base64Decode("ab$d", o));
+}
+
+
+// ---- v1.9.10: physics soak ----
+// Plays a pot full of drops for every liquid and every obstacle pot, at the quality the game may drop to, and checks
+// that no liquid is fired around (v1.9.9 fixed particles leaving the pot at 900 px/s).
+namespace {
+struct SoakResult {
+    float worstUp = 0.f;
+    long violent = 0;
+    bool ok = true;
+};
+
+SoakResult soak(int liquid, int pot, int substeps, unsigned seed) {
+    SoakResult r;
+    World w;
+    applyLiquid(w, liquid);
+    w.substeps = std::max(substeps, liquid == kLiqJelly || liquid == kLiqBubble ? 2 : 1);
+    applyPot(w, pot);
+    Rng rng;
+    rng.seed(seed);
+    for (int i = 0; i < 60 * 14; ++i) {
+        if (i % 36 == 0 && i < 60 * 9) w.spawn(rng.uni(40.f, 230.f), cfg::kSpawnY, rng.range(0, 3));
+        w.step(cfg::kStep, cfg::kGravity);
+        w.events.clear();
+        w.impacts.clear();
+        for (const Particle& p : w.parts) {
+            if (!std::isfinite(p.x) || !std::isfinite(p.y) || p.x < cfg::kFieldL - 2.f || p.x > cfg::kFieldR + 2.f || p.y > cfg::kFloor + 2.f) r.ok = false;
+            if (w.drops[size_t(p.g)].age > 1.f) {
+                r.worstUp = std::max(r.worstUp, -p.vy);
+                if (-p.vy > 400.f) ++r.violent;
+            }
+            for (const World::Disc& o : w.obstacles)
+                if (std::hypot(p.x - o.x, p.y - o.y) < o.r * 0.8f) r.ok = false;  // never inside an obstacle
+        }
+    }
+    return r;
+}
+}  // namespace
+
+TEST(physics_soak_all_liquids) {
+    for (int ty = 0; ty < kLiquidCount; ++ty) {
+        const SoakResult r = soak(ty, kPotClassic, 2, 11u + unsigned(ty));
+        std::printf("  soak liquid %d: worst up-speed %.0f, violent particle-steps %ld\n", ty, double(r.worstUp), r.violent);
+        CHECK(r.ok);
+        CHECK(r.violent < 400);   // v1.9.8 measured 10 000-60 000 here, v1.9.9 at most 26
+        CHECK(r.worstUp <= 700.f);
+    }
+}
+
+TEST(physics_soak_obstacle_pots) {
+    for (int pot = 1; pot < kPotCount; ++pot) {
+        const SoakResult r = soak(kLiqWater, pot, 1, 31u + unsigned(pot));  // the phone governor's lowest quality
+        std::printf("  soak pot %d: worst up-speed %.0f, violent particle-steps %ld\n", pot, double(r.worstUp), r.violent);
+        CHECK(r.ok);
+        CHECK(r.violent < 400);
+    }
+}
+
+TEST(obstacle_pot_replay_roundtrip) {
+    Replay r;
+    r.mode = 0;
+    r.modifier = kModMix;
+    r.pot = kPotFunnel;
+    r.substeps = 2;
+    r.gravity = cfg::kGravity;
+    r.seed = 5;
+    r.drops.push_back({10u, 120.f, 1});
+    Replay o;
+    CHECK(Replay::fromCode(r.toCode(), o));
+    CHECK(o.pot == kPotFunnel && o.modifier == kModMix && o.substeps == 2);
+    r.pot = 0;
+    CHECK(Replay::fromCode(r.toCode(), o) && o.pot == 0);
+}
+
+// ---- v1.9.10: touch simulation ----
+// Drives the real Ui with scripted fingers: the phone rules give every button a touch area of about 8 mm, a tap that
+// slides a little still counts, and a press next to a button never reaches the game underneath.
+namespace {
+struct Finger {
+    Ctx ctx;
+    Finger() { ctx.ui.setMobile(true); }
+    // one frame: edges + position; `body` draws the widgets
+    template <class F>
+    void frame(bool pressed, bool down, bool released, float x, float y, F body) {
+        ctx.in.beginFrame();
+        ctx.in.pressed = pressed;
+        ctx.in.released = released;
+        ctx.in.down = down;
+        ctx.in.mx = x;
+        ctx.in.my = y;
+        ctx.ui.beginFrame();
+        body();
+        ctx.ui.endFrame();
+    }
+    // press, hold a frame, release: returns whether `body` reported a click on the release frame
+    template <class F>
+    bool tap(float x0, float y0, float x1, float y1, F body) {
+        frame(true, true, false, x0, y0, [&] { (void)body(); });
+        frame(false, true, false, x0, y0, [&] { (void)body(); });
+        bool clicked = false;
+        frame(false, false, true, x1, y1, [&] { clicked = body(); });
+        return clicked;
+    }
+};
+}  // namespace
+
+TEST(touch_small_button_has_a_finger_sized_target) {
+    Finger f;
+    auto undo = [&] { return f.ctx.ui.button("", 14, 54, 66, 15); };  // a 15 px tall HUD button (about 4 mm)
+    CHECK(f.tap(40, 61, 40, 61, undo));          // dead centre
+    CHECK(f.tap(40, 74, 40, 74, undo));          // 5 px below the bottom edge
+    CHECK(f.tap(40, 49, 40, 49, undo));          // 5 px above the top edge
+    CHECK(f.tap(40, 61, 40, 74, undo));          // the finger slides a little before lifting
+    CHECK(!f.tap(40, 100, 40, 100, undo));       // far away: nothing
+    CHECK(!f.tap(40, 61, 40, 140, undo));        // pressed on it but dragged far away: cancelled
+}
+
+TEST(touch_overlapping_targets_pick_the_nearest_button) {
+    Finger f;
+    int hit = 0;
+    auto two = [&] {
+        const bool a = f.ctx.ui.button("A", 20, 100, 100, 18);
+        const bool b = f.ctx.ui.button("B", 20, 122, 100, 18);  // 4 px below A: their touch areas overlap
+        if (a) hit = 1;
+        if (b) hit = 2;
+        return a || b;
+    };
+    hit = 0;
+    f.tap(60, 117, 60, 117, two);  // bottom edge of A, nearer to A's centre than to B's
+    CHECK(hit == 1);
+    hit = 0;
+    f.tap(60, 123, 60, 123, two);  // top edge of B
+    CHECK(hit == 2);
+}
+
+TEST(touch_press_next_to_a_button_is_not_a_game_tap) {
+    Finger f;
+    auto undo = [&] { return f.ctx.ui.button("", 14, 54, 66, 15); };
+    f.frame(false, false, false, 0, 0, [&] { (void)undo(); });
+    CHECK(f.ctx.ui.overWidget(40, 74));    // inside its touch margin: the game must not start aiming here
+    CHECK(f.ctx.ui.overWidget(40, 61));
+    CHECK(!f.ctx.ui.overWidget(40, 200));  // open pot: aiming allowed
+}
+
+TEST(touch_desktop_buttons_keep_exact_hit_areas) {
+    Finger f;
+    f.ctx.ui.setMobile(false);
+    auto b = [&] { return f.ctx.ui.button("", 14, 54, 66, 15); };
+    CHECK(f.tap(40, 61, 40, 61, b));
+    CHECK(!f.tap(40, 74, 40, 74, b));  // the mouse has no margin
 }
 
 }  // namespace

@@ -154,6 +154,7 @@ int App::run(const AppOptions& opt) {
                 else if (k == "puzzle") c.puzzleLevel = v;
                 else if (k == "modifier") s.modifier = v;
                 else if (k == "liquid") s.liquid = v;
+                else if (k == "pot") s.pot = v;
                 else if (k == "coachstep") s.tutorialDone = false, s.coachStep = v;
             }
         }

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "scenes/game/GameScene.hpp"
+#include "ui/widgets/PotDraw.hpp"
 
 namespace liq {
 
@@ -159,6 +160,7 @@ void GameScene::drawBlobs(Ctx& c, int sx, int sy) {
     }
     if (spec) {
         c.gfx.raster(c.raster);
+        drawObstacles(c.gfx, *c.theme, W.obstacles, float(sx), float(sy));
         return;
     }
     // Next-blob preview inside its HUD panel (unshaken).
@@ -169,6 +171,7 @@ void GameScene::drawBlobs(Ctx& c, int sx, int sy) {
         if (mid_ != ModeId::Blind) c.raster.drawLabels(nxt, *c.theme);
     }
     c.gfx.raster(c.raster);
+    drawObstacles(c.gfx, *c.theme, W.obstacles, float(sx), float(sy));
     if (mod_ == kModMix) drawMixMarks(c, W, sx, sy);
     if (blind) {  // hidden values: a question mark on every drop, bobbing a little
         std::vector<BlobSprite> ql;

@@ -8,6 +8,7 @@
 
 #include "core/Platform.hpp"
 #include "game/Modifier.hpp"
+#include "game/Pot.hpp"
 
 namespace liq {
 
@@ -79,6 +80,7 @@ void Save::load() {
         else if (k == "battleDifficulty") battleDifficulty = iv;
         else if (k == "battleModifier") battleModifier = iv;
         else if (k == "modifier") modifier = iv;
+        else if (k == "pot") pot = iv;
         else if (k == "weeklyWeek") weeklyWeek = iv;
         else if (k == "weeklyBest") weeklyBest = iv;
         else if (k == "seenModes") seenModes = uint32_t(std::strtoul(v.c_str(), nullptr, 10));
@@ -95,6 +97,7 @@ void Save::load() {
     if (sfxVol < 0.f || sfxVol > 1.f) sfxVol = 0.9f;
     // A save file is untrusted input (backups, hand edits, sync): every value is forced into the range the game can use.
     if (modifier < 0 || modifier >= kModifierCount) modifier = 0;
+    if (pot < 0 || pot >= kPotCount) pot = 0;
     highestLevel = std::max(0, std::min(11, highestLevel));
     resumeCur = std::max(0, std::min(11, resumeCur));
     resumeReserve = std::max(0, std::min(11, resumeReserve));
@@ -130,7 +133,7 @@ void Save::store() const {
       << "\nbigTouch=" << bigTouch << "\naltLang=" << altLang << "\nplayerName=" << playerName << "\nbattleWins=" << battleWins
       << "\nbattleLosses=" << battleLosses << "\nbattleDraws=" << battleDraws << "\nbattleDuration=" << battleDuration
       << "\nbattleDifficulty=" << battleDifficulty << "\nbattleModifier=" << battleModifier << "\n";
-    o << "modifier=" << modifier << "\nweeklyWeek=" << weeklyWeek << "\nweeklyBest=" << weeklyBest << "\nseenModes=" << seenModes << "\npuzzle=";
+    o << "pot=" << pot  << "\nmodifier=" << modifier << "\nweeklyWeek=" << weeklyWeek << "\nweeklyBest=" << weeklyBest << "\nseenModes=" << seenModes << "\npuzzle=";
     for (int i = 0; i < kPuzzleMax; ++i) o << char('0' + puzzleStars[i]);
     o << "\ngamesPlayed=" << gamesPlayed << "\ntotalDrops=" << totalDrops << "\ntotalMerges=" << totalMerges
       << "\nlongestChain=" << longestChain << "\nhighestLevel=" << highestLevel << "\nplaySeconds=" << playSeconds << "\n";

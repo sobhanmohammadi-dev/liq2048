@@ -38,6 +38,7 @@ public:
     int dailyToday = 0;         // best score on dailyDay
     // Modes (v1.3.0)
     static constexpr int kPuzzleMax = 60;
+    int pot = 0;                // obstacle pot (game/Pot.hpp), free modes only
     int modifier = 0;           // 0 none, 1 low gravity, 2 heavy gravity, 3 thick liquid, 4 bonus drops
     int weeklyWeek = 0, weeklyBest = 0;
     unsigned char puzzleStars[kPuzzleMax] = {};  // 0 = unsolved, 1..3 stars

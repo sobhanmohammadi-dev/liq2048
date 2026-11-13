@@ -128,6 +128,7 @@ private:
     bool replaying_ = false;
     uint32_t replayTail_ = 0;
     // Modes (v1.3.0)
+    int pot_ = 0;                       // obstacle pot (game/Pot.hpp)
     int mod_ = 0;                       // active modifier (see game/Modifier.hpp)
     // Harder than before (v1.6.1): the overflow line sits lower in the pot, so there is less room to stack.
     // Zen, Puzzle and Rising Tide (whose line moves) keep the original start position.

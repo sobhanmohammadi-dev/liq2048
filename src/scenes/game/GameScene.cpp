@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "game/ModeNames.hpp"
+#include "game/Pot.hpp"
 #include "scenes/game/GameScene.hpp"
 #include "ui/widgets/Widgets.hpp"
 
@@ -203,6 +204,7 @@ void GameScene::start(Ctx& c) {
     liquid_ = battle_ ? bcfg_.liquid : (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle || mid_ == ModeId::Weekly) ? 0 : c.save.liquid;
     if (mod_ == kModMix) applyMixing(world_, false);
     else applyLiquid(world_, liquid_, mod_ == kModThick);
+    pot_ = (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle || mid_ == ModeId::Weekly || mid_ == ModeId::Battle) ? 0 : c.save.pot;
     // Daily and Puzzle must play identically for everyone, so they always use the reference quality.
     world_.substeps = (mid_ == ModeId::Daily || mid_ == ModeId::Puzzle || mid_ == ModeId::Battle) ? 2 : c.save.quality + 1;
     if (replaying_) {
@@ -211,7 +213,9 @@ void GameScene::start(Ctx& c) {
         if (mod_ == kModMix) applyMixing(world_, false);
         else applyLiquid(world_, liquid_, mod_ == kModThick);
         world_.substeps = rec_.substeps;
+        pot_ = rec_.pot;
     }
+    applyPot(world_, pot_);
     wantSub_ = world_.substeps;
     subIdx_ = 0;
     replayPaused_ = false;
@@ -244,6 +248,7 @@ void GameScene::start(Ctx& c) {
         rec_.clear();
         rec_.mode = int(mid_);
         rec_.modifier = mod_;
+        rec_.pot = pot_;
         rec_.liquid = liquid_;
         rec_.substeps = world_.substeps;
         rec_.gravity = gravityNow();

@@ -24,6 +24,7 @@ struct ReplayDrop {
 struct Replay {
     int mode = 0;       // ModeId as int
     int modifier = 0;   // game/Modifier.hpp
+    int pot = 0;        // game/Pot.hpp (codes from before 1.9.10 are the classic pot)
     int liquid = 0;     // game/Liquid.hpp (codes from before 1.8.1 are Water)
     int substeps = 2;   // liquid quality used for the run
     float gravity = 0;  // gravity used for the run

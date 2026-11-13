@@ -8,6 +8,18 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.9.10] "Obstacles"
+### Added
+- Obstacle pots: Pegs, Divider, Funnel and Ledges. Pick one under Modifier on the mode page (free modes; Daily, Puzzle,
+  Weekly, Battle and Big Box keep the classic pot). The preview clip restarts with the chosen pot. Run codes keep the pot.
+- Tilt maze: four kinds, cycling with the level: Maze, Loops (several routes), Pillars (an open field) and Dark (you only see
+  near the droplet).
+- Tests: a physics soak (every liquid, every obstacle pot, lowest quality) that fails if liquid is fired around, and a touch
+  simulation that drives the real Ui with scripted fingers (finger-sized targets, sliding taps, overlapping buttons, and
+  that a press next to a button does not reach the game).
+### Changed
+- Droplets can no longer be dug into a wall or ramp and fired back out: an obstacle only returns a particle at up to 200 px/s.
+
 ## [1.9.9] "Calm liquid"
 ### Fixed
 - Liquid suddenly jumping: when the pot was squeezed (a pile, a merge, a drop landing), the pressure solver released all

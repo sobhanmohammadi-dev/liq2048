@@ -22,6 +22,8 @@ constexpr float kWall = 3.f;       // wall thickness (px)
 constexpr float kTopY = 84.f;      // top of the maze area
 constexpr float kAreaW = 250.f, kAreaH = 352.f;
 
+const char* const kKindKey[4] = {"tilt.kind.classic", "tilt.kind.loops", "tilt.kind.pillars", "tilt.kind.dark"};
+
 struct Rect {
     float x0, y0, x1, y1;
 };
@@ -32,10 +34,12 @@ public:
     float cell = 40.f, ox = 10.f, oy = kTopY;
     std::vector<Rect> walls;
     int goalC = 0, goalR = 0;
+    int kind = 0;  // 0 classic, 1 loops, 2 pillars (an open field with wall fragments), 3 dark (limited sight)
 
     // Perfect maze by randomised depth-first search; the goal is the cell farthest from the start (0,0).
     void build(int level, uint32_t seed) {
-        cols = 5 + std::min(level, 4);
+        kind = level % 4;
+        cols = 5 + std::min(level / 2, 4);
         rows = cols * 3 / 2;
         cell = std::floor(std::min(kAreaW / float(cols), kAreaH / float(rows)));
         ox = std::floor((float(cfg::kW) - cell * float(cols)) / 2.f);
@@ -67,6 +71,19 @@ public:
             else open_[size_t(cur - cols)] |= 2, nxt = cur - cols;
             seen[size_t(nxt)] = 1;
             stack.push_back(nxt);
+        }
+        // Variants: knock walls out so the maze has loops (several routes) or turns into an open field with pillars.
+        if (kind != 0) {
+            const int total = cols * rows;
+            const int extra = kind == 1 ? total / 4 : kind == 2 ? total * 9 / 10 : total / 8;
+            for (int k = 0; k < extra; ++k) {
+                const int cell = rng.range(0, total - 1);
+                if (rng.range(0, 1) == 0) {
+                    if (cell % cols + 1 < cols) open_[size_t(cell)] |= 1;
+                } else if (cell / cols + 1 < rows) {
+                    open_[size_t(cell)] |= 2;
+                }
+            }
         }
         // farthest cell by BFS
         const std::vector<int> dist = bfs(0);
@@ -371,6 +388,18 @@ private:
         for (int r = 0; r < maze_.rows; ++r)
             for (int q = 0; q < maze_.cols; ++q)
                 if ((r + q) & 1) g.rect(maze_.ox + maze_.cell * float(q), maze_.oy + maze_.cell * float(r), maze_.cell, maze_.cell, withAlpha(t.panelHi, 22));
+        for (const Rect& r : maze_.walls) {
+            g.rect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0, t.frame);
+            g.rect(r.x0, r.y0, r.x1 - r.x0, 1, t.frameHi);
+        }
+        if (maze_.kind == 3) {  // dark maze: only the neighbourhood of the droplet is visible
+            for (int r = 0; r < maze_.rows; ++r)
+                for (int q = 0; q < maze_.cols; ++q) {
+                    const float d = std::hypot(maze_.cx(q) - px_, maze_.cy(r) - py_) / maze_.cell;
+                    const float u = clampv((d - 1.3f) / 1.4f, 0.f, 1.f);
+                    if (u > 0.f) g.rect(maze_.ox + maze_.cell * float(q), maze_.oy + maze_.cell * float(r), maze_.cell, maze_.cell, withAlpha(t.ink, int(238.f * u)));
+                }
+        }
         // hint path (dotted)
         if (hintT_ > 0.f && hintPath_.size() > 1) {
             const int a = int(255.f * std::min(1.f, hintT_));
@@ -383,10 +412,6 @@ private:
                 }
             }
         }
-        for (const Rect& r : maze_.walls) {
-            g.rect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0, t.frame);
-            g.rect(r.x0, r.y0, r.x1 - r.x0, 1, t.frameHi);
-        }
         // the two droplets fuse when they touch, like everywhere else in the game
         const float pulse = ph_ == Ph::Merge ? 1.f + 0.25f * std::sin(mergeT_ * 14.f) : 1.f;
         std::vector<BlobSprite> sp;
@@ -394,7 +419,7 @@ private:
         me.ra = me.rb = rp_ * pulse;
         BlobSprite goal = plainSprite(gx_, gy_, std::min(level_ + 3, 10), 0.08f, c.time + 1.7f);
         goal.ra = goal.rb = rg_ * pulse;
-        sp.push_back(goal);
+        if (maze_.kind != 3 || std::hypot(gx_ - px_, gy_ - py_) < maze_.cell * 2.6f || hintT_ > 0.f) sp.push_back(goal);
         sp.push_back(me);
         c.raster.clear();
         c.raster.drawField(sp, t);
@@ -410,7 +435,7 @@ private:
         Ui& ui = c.ui;
         g.rect(0, 0, float(cfg::kW), 62.f, mix(t.sky[0], t.ink, 0.6f));
         g.rect(0, 61, float(cfg::kW), 1, t.panelLo);
-        g.text(L.fmt("tilt.level", std::to_string(level_ + 1)), cfg::kW / 2.f, 14, 1, t.accent, Align::Center);
+        g.text(L.fmt("tilt.level", std::to_string(level_ + 1)) + "  -  " + L.tr(kKindKey[maze_.kind]), cfg::kW / 2.f, 14, 1, t.accent, Align::Center);
         g.number(std::to_string(score_), cfg::kW / 2.f, 32, 2, t.text, Align::Center, TextFx::Outline, t.ink);
         widgets::meter(g, t, 66.f, 50.f, 138.f, 7.f, clampv(timeLeft_ / timeMax_, 0.f, 1.f));
         g.text(L.tr("tilt.shake") + " x" + std::to_string(hints_), 135, 72, 1, hints_ > 0 ? t.dim : t.panelLo, Align::Center);

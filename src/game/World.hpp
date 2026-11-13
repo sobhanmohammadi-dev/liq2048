@@ -95,6 +95,10 @@ public:
     MixMat mix[8];
     float cohesion = 1.f, restCohesion = 0.f, wallDrag = cfg::kWallDrag, damp = cfg::kDamp;
 
+    // Obstacle pots (v1.9.10): fixed discs inside the pot that the liquid cannot enter (see game/Pot.hpp).
+    struct Disc { float x, y, r; };
+    std::vector<Disc> obstacles;
+
     std::vector<Particle> parts;
     std::vector<Drop> drops;
     std::vector<MergeEvent> events;  // drained by the game each step

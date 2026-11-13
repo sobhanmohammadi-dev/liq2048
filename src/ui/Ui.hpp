@@ -15,7 +15,8 @@ enum class BtnStyle { Normal, Primary };
 
 class Ui {
 public:
-    void bind(Ctx* c) { c_ = c; }
+    void bind(Ctx* c);
+    void setMobile(bool on) { mobile_ = on; }  // phone touch rules (tests can force them)
     void beginFrame();
     void endFrame();
     bool button(const std::string& label, float x, float y, float w, float h, bool enabled = true,
@@ -41,6 +42,7 @@ private:
     Hit hit(float x, float y, float w, float h, bool enabled, bool focusable);
     Ctx* c_ = nullptr;
     bool mirror_ = false;
+    bool mobile_ = false;
     int nextId_ = 0, fidx_ = 0, focus_ = 0, active_ = -1;
     int bestId_ = -1;           // the widget a press landed on best (see hit)
     float bestScore_ = 1e9f;

@@ -1,5 +1,6 @@
 #include "game/Liquid.hpp"
 #include "game/Modifier.hpp"
+#include "game/Pot.hpp"
 #include "game/Replay.hpp"
 
 #include <cstdio>
@@ -93,7 +94,7 @@ std::string Replay::toCode() const {
         for (int i = 0; i < 4; ++i) b.push_back(uint8_t(v >> (8 * i)));
     };
     b.push_back(uint8_t(mode));
-    b.push_back(uint8_t(modifier * 4 + (substeps - 1)));
+    b.push_back(uint8_t((pot * kModifierCount + modifier) * 4 + (substeps - 1)));
     b.push_back(uint8_t(puzzle));
     u32(seed);
     uint32_t gb;
@@ -168,7 +169,8 @@ bool Replay::fromCode(const std::string& in, Replay& out) {
     size_t i = 0;
     r.mode = b[i++];
     const int ms = b[i++];
-    r.modifier = ms / 4;
+    r.modifier = (ms / 4) % kModifierCount;
+    r.pot = (ms / 4) / kModifierCount;
     r.substeps = ms % 4 + 1;
     r.puzzle = b[i++];
     auto u32 = [&]() {
@@ -179,7 +181,7 @@ bool Replay::fromCode(const std::string& in, Replay& out) {
     r.seed = u32();
     const uint32_t gb = u32();
     std::memcpy(&r.gravity, &gb, 4);
-    if (r.substeps > 3 || r.modifier >= kModifierCount || r.mode >= kModeCount || r.mode > 15 || !(r.gravity >= 0.f && r.gravity < 100000.f)) return false;
+    if (r.substeps > 3 || r.modifier >= kModifierCount || r.pot >= kPotCount || r.mode >= kModeCount || r.mode > 15 || !(r.gravity >= 0.f && r.gravity < 100000.f)) return false;
     r.physics = 1;
     if (ver == 2) {
         if (i + 2 > b.size()) return false;
@@ -223,6 +225,7 @@ uint64_t replayChecksum(const Replay& r, int tailSteps) {
     w.substeps = r.substeps;
     if (r.modifier == kModMix) applyMixing(w);
     else applyLiquid(w, r.liquid, r.modifier == kModThick);
+    applyPot(w, r.pot);
     size_t i = 0, si = 0;
     uint32_t step = 0;
     const uint32_t end = (r.drops.empty() ? 0u : r.drops.back().step) + uint32_t(tailSteps);

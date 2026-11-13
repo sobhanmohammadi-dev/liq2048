@@ -9,6 +9,11 @@
 
 namespace liq {
 
+void Ui::bind(Ctx* c) {
+    c_ = c;
+    mobile_ = platform::isMobile();
+}
+
 void Ui::beginFrame() {
     nextId_ = fidx_ = 0;
     prevRects_.swap(rects_);
@@ -49,7 +54,7 @@ Ui::Hit Ui::hit(float x, float y, float w, float h, bool enabled, bool focusable
     const int id = nextId_++;
     // Invisible touch margin. A phone screen is ~7 cm wide for 270 logical pixels, so a 15 px button is only ~4 mm tall:
     // on phones every button gets a hit area of at least kMinTouch px (about 8 mm) in each direction.
-    const bool mob = platform::isMobile();
+    const bool mob = mobile_;
     const float m = mob ? (c_->save.bigTouch ? 6.f : 3.f) : (c_->save.bigTouch ? 3.f : 0.f);
     const float minT = mob ? (c_->save.bigTouch ? 36.f : 30.f) : 0.f;
     const float mxm = std::max(m, (minT - w) * 0.5f), mym = std::max(m, (minT - h) * 0.5f);
@@ -64,7 +69,7 @@ Ui::Hit Ui::hit(float x, float y, float w, float h, bool enabled, bool focusable
         }
     }
     r.held = enabled && active_ == id && in.down;
-    if (platform::isMobile() && !in.down) r.hover = false;  // no finger, no hover: the last touched button must not stay lit
+    if (mobile_ && !in.down) r.hover = false;  // no finger, no hover: the last touched button must not stay lit
     // A tap may roll a few pixels between touch-down and touch-up: on phones the release only has to land near
     // the button the press started on.
     const float rx = mob ? mxm + 8.f : m, ry = mob ? mym + 8.f : m;

@@ -22,6 +22,7 @@
 #include "game/Mode.hpp"
 #include "game/ModeNames.hpp"
 #include "game/Modifier.hpp"
+#include "game/Pot.hpp"
 #include "scenes/Scenes.hpp"
 #include "scenes/modes/ModePreview.hpp"
 #include "ui/widgets/Widgets.hpp"
@@ -66,7 +67,8 @@ public:
         ui.paragraph(L.tr(modeDescKey(m)), 28, 88, 214, 1, t.dim, Align::Center);
 
         // the clip
-        preview_.draw(c, m, (float(cfg::kW) - ModePreview::kW) / 2.f, 130.f, c.save.reduceMotion ? 0.f : dt);
+        const bool potOk = modKindOf(m) == ModKind::Free;
+        preview_.draw(c, m, (float(cfg::kW) - ModePreview::kW) / 2.f, 130.f, c.save.reduceMotion ? 0.f : dt, potOk ? c.save.pot : 0);
 
         // personal record
         std::string rec;
@@ -88,12 +90,20 @@ public:
         const ModKind mk = modKindOf(m);
         const float cw = 190.f, mx = (float(cfg::kW) - cw) / 2.f;
         if (mk == ModKind::Free || mk == ModKind::Battle) {
-            g.text(L.tr("mod.label"), cx, 346, 1, t.dim, Align::Center);
+            const float my0 = mk == ModKind::Free ? 336.f : 346.f;
+            g.text(L.tr("mod.label"), cx, my0, 1, t.dim, Align::Center);
             int& sel = mk == ModKind::Free ? c.save.modifier : c.save.battleModifier;
             const int n = mk == ModKind::Free ? kModifierCount : kBattleModifiers;
-            if (const int d = ui.stepper(mx, 358, cw, 22, L.tr(modifierKey(sel)))) {
+            if (const int d = ui.stepper(mx, my0 + 11.f, cw, 22, L.tr(modifierKey(sel)))) {
                 sel = (sel + d + n) % n;
                 c.save.store();
+            }
+            if (mk == ModKind::Free) {  // v1.9.10: obstacle pots; the clip above shows the choice
+                g.text(L.tr("pot.label"), cx, 375, 1, t.dim, Align::Center);
+                if (const int d = ui.stepper(mx, 386, cw, 22, L.tr(potKey(c.save.pot)))) {
+                    c.save.pot = (c.save.pot + d + kPotCount) % kPotCount;
+                    c.save.store();
+                }
             }
         } else if (mk == ModKind::Weekly) {
             g.text(L.tr("mod.label"), cx, 346, 1, t.dim, Align::Center);
@@ -103,8 +113,8 @@ public:
         else g.text(L.tr("modeinfo.nomod"), cx, 358, 1, t.dim, Align::Center);
 
         // start / close
-        if (!c.save.tutorialDone && c.save.coachStep == 2) widgets::coachRing(g, t, c.time, mx, 404, cw, 36, L.tr("coach.info"), false);
-        if (ui.button(L.tr("menu.start"), mx, 404, cw, 36, true, true, BtnStyle::Primary) || c.in.confirm) {
+        if (!c.save.tutorialDone && c.save.coachStep == 2) widgets::coachRing(g, t, c.time, mx, 416, cw, 36, L.tr("coach.info"), false);
+        if (ui.button(L.tr("menu.start"), mx, 416, cw, 36, true, true, BtnStyle::Primary) || c.in.confirm) {
             if (c.save.coachStep == 2) c.save.coachStep = 3;
             c.audio.play(Sfx::Click);
             c.go(sceneForMode(m));

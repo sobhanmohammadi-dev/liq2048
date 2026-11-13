@@ -40,6 +40,7 @@ void World::clear() {
     drops.clear();
     events.clear();
     impacts.clear();
+    obstacles.clear();
     chain_ = 0;
     sinceMerge_ = 99.f;
     overflow_ = 0.f;
@@ -476,8 +477,43 @@ void World::substep(float h, float g, bool last) {
         if (p.x < lo) { p.x = lo; wall = true; }
         if (p.x > hi) { p.x = hi; wall = true; }
         if (p.y > fl) { p.y = fl; wall = true; }
+        // Fixed discs: slide the particle out along the line from the centre. Walls and ramps are chains of overlapping
+        // discs, so a few passes (and the container again) settle a particle that was pushed from one into the next.
+        float onx = 0.f, ony = 0.f;  // outward normal of the last obstacle that pushed the particle
+        for (int pass = 0; pass < 3 && !obstacles.empty(); ++pass) {
+            bool moved = false;
+            for (const Disc& o : obstacles) {
+                const float dx = p.x - o.x, dy = p.y - o.y, rr = o.r + 1.2f;
+                if (dx * dx + dy * dy >= rr * rr) continue;
+                float d = std::sqrt(dx * dx + dy * dy);
+                float nx = d > 1e-4f ? dx / d : 0.f, ny = d > 1e-4f ? dy / d : -1.f;
+                if (d < rr * 0.7f) {  // deep inside: leave on the side it came from (never pop out over the top of a wall)
+                    const float qx = p.px - o.x, qy = p.py - o.y, qd = std::sqrt(qx * qx + qy * qy);
+                    if (qd > rr * 0.9f) {
+                        nx = qx / qd;
+                        ny = qy / qd;
+                    }
+                }
+                onx = nx;
+                ony = ny;
+                p.x = o.x + nx * rr;
+                p.y = o.y + ny * rr;
+                wall = moved = true;
+            }
+            if (p.x < lo) p.x = lo;
+            if (p.x > hi) p.x = hi;
+            if (p.y > fl) p.y = fl;
+            if (!moved) break;
+        }
         p.vx = (p.x - p.px) / h;
         p.vy = (p.y - p.py) / h;
+        if (onx != 0.f || ony != 0.f) {  // a fast particle dug deep into an obstacle: do not bounce it back out at that speed
+            const float vn = p.vx * onx + p.vy * ony;
+            if (vn > 200.f) {
+                p.vx -= (vn - 200.f) * onx;
+                p.vy -= (vn - 200.f) * ony;
+            }
+        }
         if (wall) {
             p.vx *= mixed ? mix[p.mat].drag : wallDrag;
             p.vy *= mixed ? mix[p.mat].vy : wallVy;
