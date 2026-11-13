@@ -276,7 +276,7 @@ void World::step(float dt, float gravity, float gx) {
         p.ox = p.x;
         p.oy = p.y;
     }
-    const int ns = std::clamp(substeps, 1, 3);
+    const int ns = std::clamp(substeps, jelly > 0.f ? 2 : 1, 3);  // springy liquids are unstable on a single big substep
     const float h = dt / float(ns);
     buildPairs(3.f);  // candidate pairs with a margin, reused by every substep
     for (int s = 0; s < ns; ++s) substep(h, gravity, s == ns - 1);
@@ -385,8 +385,10 @@ void World::substep(float h, float g, bool last) {
         for (auto& p : parts) {
             const float* c = &jc_[size_t(p.g) * 5];
             const float inv = 1.f / c[4];
-            p.vx += (c[0] * inv + p.rx - p.x) * jelly * h - (p.vx - c[2] * inv) * kd;
-            p.vy += (c[1] * inv + p.ry - p.y) * jelly * h - (p.vy - c[3] * inv) * kd;
+            // The pull is capped: a particle squeezed far from its rest place by the pile must not be fired back at it.
+            const float ex = std::clamp(c[0] * inv + p.rx - p.x, -6.f, 6.f), ey = std::clamp(c[1] * inv + p.ry - p.y, -6.f, 6.f);
+            p.vx += ex * jelly * h - (p.vx - c[2] * inv) * kd;
+            p.vy += ey * jelly * h - (p.vy - c[3] * inv) * kd;
         }
     }
 
@@ -425,7 +427,10 @@ void World::substep(float h, float g, bool last) {
     for (const auto& pr : pairs_) {
         const size_t i = size_t(pr.i), j = size_t(pr.j);
         const float w = 1.f - pr.q;
-        const float D = h2 * ((press_[i] + press_[j]) * w + cfg::kStiffNear * (rhoN_[i] + rhoN_[j]) * w * w);
+        float D = h2 * ((press_[i] + press_[j]) * w + cfg::kStiffNear * (rhoN_[i] + rhoN_[j]) * w * w);
+        // A pair is never pushed apart (or pulled together) by more than a fraction of the particle spacing in one
+        // substep: a squeezed pile used to release all of it at once and fire liquid out of the pot.
+        D = std::clamp(D, -cfg::kMaxPush, cfg::kMaxPush);
         const float hx = 0.5f * D * pr.nx, hy = 0.5f * D * pr.ny;
         parts[j].x += hx;
         parts[j].y += hy;

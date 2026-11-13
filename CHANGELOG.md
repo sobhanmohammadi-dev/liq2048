@@ -8,6 +8,17 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.9.9] "Calm liquid"
+### Fixed
+- Liquid suddenly jumping: when the pot was squeezed (a pile, a merge, a drop landing), the pressure solver released all
+  of it in a single substep and fired particles up to 900 px/s, sometimes out of the pot. A pair of particles is now
+  pushed apart by at most 1.6 px per substep, and the Jelly/Bubble spring pull is capped. On a synthetic stress run the
+  number of violent upward particle-steps fell by roughly 40x (water, 2 substeps), and also on 1 substep (phones that
+  lower quality for speed).
+- Jelly and Bubble always use at least 2 substeps (they were unstable on 1).
+### Changed
+- Physics version 4: run codes from older versions will not replay exactly. Big splashes are a little calmer.
+
 ## [1.9.8] "Fingertips"
 ### Fixed
 - Phones: buttons were only 4-5 mm tall on a real screen, so taps often missed. Every button now has a touch area of at

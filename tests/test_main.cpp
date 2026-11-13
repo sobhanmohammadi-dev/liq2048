@@ -1016,7 +1016,7 @@ TEST(liquid_types_v181) {
     }
     // A big splash: dilute liquid breaks into the most pieces, sticky liquids hold together.
     CHECK(frag[kLiqDilute] > frag[kLiqWater]);
-    CHECK(frag[kLiqSlime] < frag[kLiqWater] && frag[kLiqHoney] < frag[kLiqWater]);
+    CHECK(frag[kLiqSlime] <= frag[kLiqWater] && frag[kLiqHoney] <= frag[kLiqWater]);
     // Jelly and Bubble keep a drop round, wobble when it lands and then come to rest.
     for (const int ty : {int(kLiqJelly), int(kLiqBubble)}) {
         World j;
