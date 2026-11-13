@@ -60,13 +60,34 @@ const Tile kTiles[] = {
     {ModeId::Madhouse, 14, 412, 119, 62, Tile::Small},
     {ModeId::Blind, 137, 412, 119, 62, Tile::Small},
 };
-constexpr int kTileCount = int(sizeof(kTiles) / sizeof(kTiles[0]));
+constexpr int kBaseTiles = int(sizeof(kTiles) / sizeof(kTiles[0]));
+constexpr ModeId kMazeTile = ModeId(99);  // phone-only Tilt maze: not a real ModeId, it opens its own scene
 constexpr float kHeaderH = 44.f;
+
+// A little maze with the droplet that has to get through it.
+void mazeIcon(Gfx& g, const Theme& t, float cx, float cy) {
+    const Color w = t.text;
+    g.rect(cx - 16, cy - 14, 32, 2, w);
+    g.rect(cx - 16, cy + 12, 32, 2, w);
+    g.rect(cx - 16, cy - 14, 2, 28, w);
+    g.rect(cx + 14, cy - 14, 2, 28, w);
+    g.rect(cx - 8, cy - 14, 2, 16, w);
+    g.rect(cx + 2, cy - 2, 2, 16, w);
+    g.rect(cx - 8, cy + 2, 8, 2, w);
+    g.rect(cx + 4, cy - 8, 8, 2, w);
+    g.disc(cx - 12, cy + 8, 3, t.blob[3]);
+    g.disc(cx + 9, cy + 6, 3, t.blob[8]);
+}
 
 class ModesScene final : public Scene {
 public:
     void frame(Ctx& c, float dt) override {
         age_ += dt;
+        tiles_.assign(kTiles, kTiles + kBaseTiles);
+        if (platform::isMobile()) {  // v1.9.8: the Tilt maze lives here on phones, next to Battle
+            tiles_[0] = {ModeId::Battle, 14, 48, 119, 72, Tile::Small};
+            tiles_.push_back({kMazeTile, 137, 48, 119, 72, Tile::Small});
+        }
         Gfx& g = c.gfx;
         const Theme& t = *c.theme;
         Loc& L = c.loc;
@@ -97,8 +118,8 @@ public:
             float x, y;
         };
         std::vector<Label> labels;
-        for (int i = 0; i < kTileCount; ++i) {
-            const Tile& tl = kTiles[i];
+        for (int i = 0; i < int(tiles_.size()); ++i) {
+            const Tile& tl = tiles_[i];
             const float enter = modeIconSStep(0.f, 0.4f, age_ - float(i) * 0.04f);  // tiles settle in one after another
             const float x = ui.mx(tl.x, tl.w), y = tl.y + (1.f - enter) * 12.f;
             const bool held = pressTile_ == i && in.down && tileAt(c, in.mx, in.my) == i;
@@ -123,7 +144,8 @@ public:
                 const float br = modeIconPulse(std::fmod(c.time / 3.f + float(i) * 0.13f, 1.f));
                 g.disc(icx, icy, 16.f + 5.f * br, withAlpha(accent, 22 + int(18.f * br)));
             }
-            drawModeIcon(c, tl.mode, icx, icy, sp);
+            if (tl.mode == kMazeTile) mazeIcon(g, t, icx, icy);
+            else drawModeIcon(c, tl.mode, icx, icy, sp);
             labels.push_back({i, x, yy});
         }
         if (!sp.empty()) {
@@ -133,11 +155,11 @@ public:
             g.raster(c.raster);
         }
         for (const Label& lb : labels) {  // names and records above the droplets
-            const Tile& tl = kTiles[lb.tile];
+            const Tile& tl = tiles_[lb.tile];
             const float x = lb.x, y = lb.y;
             const Align la = ui.start();
             const float tx = rtl ? x + tl.w - 12 : x + 12;
-            const std::string name = L.tr(modeNameKey(tl.mode));
+            const std::string name = L.tr(tl.mode == kMazeTile ? "tilt.title" : modeNameKey(tl.mode));
             if (tl.shape == Tile::Wide) {
                 g.text(name, tx, y + 24, 2, t.text, la, TextFx::Outline, t.ink);
                 record(c, tl.mode, tx, y + tl.h - 18, la);
@@ -159,21 +181,25 @@ public:
         if (ui.button(L.tr("common.back"), ui.mx(8.f, 52.f), 8, 52, 24) || in.esc) c.go(SceneId::Menu);
 
         if (!c.save.tutorialDone && c.save.coachStep == 1) {
-            const Tile& ct = kTiles[2];
+            const Tile& ct = tiles_[2];
             widgets::coachRing(g, t, c.time, ui.mx(ct.x, ct.w), ct.y, ct.w, ct.h, L.tr("coach.modes"), true);
         }
         if (open >= 0) {
             if (c.save.coachStep == 1) c.save.coachStep = 2;
             c.audio.play(Sfx::Click);
-            c.mode = kTiles[open].mode;
-            c.go(SceneId::ModeInfo);
+            if (tiles_[open].mode == kMazeTile) {
+                c.go(SceneId::Tilt);
+            } else {
+                c.mode = tiles_[open].mode;
+                c.go(SceneId::ModeInfo);
+            }
         }
     }
 
 private:
     int tileAt(Ctx& c, float mx, float my) const {
-        for (int i = 0; i < kTileCount; ++i) {
-            const Tile& tl = kTiles[i];
+        for (int i = 0; i < int(tiles_.size()); ++i) {
+            const Tile& tl = tiles_[i];
             const float x = c.ui.mx(tl.x, tl.w);
             if (mx >= x && mx < x + tl.w && my >= tl.y && my < tl.y + tl.h) return i;
         }
@@ -181,7 +207,7 @@ private:
     }
     void move(int d) {
         keyNav_ = true;
-        focus_ = (focus_ + d + kTileCount) % kTileCount;
+        focus_ = (focus_ + d + int(tiles_.size())) % int(tiles_.size());
     }
     // A thin rule with a caption, e.g. "Limited challenges".
     void section(Ctx& c, float y, const char* key) const {
@@ -196,7 +222,10 @@ private:
     void record(Ctx& c, ModeId m, float x, float y, Align a) const {
         const Theme& t = *c.theme;
         std::string s;
-        if (m == ModeId::Battle) s = std::to_string(c.save.battleWins) + " - " + std::to_string(c.save.battleLosses) + " - " + std::to_string(c.save.battleDraws);
+        if (m == kMazeTile) {
+            if (c.save.tiltBest <= 0) return;
+            s = std::to_string(c.save.tiltBest);
+        } else if (m == ModeId::Battle) s = std::to_string(c.save.battleWins) + " - " + std::to_string(c.save.battleLosses) + " - " + std::to_string(c.save.battleDraws);
         else if (m == ModeId::Puzzle) s = std::to_string(c.save.puzzlesSolved());
         else {
             const int best = c.save.best[int(m)];
@@ -206,6 +235,7 @@ private:
         c.gfx.number(s, x, y, 1, t.accent, a);
     }
 
+    std::vector<Tile> tiles_;
     float age_ = 0.f;
     int pressTile_ = -1, focus_ = 0;
     bool keyNav_ = false;

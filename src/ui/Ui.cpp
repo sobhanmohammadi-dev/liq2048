@@ -1,12 +1,26 @@
 #include "ui/Ui.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 #include "core/Config.hpp"
 #include "core/Platform.hpp"
 #include "scenes/Ctx.hpp"
 
 namespace liq {
 
-void Ui::beginFrame() { nextId_ = fidx_ = 0; }
+void Ui::beginFrame() {
+    nextId_ = fidx_ = 0;
+    prevRects_.swap(rects_);
+    rects_.clear();
+}
+
+bool Ui::overWidget(float x, float y) const {
+    for (const auto* v : {&rects_, &prevRects_})
+        for (const Rect& r : *v)
+            if (x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1) return true;
+    return false;
+}
 
 void Ui::endFrame() {
     const int n = fidx_;
@@ -16,6 +30,9 @@ void Ui::endFrame() {
         if (focus_ >= n) focus_ = 0;
     }
     if (c_->in.released) active_ = -1;
+    if (bestId_ >= 0) active_ = bestId_;  // the press goes to the widget it hit best
+    bestId_ = -1;
+    bestScore_ = 1e9f;
 }
 
 float Ui::mx(float x, float w) const { return (c_->loc.rtl() != mirror_) ? cfg::kW - x - w : x; }
@@ -30,17 +47,28 @@ Ui::Hit Ui::hit(float x, float y, float w, float h, bool enabled, bool focusable
     Input& in = c_->in;
     Hit r{};
     const int id = nextId_++;
-    // Invisible touch margin on phones (bigger with the "Large touch areas" option) so small buttons stay easy to hit.
-    const float m = platform::isMobile() ? (c_->save.bigTouch ? 6.f : 3.f) : (c_->save.bigTouch ? 3.f : 0.f);
-    r.hover = enabled && in.mx >= x - m && in.mx < x + w + m && in.my >= y - m && in.my < y + h + m;
+    // Invisible touch margin. A phone screen is ~7 cm wide for 270 logical pixels, so a 15 px button is only ~4 mm tall:
+    // on phones every button gets a hit area of at least kMinTouch px (about 8 mm) in each direction.
+    const bool mob = platform::isMobile();
+    const float m = mob ? (c_->save.bigTouch ? 6.f : 3.f) : (c_->save.bigTouch ? 3.f : 0.f);
+    const float minT = mob ? (c_->save.bigTouch ? 36.f : 30.f) : 0.f;
+    const float mxm = std::max(m, (minT - w) * 0.5f), mym = std::max(m, (minT - h) * 0.5f);
+    rects_.push_back({x - mxm, y - mym, x + w + mxm, y + h + mym});
+    r.hover = enabled && in.mx >= x - mxm && in.mx < x + w + mxm && in.my >= y - mym && in.my < y + h + mym;
     if (focusable && enabled) r.focus = (fidx_++ == focus_);
-    if (enabled && in.pressed && r.hover) active_ = id;
+    if (enabled && in.pressed && r.hover) {  // neighbours' margins may overlap: the nearest centre wins
+        const float sc = std::max(std::fabs(in.mx - (x + w * 0.5f)) / (w * 0.5f + 0.01f), std::fabs(in.my - (y + h * 0.5f)) / (h * 0.5f + 0.01f));
+        if (sc < bestScore_) {
+            bestScore_ = sc;
+            bestId_ = id;
+        }
+    }
     r.held = enabled && active_ == id && in.down;
     if (platform::isMobile() && !in.down) r.hover = false;  // no finger, no hover: the last touched button must not stay lit
     // A tap may roll a few pixels between touch-down and touch-up: on phones the release only has to land near
     // the button the press started on.
-    const float rs = platform::isMobile() ? m + 10.f : m;
-    const bool nearUp = enabled && in.mx >= x - rs && in.mx < x + w + rs && in.my >= y - rs && in.my < y + h + rs;
+    const float rx = mob ? mxm + 8.f : m, ry = mob ? mym + 8.f : m;
+    const bool nearUp = enabled && in.mx >= x - rx && in.mx < x + w + rx && in.my >= y - ry && in.my < y + h + ry;
     if (enabled && in.released && nearUp && active_ == id) r.click = true;
     if (enabled && r.focus && in.confirm) r.click = true;
     return r;

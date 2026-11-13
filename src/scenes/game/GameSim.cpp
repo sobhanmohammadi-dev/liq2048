@@ -214,7 +214,7 @@ void GameScene::simulate(Ctx& c, float dt, bool locked) {
     if (replaying_) in.pressed = in.down = in.released = in.drop = in.left = in.right = false;
     // Aiming: drag with mouse/finger, release to drop. Keys: arrows + space/down.
     const float rad = World::radiusFor(cur_);
-    if (in.pressed && in.my > 64 && !(battle_ && in.my > 446)) aiming_ = true;
+    if (in.pressed && in.my > 64 && !(battle_ && in.my > 446) && !c.ui.overWidget(in.mx, in.my)) aiming_ = true;  // a tap on a button never aims or drops
     if (aiming_ && (in.down || in.released)) aimX_ = in.mx;
     if (in.left) aimX_ -= cfg::kAimSpeed * dt;
     if (in.right) aimX_ += cfg::kAimSpeed * dt;

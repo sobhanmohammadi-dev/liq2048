@@ -2,6 +2,7 @@
 // Immediate-mode widgets drawn in the pixel-art style. Buttons are matched by call order
 // within a frame; keyboard focus (up/down/confirm) walks the focusable ones.
 #include <string>
+#include <vector>
 
 #include "core/Types.hpp"
 #include "gfx/Icons.hpp"
@@ -29,6 +30,9 @@ public:
     bool mirrored() const { return mirror_; }  // extra mirroring (left-handed game layout)
     Align start() const;               // leading alignment (Left, or Right in RTL)
     void resetFocus() { focus_ = 0; }
+    // True when (x, y) is on a widget drawn in this or the previous frame (including its touch margin): the game uses it
+    // so that a tap on a button never also aims or drops.
+    bool overWidget(float x, float y) const;
 
 private:
     struct Hit {
@@ -38,6 +42,10 @@ private:
     Ctx* c_ = nullptr;
     bool mirror_ = false;
     int nextId_ = 0, fidx_ = 0, focus_ = 0, active_ = -1;
+    int bestId_ = -1;           // the widget a press landed on best (see hit)
+    float bestScore_ = 1e9f;
+    struct Rect { float x0, y0, x1, y1; };
+    std::vector<Rect> rects_, prevRects_;
 };
 
 }  // namespace liq
