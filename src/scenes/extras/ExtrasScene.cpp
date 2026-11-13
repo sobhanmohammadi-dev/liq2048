@@ -52,7 +52,6 @@ public:
 
         struct Row { const char* head; const char* desc; int colour; int id; };
         std::vector<Row> rows;
-        if (platform::isMobile()) rows.push_back({"tilt.title", "tilt.card.desc", 1, 9});  // phone-only: uses the motion sensor
         const Row all[] = {{"menu.runcode", "extras.runcode.desc", 2, 0},  {"extras.card", "extras.card.desc", 5, 1},
                            {"extras.name", "extras.name.desc", 9, 2},       {"extras.export", "extras.export.desc", 6, 3},
                            {"extras.import", "extras.import.desc", 3, 4},   {"extras.backup", "extras.backup.desc", 7, 5},
@@ -67,7 +66,6 @@ public:
             if (rows[i].id == 2) desc = c.save.playerName.empty() ? L.tr("battle.you") : c.save.playerName;
             if (!card(c, y, 34, L.tr(rows[i].head), desc, rows[i].colour)) continue;
             switch (rows[i].id) {
-                case 9: c.go(SceneId::Tilt); break;
                 case 0: runCode(c); break;
                 case 1: c.go(SceneId::Card); break;
                 case 2:

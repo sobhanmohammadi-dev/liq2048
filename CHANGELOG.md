@@ -8,6 +8,15 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.9.8] "Fingertips"
+### Fixed
+- Phones: buttons were only 4-5 mm tall on a real screen, so taps often missed. Every button now has a touch area of at
+  least ~8 mm in each direction; where two overlap, the press goes to the one whose centre is nearer. The release may
+  slide a little off the button.
+- Tapping Undo (or any HUD button) no longer also aims and drops the droplet.
+- The Tilt maze was buried in Extras; on phones it is now a tile on the Game mode screen (next to Battle), and its Back
+  button returns there.
+
 ## [1.9.4] "Build fix"
 ### Fixed
 - macOS: the clipboard command string had a hex escape that swallowed the next letters.

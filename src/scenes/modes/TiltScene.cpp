@@ -438,7 +438,7 @@ private:
             calT_ = 0.f;
         }
         if (ui.button(L.tr("pause.restart"), 55, 262, 160, 26)) init(c);
-        if (ui.button(L.tr("pause.quit"), 55, 296, 160, 26)) c.go(SceneId::Extras);
+        if (ui.button(L.tr("pause.quit"), 55, 296, 160, 26)) c.go(SceneId::ModeSelect);
     }
 
     void drawOver(Ctx& c) {
@@ -455,7 +455,7 @@ private:
         if (best_) g.text(L.tr("over.newbest"), 135, 250, 1, t.accent, Align::Center);
         else g.text(L.tr("hud.best") + " " + std::to_string(c.save.tiltBest), 135, 250, 1, t.dim, Align::Center);
         if (ui.button(L.tr("over.restart"), 55, 270, 160, 24, true, true, BtnStyle::Primary)) init(c);
-        if (ui.button(L.tr("common.back"), 55, 298, 160, 22) || c.in.esc) c.go(SceneId::Extras);
+        if (ui.button(L.tr("common.back"), 55, 298, 160, 22) || c.in.esc) c.go(SceneId::ModeSelect);
     }
 };
 
