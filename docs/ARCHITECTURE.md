@@ -103,3 +103,9 @@ Everything is drawn on a fixed 270×480 pixel grid scaled by an integer factor w
 - **Frame rate:** the setting selects VSync, a sleep+spin cap or unlimited (`Save::fpsLimit`); particles are
   interpolated between 60 Hz physics steps.
 - Tunables live in `src/core/Config.hpp` (`cfg::kStiff`, `kViscSigma`, `kCohesion`, ...).
+
+## Layers
+
+Each module may include only the modules listed for it in `tools/check_layers.py`; the script fails when a lower layer reaches up
+(for example `gfx` including `scenes`). Run `python3 tools/check_layers.py` before sending a change. The project story is in
+[`history.md`](../history.md).

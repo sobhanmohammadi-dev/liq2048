@@ -15,7 +15,7 @@ namespace liq {
 std::string Save::path() const { return pathOverride().empty() ? platform::prefPath() + "save.txt" : pathOverride(); }
 
 void Save::load() {
-    auto d = platform::readFile(path());
+    auto d = platform::readFile(path(), size_t(4) << 20);
     std::istringstream in(std::string(d.begin(), d.end()));
     std::string line;
     while (std::getline(in, line)) {
@@ -70,7 +70,7 @@ void Save::load() {
         else if (k == "highContrast") highContrast = iv != 0;
         else if (k == "reduceMotion") reduceMotion = iv != 0;
         else if (k == "leftHand") leftHand = iv != 0;
-        else if (k == "bigTouch") bigTouch = iv != 0;
+        else if (k == "touchPad") bigTouch = iv != 0;
         else if (k == "altLang") altLang = v;
         else if (k == "playerName") { playerName.clear(); for (char ch : v) if ((std::isalnum(static_cast<unsigned char>(ch)) || ch == ' ' || ch == '-' || ch == '_') && playerName.size() < 12) playerName += char(std::toupper(static_cast<unsigned char>(ch))); }
         else if (k == "battleWins") battleWins = iv;
@@ -130,7 +130,7 @@ void Save::store() const {
       << "\ndailyToday=" << dailyToday << "\nfps=" << fpsIdx << "\nshowFps=" << showFps << "\nhaptics=" << haptics
       << "\nguide=" << guide << "\nshake=" << shake << "\nslowmo=" << slowmo << "\ncalm=" << calm << "\nquality=" << quality << "\nliquid=" << liquid << "\ncolorVision=" << colorVision
       << "\nhighContrast=" << highContrast << "\nreduceMotion=" << reduceMotion << "\nleftHand=" << leftHand
-      << "\nbigTouch=" << bigTouch << "\naltLang=" << altLang << "\nplayerName=" << playerName << "\nbattleWins=" << battleWins
+      << "\ntouchPad=" << bigTouch << "\naltLang=" << altLang << "\nplayerName=" << playerName << "\nbattleWins=" << battleWins
       << "\nbattleLosses=" << battleLosses << "\nbattleDraws=" << battleDraws << "\nbattleDuration=" << battleDuration
       << "\nbattleDifficulty=" << battleDifficulty << "\nbattleModifier=" << battleModifier << "\n";
     o << "pot=" << pot  << "\nmodifier=" << modifier << "\nweeklyWeek=" << weeklyWeek << "\nweeklyBest=" << weeklyBest << "\nseenModes=" << seenModes << "\npuzzle=";

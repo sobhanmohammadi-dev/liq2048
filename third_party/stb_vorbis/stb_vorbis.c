@@ -3749,8 +3749,8 @@ static int start_decoder(vorb *f)
          while (current_entry < c->entries) {
             int limit = c->entries - current_entry;
             int n = get_bits(f, ilog(limit));
-            if (current_length >= 32) return error(f, VORBIS_invalid_setup);
-            if (current_entry + n > (int) c->entries) { return error(f, VORBIS_invalid_setup); }
+            if (current_length >= 32) { if (c->sparse) setup_temp_free(f, lengths, c->entries); return error(f, VORBIS_invalid_setup); }
+            if (current_entry + n > (int) c->entries) { { if (c->sparse) setup_temp_free(f, lengths, c->entries); return error(f, VORBIS_invalid_setup); } }
             memset(lengths + current_entry, current_length, n);
             current_entry += n;
             ++current_length;
@@ -3762,7 +3762,7 @@ static int start_decoder(vorb *f)
                lengths[j] = get_bits(f, 5) + 1;
                ++total;
                if (lengths[j] == 32)
-                  return error(f, VORBIS_invalid_setup);
+                  { if (c->sparse) setup_temp_free(f, lengths, c->entries); return error(f, VORBIS_invalid_setup); }
             } else {
                lengths[j] = NO_CODE;
             }
@@ -3775,7 +3775,7 @@ static int start_decoder(vorb *f)
             f->setup_temp_memory_required = c->entries;
 
          c->codeword_lengths = (uint8 *) setup_malloc(f, c->entries);
-         if (c->codeword_lengths == NULL) return error(f, VORBIS_outofmem);
+         if (c->codeword_lengths == NULL) { if (c->sparse) setup_temp_free(f, lengths, c->entries); return error(f, VORBIS_outofmem); }
          memcpy(c->codeword_lengths, lengths, c->entries);
          setup_temp_free(f, lengths, c->entries); // note this is only safe if there have been no intervening temp mallocs!
          lengths = c->codeword_lengths;
@@ -3817,7 +3817,7 @@ static int start_decoder(vorb *f)
       }
 
       if (!compute_codewords(c, lengths, c->entries, values)) {
-         if (c->sparse) setup_temp_free(f, values, 0);
+         if (c->sparse) { setup_temp_free(f, values, 0); setup_temp_free(f, c->codewords, 0); c->codewords = NULL; setup_temp_free(f, lengths, c->entries); }
          return error(f, VORBIS_invalid_setup);
       }
 

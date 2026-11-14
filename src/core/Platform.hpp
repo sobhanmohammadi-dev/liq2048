@@ -1,11 +1,13 @@
 #pragma once
 // Platform abstraction: asset/storage paths, locale, calendar day.
+#include <cstddef>
 #include <string>
 #include <vector>
 
 namespace liq::platform {
 
-std::vector<unsigned char> readFile(const std::string& path);
+// Reads a whole file; empty when missing or larger than maxBytes (default 64 MiB), so a hostile file cannot exhaust memory.
+std::vector<unsigned char> readFile(const std::string& path, size_t maxBytes = size_t(64) << 20);
 // Looks in <exe>/assets/, ./assets/ and the bare path (Android APK assets).
 std::vector<unsigned char> readAsset(const std::string& rel);
 bool writeFile(const std::string& path, const std::string& data);

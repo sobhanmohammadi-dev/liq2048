@@ -66,7 +66,7 @@ public:
     bool highContrast = false;
     bool reduceMotion = false;  // no transitions, particles, shake, slow motion or drifting backdrop
     bool leftHand = false;      // mirrors the in-game HUD
-    bool bigTouch = false;      // larger invisible touch margins around buttons
+    bool bigTouch = true;       // larger invisible touch margins around buttons (on by default since 1.9.12)
     // Battle (v1.7.0)
     std::string playerName;     // shown to the opponent ("" = pick one on first use)
     int battleWins = 0, battleLosses = 0, battleDraws = 0;

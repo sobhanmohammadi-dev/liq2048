@@ -25,12 +25,12 @@
 
 namespace liq::platform {
 
-std::vector<unsigned char> readFile(const std::string& path) {
+std::vector<unsigned char> readFile(const std::string& path, size_t maxBytes) {
     std::vector<unsigned char> out;
     SDL_RWops* f = SDL_RWFromFile(path.c_str(), "rb");
     if (!f) return out;
     Sint64 n = SDL_RWsize(f);
-    if (n > 0) {
+    if (n > 0 && uint64_t(n) <= maxBytes) {  // an oversized (or hostile) file is treated as missing, never allocated
         out.resize(size_t(n));
         size_t got = SDL_RWread(f, out.data(), 1, size_t(n));
         out.resize(got);

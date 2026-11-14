@@ -8,6 +8,16 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.9.12]
+### Added
+- `history.md`: the story of the game (idea, C++17/SDL2 choice, release timeline, lessons, day-by-day diary from the git log).
+- `tools/check_layers.py`: enforces which module may include which (documented in `docs/ARCHITECTURE.md`).
+### Changed
+- Larger touch targets by default on phones (minimum 34 px, 40 px with the option; margin 4/8 px). The setting is stored
+  under a new key (`touchPad`) so existing saves pick up the new default; it can still be turned off.
+### Security
+- `platform::readFile` refuses files above a size limit (64 MiB; the save file 4 MiB) instead of allocating them.
+
 ## [1.9.11]
 ### Added
 - Predetermined drops: random modes now deal droplets from a shuffled bag of six pairs. The sequence is fixed ahead of time, the next three drops are visible (the next one plus two small previews), and undo restores the deal exactly.

@@ -55,8 +55,8 @@ Ui::Hit Ui::hit(float x, float y, float w, float h, bool enabled, bool focusable
     // Invisible touch margin. A phone screen is ~7 cm wide for 270 logical pixels, so a 15 px button is only ~4 mm tall:
     // on phones every button gets a hit area of at least kMinTouch px (about 8 mm) in each direction.
     const bool mob = mobile_;
-    const float m = mob ? (c_->save.bigTouch ? 6.f : 3.f) : (c_->save.bigTouch ? 3.f : 0.f);
-    const float minT = mob ? (c_->save.bigTouch ? 36.f : 30.f) : 0.f;
+    const float m = mob ? (c_->save.bigTouch ? 8.f : 4.f) : 0.f;
+    const float minT = mob ? (c_->save.bigTouch ? 40.f : 34.f) : 0.f;
     const float mxm = std::max(m, (minT - w) * 0.5f), mym = std::max(m, (minT - h) * 0.5f);
     rects_.push_back({x - mxm, y - mym, x + w + mxm, y + h + mym});
     r.hover = enabled && in.mx >= x - mxm && in.mx < x + w + mxm && in.my >= y - mym && in.my < y + h + mym;
