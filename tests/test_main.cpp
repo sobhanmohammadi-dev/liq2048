@@ -21,6 +21,7 @@
 #include "gfx/PixelFont.hpp"
 #include "core/Platform.hpp"
 #include "battle/Protocol.hpp"
+#include "game/Deal.hpp"
 #include "game/Liquid.hpp"
 #include "game/ModeNames.hpp"
 #include "game/Modifier.hpp"
@@ -1131,6 +1132,34 @@ SoakResult soak(int liquid, int pot, int substeps, unsigned seed) {
     return r;
 }
 }  // namespace
+
+TEST(deal_is_deterministic_and_pair_complete) {
+    auto run = [](uint32_t seed) {
+        Rng r;
+        r.seed(seed);
+        Deal d;
+        int n = 0;
+        std::vector<int> out;
+        for (int i = 0; i < 48; ++i) out.push_back(d.take(r, [&] { return (n++ * 7) % 5; }));
+        return out;
+    };
+    CHECK(run(5) == run(5));
+    // Every bag of 12 holds each of its six levels exactly twice.
+    Rng r;
+    r.seed(9);
+    Deal d;
+    int n = 0;
+    std::vector<int> bag;
+    for (int i = 0; i < 12; ++i) bag.push_back(d.take(r, [&] { return n++ % 6; }));
+    int cnt[6] = {};
+    for (int v : bag) ++cnt[v];
+    for (int v = 0; v < 6; ++v) CHECK(cnt[v] == 2);
+    // A copy (undo snapshot) replays the same future.
+    Deal e = d;
+    Rng r2 = r;
+    int n2 = n;
+    CHECK(d.take(r, [&] { return n++ % 6; }) == e.take(r2, [&] { return n2++ % 6; }));
+}
 
 TEST(physics_soak_all_liquids) {
     for (int ty = 0; ty < kLiquidCount; ++ty) {

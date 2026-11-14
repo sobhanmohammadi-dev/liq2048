@@ -8,6 +8,10 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.9.11]
+### Added
+- Predetermined drops: random modes now deal droplets from a shuffled bag of six pairs. The sequence is fixed ahead of time, the next three drops are visible (the next one plus two small previews), and undo restores the deal exactly.
+
 ## [1.9.10] "Obstacles"
 ### Added
 - Obstacle pots: Pegs, Divider, Funnel and Ledges. Pick one under Modifier on the mode page (free modes; Daily, Puzzle,

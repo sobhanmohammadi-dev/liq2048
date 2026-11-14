@@ -270,6 +270,7 @@ void GameScene::start(Ctx& c) {
         world_.events.clear();
         world_.impacts.clear();
     }
+    deal_.clear();
     cur_ = roll();
     next_ = roll();
     combo_ = 0;

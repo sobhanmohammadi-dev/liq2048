@@ -17,6 +17,7 @@
 #include "core/Config.hpp"
 #include "core/Platform.hpp"
 #include "core/Util.hpp"
+#include "game/Deal.hpp"
 #include "game/Liquid.hpp"
 #include "game/Mode.hpp"
 #include "game/Modifier.hpp"
@@ -90,6 +91,7 @@ private:
     struct Snap {
         World world;
         Rng rng;
+        Deal deal;
         int score = 0, drops = 0, cur = 0, next = 0, maxLevel = 0;
         float elapsed = 0, quiet = 0;
         uint32_t simStep = 0;
@@ -99,6 +101,7 @@ private:
     };
     static constexpr size_t kUndoDepth = 6;
     std::vector<Snap> snaps_;
+    Deal deal_;  // upcoming drops (random modes)
     int undos_ = 1;
     // Combo meter (v1.8.4): merges that follow each other within kComboWindow seconds build a score multiplier (x1..x4).
     static constexpr float kComboWindow = 2.6f;
@@ -171,6 +174,7 @@ private:
     std::vector<PopRing> rings_;
 
     int roll();
+    int drawLevel();
     int rampDiv() const { return mid_ == ModeId::Daily || mid_ == ModeId::Weekly ? 9 : 6; }  // v1.9.3: the ramp is steeper
 
     void start(Ctx& c);

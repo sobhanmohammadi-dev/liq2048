@@ -15,6 +15,7 @@ void GameScene::saveSnap() {
     Snap& s = snaps_.back();
     s.world = world_;
     s.rng = rng_;
+    s.deal = deal_;
     s.score = score_;
     s.drops = drops_;
     s.cur = cur_;
@@ -41,6 +42,7 @@ void GameScene::doUndo(Ctx& c) {
     const Snap& snap_ = snaps_[i];
     world_ = snap_.world;
     rng_ = snap_.rng;
+    deal_ = snap_.deal;
     score_ = snap_.score;
     drops_ = snap_.drops;
     cur_ = snap_.cur;
@@ -75,6 +77,11 @@ int GameScene::roll() {
         if (mode_->puzzle()) return 0;  // queue used up
     }
     if (mid_ == ModeId::Battle) return battle::battleLevel(bcfg_.seed, queueIdx_++, mod_);
+    // Random modes: drops come from a shuffled bag of six pairs, so the sequence is fixed ahead of time and can be planned.
+    return deal_.take(rng_, [this] { return drawLevel(); });
+}
+
+int GameScene::drawLevel() {
     const int r = rng_.range(0, 99);
     if (mod_ == kModBonus) return r < 15 ? 1 : r < 45 ? 2 : r < 80 ? 3 : 4;
     if (mid_ == ModeId::Zen) return r < 30 ? 0 : r < 60 ? 1 : r < 85 ? 2 : 3;  // Zen stays relaxed, but not trivial

@@ -169,6 +169,16 @@ void GameScene::drawBlobs(Ctx& c, int sx, int sy) {
         nxt[0].ra = nxt[0].rb = std::min(nxt[0].ra, 13.f);
         c.raster.drawField(nxt, *c.theme);
         if (mid_ != ModeId::Blind) c.raster.drawLabels(nxt, *c.theme);
+        // Two more drops are already decided: show them small behind the next one.
+        if (mid_ != ModeId::Blind && !mode_->puzzle() && mid_ != ModeId::Battle && mode_->queueLevel(0) < 0) {
+            std::vector<BlobSprite> la;
+            for (int k = 0; k < 2; ++k) {
+                BlobSprite b = plainSprite(c.ui.mx(8, 44) + 50.f + float(k) * 20.f, 36.f, deal_.ahead(size_t(k)));
+                b.ra = b.rb = std::min(b.ra, k ? 6.f : 8.f);
+                la.push_back(b);
+            }
+            c.raster.drawField(la, *c.theme);
+        }
     }
     c.gfx.raster(c.raster);
     drawObstacles(c.gfx, *c.theme, W.obstacles, float(sx), float(sy));
