@@ -203,7 +203,7 @@ jobs:
           cp android/app/build/outputs/bundle/release/*.aab \
             "dist/Liq2048-${LIQ_VERSION}-android.aab"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: package-android
           path: dist/*
@@ -305,7 +305,7 @@ jobs:
             "dist/Liq2048-${{ steps.ver.outputs.version }}-ios-unsigned.ipa" \
             Payload
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: package-ios
           path: dist/*
