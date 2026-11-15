@@ -77,11 +77,11 @@ public:
             const int total = cols * rows;
             const int extra = kind == 1 ? total / 4 : kind == 2 ? total * 9 / 10 : total / 8;
             for (int k = 0; k < extra; ++k) {
-                const int cell = rng.range(0, total - 1);
+                const int pick = rng.range(0, total - 1);
                 if (rng.range(0, 1) == 0) {
-                    if (cell % cols + 1 < cols) open_[size_t(cell)] |= 1;
-                } else if (cell / cols + 1 < rows) {
-                    open_[size_t(cell)] |= 2;
+                    if (pick % cols + 1 < cols) open_[size_t(pick)] |= 1;
+                } else if (pick / cols + 1 < rows) {
+                    open_[size_t(pick)] |= 2;
                 }
             }
         }

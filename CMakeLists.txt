@@ -1,11 +1,20 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(Liq2048
-    VERSION 1.9.12
+    VERSION 1.9.13
     LANGUAGES C CXX
     DESCRIPTION "Physics-based blob merging puzzle in C++17 and SDL2"
     HOMEPAGE_URL "https://github.com/sobhanmohammadi-dev/Liq2048"
 )
+
+# Determinism across platforms: never fuse a*b+c into one rounding step. Apple clang and Android/iOS (ARM) fuse by default,
+# x86 builds do not, so the same replay would otherwise drift apart between devices.
+if(MSVC)
+    add_compile_options(/fp:precise)
+else()
+    add_compile_options(-ffp-contract=off)
+endif()
+
 
 # ---------------------------------------------------------------------------
 # C++ configuration

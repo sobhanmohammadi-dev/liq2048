@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "core/Util.hpp"
+
 namespace liq {
 
 namespace {
@@ -17,7 +19,7 @@ float restDensity(float& restNear) {
         for (int b = -4; b <= 4; ++b) {
             if (!a && !b) continue;
             const float x = (float(a) + float(b) * 0.5f) * cfg::kSpacing, y = float(b) * 0.8660254f * cfg::kSpacing;
-            const float q = std::hypot(x, y) / cfg::kInteract;
+            const float q = detLen(x, y) / cfg::kInteract;
             if (q >= 1.f) continue;
             rho += (1.f - q) * (1.f - q);
             rn += (1.f - q) * (1.f - q) * (1.f - q);
@@ -28,7 +30,13 @@ float restDensity(float& restNear) {
 
 }  // namespace
 
-float World::radiusFor(int level) { return cfg::kBaseRadius * std::pow(cfg::kRadiusGrowth, float(level)); }
+// Repeated multiplication instead of std::pow: libm implementations differ in the last bit between platforms, plain IEEE
+// multiplication does not, and the radius feeds the (replay-critical) simulation.
+float World::radiusFor(int level) {
+    float r = cfg::kBaseRadius;
+    for (int i = 0; i < level; ++i) r *= cfg::kRadiusGrowth;
+    return r;
+}
 
 int World::particlesFor(int level) {
     const float r = radiusFor(level);
@@ -56,7 +64,7 @@ void World::spawn(float x, float y, int level, int mat) {
     for (int j = -rows; j <= rows; ++j)
         for (int i = -int(r / dx) - 2; i <= int(r / dx) + 2; ++i) {
             const float px = x + (float(i) + ((j & 1) ? 0.5f : 0.f)) * dx, py = y + float(j) * dy;
-            if (std::hypot(px - x, py - y) > r - 0.5f * cfg::kSpacing * 0.5f) continue;
+            if (detLen(px - x, py - y) > r - 0.5f * cfg::kSpacing * 0.5f) continue;
             Particle p;
             p.x = p.px = p.ox = px;
             p.y = p.py = p.oy = py;
@@ -256,7 +264,7 @@ void World::regeom() {
         if (d < 1e-4f) {  // exactly stacked: separate along a fixed axis
             pr.nx = (c.i + c.j) & 1 ? 1.f : -0.6f;
             pr.ny = (c.i * 7 + c.j) & 1 ? 0.8f : -0.8f;
-            const float l = std::hypot(pr.nx, pr.ny);
+            const float l = detLen(pr.nx, pr.ny);
             pr.nx /= l;
             pr.ny /= l;
             d = 1e-4f;
@@ -507,6 +515,11 @@ void World::substep(float h, float g, bool last) {
         }
         p.vx = (p.x - p.px) / h;
         p.vy = (p.y - p.py) / h;
+        if (const float sp2 = p.vx * p.vx + p.vy * p.vy; sp2 > cfg::kMaxSpeed * cfg::kMaxSpeed) {  // the relaxation may not exceed the speed limit either
+            const float k = cfg::kMaxSpeed / std::sqrt(sp2);
+            p.vx *= k;
+            p.vy *= k;
+        }
         if (onx != 0.f || ony != 0.f) {  // a fast particle dug deep into an obstacle: do not bounce it back out at that speed
             const float vn = p.vx * onx + p.vy * ony;
             if (vn > 200.f) {
@@ -587,7 +600,7 @@ void World::mergeGroups(int a, int b) {
         }
         // Splash: a short outward + upward kick so the new bigger drop surges.
         float ex = p.x - cx, ey = p.y - cy;
-        const float d = std::max(1.f, std::hypot(ex, ey));
+        const float d = std::max(1.f, detLen(ex, ey));
         p.vx += ex / d * 45.f;
         p.vy += ey / d * 45.f - 55.f;
     }
@@ -605,7 +618,7 @@ void World::mergeGroups(int a, int b) {
         const Drop& D = drops[size_t(na)];
         std::vector<std::pair<float, size_t>> order;
         for (size_t k = 0; k < parts.size(); ++k)
-            if (parts[k].g == na) order.push_back({std::hypot(parts[k].x - D.x, parts[k].y - D.y), k});
+            if (parts[k].g == na) order.push_back({detLen(parts[k].x - D.x, parts[k].y - D.y), k});
         std::sort(order.begin(), order.end());
         const float R = radiusFor(level) - 0.5f * cfg::kSpacing;
         for (size_t r = 0; r < order.size(); ++r) {
@@ -662,7 +675,7 @@ void World::updateOverflow(float deadY, float dt) {
     for (const auto& p : parts)
         if (p.y < deadY) ++cnt[size_t(p.g)];
     for (size_t i = 0; i < drops.size(); ++i)
-        if (cnt[i] >= 6 && drops[i].age > 1.2f && std::hypot(drops[i].vx, drops[i].vy) < 45.f) over = true;
+        if (cnt[i] >= 6 && drops[i].age > 1.2f && detLen(drops[i].vx, drops[i].vy) < 45.f) over = true;
     overflow_ = over ? overflow_ + dt : std::max(0.f, overflow_ - dt * 2.f);
 }
 

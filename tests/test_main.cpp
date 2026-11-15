@@ -172,7 +172,8 @@ TEST(liquid_spreads_and_stays_in_bounds) {
     Rng rng;
     rng.seed(42);
     for (int i = 0; i < 14; ++i) {
-        w.spawn(cfg::kFieldL + 40 + float(rng.range(0, 140)), cfg::kSpawnY, rng.range(0, 3));
+        const float sx = cfg::kFieldL + 40 + float(rng.range(0, 140));  // separate statements: argument evaluation order is unspecified
+        w.spawn(sx, cfg::kSpawnY, rng.range(0, 3));
         for (int k = 0; k < 20; ++k) w.step(cfg::kStep, cfg::kGravity);
         w.events.clear();
     }
@@ -1115,7 +1116,10 @@ SoakResult soak(int liquid, int pot, int substeps, unsigned seed) {
     Rng rng;
     rng.seed(seed);
     for (int i = 0; i < 60 * 14; ++i) {
-        if (i % 36 == 0 && i < 60 * 9) w.spawn(rng.uni(40.f, 230.f), cfg::kSpawnY, rng.range(0, 3));
+        if (i % 36 == 0 && i < 60 * 9) {
+            const float sx = rng.uni(40.f, 230.f);  // separate statements: GCC and Clang order call arguments differently
+            w.spawn(sx, cfg::kSpawnY, rng.range(0, 3));
+        }
         w.step(cfg::kStep, cfg::kGravity);
         w.events.clear();
         w.impacts.clear();

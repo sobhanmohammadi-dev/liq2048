@@ -5,6 +5,8 @@
 // rules allow a free choice.
 #include <cmath>
 
+#include "core/Util.hpp"
+
 #include "game/World.hpp"
 
 namespace liq {
@@ -25,7 +27,7 @@ inline void applyPot(World& w, int p) {
     auto at = [&](float u) { return L + W * u; };
     auto up = [&](float v) { return F - v * H; };  // v: 0 = floor .. 1 = a full pot
     auto line = [&](float x0, float y0, float x1, float y1, float r) {  // a chain of overlapping discs
-        const float len = std::hypot(x1 - x0, y1 - y0);
+        const float len = detLen(x1 - x0, y1 - y0);
         const int n = std::max(1, int(len / (r * 0.9f)));
         for (int i = 0; i <= n; ++i) {
             const float u = float(i) / float(n);

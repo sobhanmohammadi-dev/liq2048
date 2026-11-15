@@ -8,6 +8,20 @@ All notable changes are documented here. The format follows
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what is planned next.
 
+## [1.9.13]
+### Fixed
+- Windows (MSVC C4458): a local `cell` in the maze generator hid the class member; renamed.
+- macOS test failures (`liquid_types_v181`, `physics_soak_all_liquids`): reproduced on Linux with fused multiply-add enabled.
+  Apple clang and ARM builds fuse `a*b+c` by default, so the simulation drifted from x86 builds. The build now sets
+  `-ffp-contract=off` (`/fp:precise` on MSVC) for every target.
+- The simulation no longer uses libm `hypot`, `pow` or `sin`, whose last digit differs between platforms; it uses sqrt,
+  repeated multiplication and a fixed sine polynomial (`detLen`, `detSin`, `World::radiusFor`). GCC and Clang, Debug and
+  Release, now produce identical test output.
+- Particle speed is capped after the relaxation step too (it only was before), so no particle can leave the 520 px/s limit.
+- Tests no longer call `rng` twice inside one argument list (GCC and Clang evaluate arguments in opposite order).
+### Changed
+- `kPhysicsVersion` 5: run codes recorded by 1.9.12 or earlier replay with the "older physics" notice.
+
 ## [1.9.12]
 ### Added
 - `history.md`: the story of the game (idea, C++17/SDL2 choice, release timeline, lessons, day-by-day diary from the git log).

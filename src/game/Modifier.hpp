@@ -12,6 +12,7 @@
 #include <cstdint>
 
 #include "core/Config.hpp"
+#include "core/Util.hpp"
 
 namespace liq {
 
@@ -29,11 +30,11 @@ inline float modifierGravity(int m) { return m == kModLowG ? 0.55f : m == kModHe
 // Sideways acceleration (px/s^2) of the wind / earthquake at physics step `step`.
 inline float modifierSideways(int m, uint32_t step) {
     const float t = float(step) * cfg::kStep;
-    if (m == kModWind) return 110.f * std::sin(t * 6.2831853f / 9.f) + 55.f * std::sin(t * 6.2831853f / 3.7f + 1.f);
+    if (m == kModWind) return 110.f * detSin(t * 6.2831853f / 9.f) + 55.f * detSin(t * 6.2831853f / 3.7f + 1.f);
     if (m == kModQuake) {  // a 0.9 s tremor every 8 s, building up and fading out
         const float c = std::fmod(t, 8.f);
         if (c >= 0.9f) return 0.f;
-        return 1500.f * std::sin(c * 3.1415927f / 0.9f) * std::sin(t * 6.2831853f * 13.f);
+        return 1500.f * detSin(c * 3.1415927f / 0.9f) * detSin(t * 6.2831853f * 13.f);
     }
     return 0.f;
 }
@@ -41,7 +42,7 @@ inline float modifierSideways(int m, uint32_t step) {
 inline float quakeAmount(int m, uint32_t step) {
     if (m != kModQuake) return 0.f;
     const float c = std::fmod(float(step) * cfg::kStep, 8.f);
-    return c >= 0.9f ? 0.f : std::sin(c * 3.1415927f / 0.9f);
+    return c >= 0.9f ? 0.f : detSin(c * 3.1415927f / 0.9f);
 }
 
 // Downpour: seconds between automatic drops after `elapsed` seconds.
@@ -53,7 +54,7 @@ inline float tideShift(float elapsed) {
     // [0, kTideMaxShift + kTideSwell].
     const float base = std::min(elapsed * cfg::kTideRate, cfg::kTideMaxShift);
     const float env = std::min(1.f, elapsed / 15.f);
-    const float v = base + cfg::kTideSwell * env * std::sin(elapsed * 6.2831853f / cfg::kTideSwellPeriod);
+    const float v = base + cfg::kTideSwell * env * detSin(elapsed * 6.2831853f / cfg::kTideSwellPeriod);
     return std::max(0.f, std::min(v, cfg::kTideMaxShift + cfg::kTideSwell));
 }
 
